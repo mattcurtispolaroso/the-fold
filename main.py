@@ -14,13 +14,15 @@ EARTH_GRAVITY = 9.8                              # m/s²
 GRAVITY_STRENGTH = EARTH_GRAVITY * PPM / FPS**2  # ~0.136 px/frame²
 TERMINAL_VELOCITY = 53.0 * PPM / FPS             # ~44.2 px/frame (human free-fall ~53 m/s)
 
-JUMP_SPEED = 4.0     # tuned for new gravity — ~0.5s to peak, ~2x player height
+JUMP_SPEED = 8.0     # strong, intentional launch
 MOVE_SPEED = 5
 
 # Movement tuning
-ACCEL = 1.5          # horizontal acceleration per frame
-DECEL = 2.0          # horizontal deceleration per frame (when no input)
-MAX_MOVE_SPEED = 5   # max horizontal speed
+ACCEL = 1.5              # ground horizontal acceleration per frame
+DECEL = 1.0              # ground horizontal deceleration per frame (smoother stops)
+AIR_ACCEL = 0.4          # air horizontal acceleration (limited air control)
+AIR_DECEL = 0.1          # air horizontal deceleration (preserve momentum in air)
+MAX_MOVE_SPEED = 5       # max horizontal speed
 
 # Jump tuning
 COYOTE_TIME = 0.1    # seconds after leaving ground where jump is still allowed
@@ -145,8 +147,10 @@ def main():
                             vx *= JUMP_CUT_MULTIPLIER
                     jumping = False
 
-        # Movement input (always relative to screen axes, perpendicular to gravity)
+        # Movement input (ground vs air accel/decel for momentum feel)
         keys = pygame.key.get_pressed()
+        accel = ACCEL if on_ground else AIR_ACCEL
+        decel = DECEL if on_ground else AIR_DECEL
         if orientation in (0, 2):  # gravity vertical -> move horizontally
             move_input = 0
             if keys[pygame.K_LEFT] or keys[pygame.K_a]:
@@ -157,14 +161,13 @@ def main():
                 facing_right = True
 
             if move_input != 0:
-                vx += move_input * ACCEL
+                vx += move_input * accel
                 vx = max(-MAX_MOVE_SPEED, min(MAX_MOVE_SPEED, vx))
             else:
-                # Decelerate
-                if abs(vx) < DECEL:
+                if abs(vx) < decel:
                     vx = 0
                 else:
-                    vx -= DECEL if vx > 0 else -DECEL
+                    vx -= decel if vx > 0 else -decel
         else:  # gravity horizontal -> move vertically
             move_input = 0
             if keys[pygame.K_UP] or keys[pygame.K_w]:
@@ -173,13 +176,13 @@ def main():
                 move_input = 1
 
             if move_input != 0:
-                vy += move_input * ACCEL
+                vy += move_input * accel
                 vy = max(-MAX_MOVE_SPEED, min(MAX_MOVE_SPEED, vy))
             else:
-                if abs(vy) < DECEL:
+                if abs(vy) < decel:
                     vy = 0
                 else:
-                    vy -= DECEL if vy > 0 else -DECEL
+                    vy -= decel if vy > 0 else -decel
 
         # Apply gravity (with peak gravity multiplier for weighty feel)
         gx, gy = GRAVITY_VECTORS[orientation]
@@ -208,6 +211,7 @@ def main():
         if player_rect.colliderect(floor_rect):
             on_ground = True
             jumping = False
+            # Only zero the gravity-axis velocity; lateral momentum is preserved
             if orientation == 0:  # floor at bottom
                 py = floor_rect.top - player_h / 2
                 vy = 0

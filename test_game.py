@@ -287,6 +287,28 @@ class TestMovementAcceleration(unittest.TestCase):
         self.assertEqual(vx, main.MAX_MOVE_SPEED)
 
 
+class TestAirControl(unittest.TestCase):
+    """Air accel/decel should be lower than ground values."""
+
+    def test_air_accel_less_than_ground(self):
+        self.assertLess(main.AIR_ACCEL, main.ACCEL)
+
+    def test_air_decel_less_than_ground(self):
+        self.assertLess(main.AIR_DECEL, main.DECEL)
+
+    def test_air_accel_still_positive(self):
+        self.assertGreater(main.AIR_ACCEL, 0)
+
+    def test_momentum_preserved_in_air(self):
+        """With no input in air, speed barely decreases per frame."""
+        vx = main.MAX_MOVE_SPEED
+        if abs(vx) < main.AIR_DECEL:
+            vx = 0
+        else:
+            vx -= main.AIR_DECEL if vx > 0 else -main.AIR_DECEL
+        self.assertGreater(vx, main.MAX_MOVE_SPEED * 0.9)
+
+
 class TestFloorPositions(unittest.TestCase):
     """Each floor should be at the correct edge of the screen."""
 
