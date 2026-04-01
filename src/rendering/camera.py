@@ -9,6 +9,7 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass, field
 
+import constants
 from constants import (
     CAMERA_DEAD_ZONE_X,
     CAMERA_DEAD_ZONE_Y,
@@ -17,7 +18,6 @@ from constants import (
     CAMERA_RECENTRE_SPEED,
     CAMERA_ZOOM_SPEED,
     SCREEN_HEIGHT,
-    SCREEN_SHAKE_ENABLED,
     SCREEN_WIDTH,
 )
 
@@ -125,7 +125,7 @@ class Camera:
 
     def shake(self, intensity: float, duration: float) -> None:
         """Add a screen shake that decays over duration. Stacks additively."""
-        if not SCREEN_SHAKE_ENABLED:
+        if not constants.SCREEN_SHAKE_ENABLED:
             return
         self._shakes.append(_ShakeInstance(
             intensity=intensity,
