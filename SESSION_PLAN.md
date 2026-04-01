@@ -1,71 +1,79 @@
-# Session Plan — Module 2: Level Architecture
+# Session Plan — Module 3: Camera System
 
 ## Goal
-Refactor the hardcoded level in main.py into a proper tile-based level system with JSON format, a renderer class, an ASCII-to-JSON helper tool, and full backwards compatibility.
+Build a complete camera system in `src/rendering/camera.py` with smooth follow, bounds clamping, gravity rotation handling, screen shake, and zoom foundation. Integrate into main.py.
 
 ---
 
-## Task 1: Create Directory Structure
-- Create `src/levels/`, `levels/`, `tools/`, `tests/`
-- Add `__init__.py` files where needed
-- **Acceptance:** Directories exist, Python can import from `src.levels`
+## Task 1: Constants and Level Bounds Setup
+- Create `constants.py` with camera constants: CAMERA_FOLLOW_SPEED, CAMERA_DEAD_ZONE_X, CAMERA_DEAD_ZONE_Y, CAMERA_RECENTRE_DURATION, SCREEN_SHAKE_ENABLED, CAMERA_ZOOM_SPEED, LAND_SHAKE_INTENSITY, LAND_SHAKE_DURATION, ROTATE_SHAKE_INTENSITY, ROTATE_SHAKE_DURATION
+- Add `level_width` and `level_height` fields to `LevelData` in level_data.py
+- Update `level_01.json` with level bounds (1200x900 — larger than 800x600 screen)
+- Run tests, fix any failures from the new fields
+- **Acceptance:** constants.py importable, LevelData has bounds, level_01.json loads with bounds, all tests pass
 
-## Task 2: Define Level Data Format
-- Design JSON schema for level files
-- Support: static platforms, moving platforms, spawn point, goal rect, level metadata (name, gravity start direction), tile size
-- Write `src/levels/level_data.py` with dataclasses: `LevelData`, `PlatformDef`, `MovingPlatformDef`
-- **Acceptance:** Dataclasses can be instantiated and serialised to/from JSON
+## Task 2: Basic Smooth Follow Camera
+- Create `src/rendering/camera.py` with `Camera` class
+- Properties: `x`, `y` (world position of camera centre), `offset` (returns screen offset tuple for rendering)
+- `update(target_x, target_y, dt)` — lerp toward target with dead zone
+- `world_to_screen(wx, wy)` — convert world coordinates to screen coordinates
+- **Acceptance:** Camera follows a moving target, dead zone suppresses small movements, unit tests pass
 
-## Task 3: Create Level Renderer
-- Write `src/levels/level_renderer.py` with `LevelRenderer` class
-- `load(path) -> LevelData` — reads JSON, returns populated LevelData
-- `build_platforms(level_data) -> (list[Rect], list[MovingPlatform])` — creates Pygame objects
-- `draw(surface, static_platforms, moving_platforms, goal_rect)` — renders level geometry
-- Completely separated from main.py logic
-- **Acceptance:** LevelRenderer can load a JSON file and produce the same platform list as the current hardcoded level
+## Task 3: Camera Bounds
+- Add `set_bounds(level_width, level_height, screen_width, screen_height)` to Camera
+- Camera never shows beyond level edges — clamps position so viewport stays inside level bounds
+- Wire into LevelRenderer so bounds are set on load
+- **Acceptance:** Camera at level edge locks rather than following player beyond, tests pass
 
-## Task 4: Create ASCII Level Editor Helper
-- Write `tools/level_helper.py`
-- Character map: `#` = solid, `M` = moving platform, `S` = spawn, `X` = goal, `.` = empty
-- Moving platform properties specified in a separate dict keyed by grid position
-- Outputs valid level JSON to stdout or file
-- **Acceptance:** Running the helper with the test level ASCII produces a valid JSON file
+## Task 4: Gravity Rotation Camera Handling
+- Add `on_gravity_rotate()` to Camera that triggers a smooth re-centre
+- Internal state: `_recentre_timer` that counts down over CAMERA_RECENTRE_DURATION
+- During re-centre, follow speed is boosted so camera reaches correct position smoothly
+- No snap, no jump — smooth interpolation
+- **Acceptance:** After rotation, camera smoothly re-centres within 0.3s, tests pass
 
-## Task 5: Convert Existing Level to JSON
-- Recreate the current hardcoded level as `levels/level_01.json`
-- Include all 7 static platforms, 2 moving platforms, spawn point, goal rect
-- Verify the JSON matches the current hardcoded geometry exactly
-- **Acceptance:** JSON file exists and contains all current level geometry
+## Task 5: Screen Shake
+- Add `shake(intensity, duration)` method to Camera
+- Internal shake state: list of active shakes, each with remaining time and intensity
+- `_apply_shake()` called during update — adds random offset, decays over time
+- Shakes stack additively
+- Controlled by SCREEN_SHAKE_ENABLED constant
+- **Acceptance:** shake decays to zero, multiple shakes stack, disabled when constant is False, tests pass
 
-## Task 6: Integrate with main.py
-- main.py imports LevelRenderer, loads `levels/level_01.json`
-- Remove hardcoded STATIC_PLATFORMS, GOAL_RECT, create_moving_platforms()
-- MovingPlatform class stays in main.py for now (it's physics, not level data)
-- All gameplay identical to current version
-- **Acceptance:** Game runs, looks identical, all existing tests pass
+## Task 6: Zoom Foundation
+- Add `zoom` property and `target_zoom` setter with lerp interpolation
+- `world_to_screen(wx, wy)` accounts for zoom
+- Zoom is rendering-only — no physics changes
+- **Acceptance:** zoom=2.0 doubles apparent size, zoom=0.5 halves it, world_to_screen correct at all zoom levels, tests pass
 
-## Task 7: Add Tests for Level System
-- Test JSON loading/parsing
-- Test platform generation from level data
-- Test level validation (missing fields, bad data)
-- Test ASCII helper conversion
-- Test that level_01.json produces same geometry as old hardcoded level
-- Gravity rotation stress test with loaded level
+## Task 7: Integration with main.py
+- Import Camera, create instance in main()
+- Set bounds from level data
+- All rendering offset by camera (level.draw, player draw, goal)
+- HUD stays in screen space (not offset)
+- Trigger shake on landing and gravity rotation
+- Remove player-on-screen clamping (camera handles framing now)
+- Run all tests
+- **Acceptance:** Game runs identically but with smooth camera, all 80+ tests pass
+
+## Task 8: Camera Tests
+- Create `tests/test_camera.py` with comprehensive tests
+- Test classes: smooth follow lerp, dead zone, bounds clamping, screen shake, zoom transform, gravity rotation re-centre
 - **Acceptance:** All new + existing tests pass
 
-## Task 8: Final Cleanup and Session Close
-- Run full test suite one final time
-- Update `qa_checklist.md` with level-related items
+## Task 9: Session Close
+- Run full test suite
+- Update qa_checklist.md
 - Git commit
-- Write `SUMMARY.md`
+- Write SUMMARY.md
 
 ---
 
 ## Constraints
 - No functions longer than 40 lines
 - Type hints on all function signatures
-- Dataclasses for all data structures
 - No file longer than 300 lines
 - Tests after every code change
 - Log every step to SESSION_LOG.md
 - Decisions to DECISIONS_NEEDED.md
+- Git commit after each major task

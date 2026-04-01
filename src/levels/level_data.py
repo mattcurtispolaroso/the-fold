@@ -91,6 +91,8 @@ class LevelData:
     static_platforms: list[PlatformDef] = field(default_factory=list)
     moving_platforms: list[MovingPlatformDef] = field(default_factory=list)
     tile_size: int = 40
+    level_width: int = 800
+    level_height: int = 600
 
     def to_dict(self) -> dict[str, Any]:
         """Serialise to JSON-compatible dict."""
@@ -100,6 +102,8 @@ class LevelData:
             "spawn": list(self.spawn),
             "tile_size": self.tile_size,
             "goal": self.goal.to_dict(),
+            "level_width": self.level_width,
+            "level_height": self.level_height,
             "static_platforms": [p.to_dict() for p in self.static_platforms],
             "moving_platforms": [p.to_dict() for p in self.moving_platforms],
         }
@@ -112,6 +116,8 @@ class LevelData:
             gravity_start=tuple(d["gravity_start"]),
             spawn=tuple(d["spawn"]),
             tile_size=int(d.get("tile_size", 40)),
+            level_width=int(d.get("level_width", 800)),
+            level_height=int(d.get("level_height", 600)),
             goal=GoalDef.from_dict(d["goal"]),
             static_platforms=[
                 PlatformDef.from_dict(p) for p in d.get("static_platforms", [])

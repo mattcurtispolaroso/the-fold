@@ -68,6 +68,8 @@ class LevelRenderer:
         self.goal_rect: pygame.Rect = pygame.Rect(0, 0, 0, 0)
         self.spawn: tuple[float, float] = (0.0, 0.0)
         self.gravity_start: tuple[int, int] = (0, 1)
+        self.level_width: int = 800
+        self.level_height: int = 600
 
     def load(self, path: str | Path) -> LevelData:
         """Load a level JSON file and build all geometry."""
@@ -94,6 +96,8 @@ class LevelRenderer:
         )
         self.spawn = data.spawn
         self.gravity_start = data.gravity_start
+        self.level_width = data.level_width
+        self.level_height = data.level_height
 
     def update(self) -> None:
         """Update all dynamic level elements."""

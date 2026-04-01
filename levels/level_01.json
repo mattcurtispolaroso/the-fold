@@ -3,6 +3,8 @@
   "gravity_start": [0, 1],
   "spawn": [110.0, 300.0],
   "tile_size": 40,
+  "level_width": 1200,
+  "level_height": 900,
   "goal": {
     "x": 15,
     "y": 100,
