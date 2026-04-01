@@ -2,33 +2,42 @@ import os
 import pygame
 import sys
 
+from constants import (
+    FPS,
+    LAND_SHAKE_DURATION,
+    LAND_SHAKE_INTENSITY,
+    ROTATE_SHAKE_DURATION,
+    ROTATE_SHAKE_INTENSITY,
+    SCREEN_HEIGHT,
+    SCREEN_WIDTH,
+)
 from src.levels.level_renderer import LevelRenderer
+from src.rendering.camera import Camera
 
 # Constants
-WIDTH, HEIGHT = 800, 600
-FPS = 60
+WIDTH, HEIGHT = SCREEN_WIDTH, SCREEN_HEIGHT
 PLAYER_SIZE = 90
 
 # Physics scale: 50 pixels = 1 meter
 PPM = 50
 EARTH_GRAVITY = 9.8                              # m/s²
 GRAVITY_STRENGTH = EARTH_GRAVITY * PPM / FPS**2  # ~0.136 px/frame²
-TERMINAL_VELOCITY = 53.0 * PPM / FPS             # ~44.2 px/frame (human free-fall ~53 m/s)
+TERMINAL_VELOCITY = 53.0 * PPM / FPS             # ~44.2 px/frame
 
-JUMP_SPEED = 8.0     # strong, intentional launch
+JUMP_SPEED = 8.0
 MOVE_SPEED = 5
 
 # Movement tuning
-ACCEL = 1.5              # ground horizontal acceleration per frame
-DECEL = 1.0              # ground horizontal deceleration per frame (smoother stops)
-AIR_ACCEL = 0.4          # air horizontal acceleration (limited air control)
-AIR_DECEL = 0.1          # air horizontal deceleration (preserve momentum in air)
-MAX_MOVE_SPEED = 5       # max horizontal speed
+ACCEL = 1.5
+DECEL = 1.0
+AIR_ACCEL = 0.4
+AIR_DECEL = 0.1
+MAX_MOVE_SPEED = 5
 
 # Jump tuning
-COYOTE_TIME = 0.1    # seconds after leaving ground where jump is still allowed
-JUMP_CUT_MULTIPLIER = 0.4  # multiply velocity by this when jump key released early
-PEAK_GRAVITY_MULT = 2.5    # extra gravity when near the peak of a jump
+COYOTE_TIME = 0.1
+JUMP_CUT_MULTIPLIER = 0.4
+PEAK_GRAVITY_MULT = 2.5
 
 # Colors
 BLACK = (0, 0, 0)
@@ -67,7 +76,7 @@ def gravity_is_vertical(gravity_dir):
 
 
 def gravity_speed(vx, vy, gravity_dir):
-    """Return velocity component along the gravity axis (dot product with gravity_dir)."""
+    """Return velocity component along the gravity axis (dot product)."""
     return vx * gravity_dir[0] + vy * gravity_dir[1]
 
 
@@ -164,10 +173,15 @@ def main():
     level = LevelRenderer()
     level.load(DEFAULT_LEVEL)
 
-    # Load background (falls back to solid black if missing)
+    # Camera
+    camera = Camera(WIDTH, HEIGHT)
+    camera.set_bounds(level.level_width, level.level_height)
+    camera.x, camera.y = level.spawn  # start on player
+
+    # Load background
     background = load_background()
 
-    # Load sprite (falls back to rectangle if missing)
+    # Load sprite
     sprite_right = load_player_sprite()
     sprite_left = pygame.transform.flip(sprite_right, True, False) if sprite_right else None
     if sprite_right:
@@ -176,11 +190,12 @@ def main():
         player_w, player_h = PLAYER_SIZE, PLAYER_SIZE
     facing_right = True
 
-    # Player state — spawn from level data
+    # Player state
     px, py = level.spawn
     vx, vy = 0.0, 0.0
     gravity_dir = tuple(level.gravity_start)
     on_ground = False
+    was_on_ground = False
     coyote_timer = 0.0
     jumping = False
     goal_reached = False
@@ -188,7 +203,9 @@ def main():
     running = True
     while running:
         dt = clock.tick(FPS) / 1000.0
+        dt = min(dt, 0.05)  # delta time cap per stability rules
         grav_vert = gravity_is_vertical(gravity_dir)
+        was_on_ground = on_ground
 
         # Events
         for event in pygame.event.get():
@@ -199,6 +216,8 @@ def main():
                     running = False
                 if event.key == pygame.K_r:
                     gravity_dir = rotate_gravity_ccw(gravity_dir)
+                    camera.on_gravity_rotate()
+                    camera.shake(ROTATE_SHAKE_INTENSITY, ROTATE_SHAKE_DURATION)
                 if event.key in (pygame.K_SPACE, pygame.K_UP, pygame.K_w) and coyote_timer > 0:
                     vx -= gravity_dir[0] * JUMP_SPEED
                     vy -= gravity_dir[1] * JUMP_SPEED
@@ -276,40 +295,52 @@ def main():
         if on_ground:
             jumping = False
             coyote_timer = COYOTE_TIME
+            # Landing shake
+            if not was_on_ground:
+                camera.shake(LAND_SHAKE_INTENSITY, LAND_SHAKE_DURATION)
         else:
             coyote_timer = max(0.0, coyote_timer - dt)
 
-        # Keep player on screen
-        px = max(player_w / 2, min(WIDTH - player_w / 2, px))
-        py = max(player_h / 2, min(HEIGHT - player_h / 2, py))
+        # Clamp player to level bounds
+        px = max(player_w / 2, min(level.level_width - player_w / 2, px))
+        py = max(player_h / 2, min(level.level_height - player_h / 2, py))
+
+        # Update camera
+        camera.update(px, py, dt)
 
         # Goal check
         player_rect = pygame.Rect(px - player_w / 2, py - player_h / 2, player_w, player_h)
         if player_rect.colliderect(level.goal_rect):
             goal_reached = True
 
-        # Draw
+        # --- Draw (all world objects offset by camera) ---
         if background:
             screen.blit(background, (0, 0))
         else:
             screen.fill(BLACK)
 
-        level.draw(screen)
+        cam_offset = camera.offset
+        level.draw(screen, cam_offset)
 
         # Draw player
-        player_rect = pygame.Rect(px - player_w / 2, py - player_h / 2, player_w, player_h)
+        ox, oy = cam_offset
+        pr_screen = pygame.Rect(
+            px - player_w / 2 + ox,
+            py - player_h / 2 + oy,
+            player_w, player_h,
+        )
         if sprite_right:
             sprite = sprite_right if facing_right else sprite_left
-            screen.blit(sprite, player_rect.topleft)
+            screen.blit(sprite, pr_screen.topleft)
         else:
-            pygame.draw.rect(screen, RED, player_rect)
-            cx, cy = player_rect.center
+            pygame.draw.rect(screen, RED, pr_screen)
+            cx, cy = pr_screen.center
             pygame.draw.circle(screen, WHITE, (
                 int(cx - gravity_dir[0] * 12),
                 int(cy - gravity_dir[1] * 12),
             ), 4)
 
-        # HUD
+        # HUD (screen space — no camera offset)
         label = font.render(
             f"Gravity: {GRAVITY_LABELS[gravity_dir]}  |  R to rotate  |  Arrow keys + Space",
             True, BLUE

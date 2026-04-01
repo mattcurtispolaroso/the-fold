@@ -110,10 +110,11 @@ class LevelRenderer:
             mp.rect for mp in self.moving_platforms
         ]
 
-    def draw(self, surface: pygame.Surface) -> None:
-        """Draw all level geometry to the surface."""
+    def draw(self, surface: pygame.Surface, offset: tuple[float, float] = (0.0, 0.0)) -> None:
+        """Draw all level geometry to the surface, offset by camera."""
+        ox, oy = offset
         for plat in self.static_platforms:
-            pygame.draw.rect(surface, PLATFORM_COLOR, plat)
+            pygame.draw.rect(surface, PLATFORM_COLOR, plat.move(ox, oy))
         for mp in self.moving_platforms:
-            pygame.draw.rect(surface, MOVING_PLATFORM_COLOR, mp.rect)
-        pygame.draw.rect(surface, GOAL_COLOR, self.goal_rect)
+            pygame.draw.rect(surface, MOVING_PLATFORM_COLOR, mp.rect.move(ox, oy))
+        pygame.draw.rect(surface, GOAL_COLOR, self.goal_rect.move(ox, oy))
