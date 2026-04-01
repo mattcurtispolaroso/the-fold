@@ -74,3 +74,23 @@ Run through this after each coding session. Launch the game with `python main.py
 - [ ] Gravity rotation works correctly with multi-platform level (not just single floor)
 - [ ] Player doesn't clip through thin platforms (ceiling platforms are 20px)
 - [ ] Moving platform at ceiling gap is reachable with gravity=up
+
+## Camera System
+
+- [ ] Camera smoothly follows the player — no snapping or jitter
+- [ ] Camera dead zone — small player movements near centre don't move camera
+- [ ] Camera stops at level edges — never shows beyond level bounds
+- [ ] Gravity rotation triggers smooth camera re-centre (no jump/snap)
+- [ ] Landing from a jump produces a subtle screen shake
+- [ ] Gravity rotation produces a noticeable screen shake
+- [ ] Screen shake decays smoothly — no lingering vibration
+- [ ] HUD text stays fixed on screen — does not move with camera
+- [ ] "GOAL REACHED!" text stays centred on screen, not in world space
+- [ ] Level is larger than screen (1200x900) — camera reveals area as player moves
+
+## Camera Edge Cases
+
+- [ ] Rapid gravity rotation (mash R) — camera handles multiple re-centres without glitching
+- [ ] Player at corner of level — camera clamps to both edges simultaneously
+- [ ] Landing immediately after rotation — both shakes should stack visually
+- [ ] Background image stays full-screen (not offset by camera) — intentional parallax-free for now

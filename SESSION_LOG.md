@@ -5,3 +5,4 @@
 - [T7] Starting Task 7 — integrating Camera into main.py. Modifying: main.py (add camera, offset all rendering), level_renderer.py (draw accepts camera offset). Reason: all rendering needs camera transform, HUD stays screen-space.
 - [T7] Task 7 complete — Camera integrated. All rendering offset by camera. HUD in screen space. Landing shake and rotation shake triggered. Delta time capped at 0.05s. Player clamped to level bounds instead of screen. 80/80 tests pass.
 - [T8] Task 8 complete — tests/test_camera.py with 32 tests across 8 classes: init, smooth follow, dead zone, bounds, shake, zoom, gravity rotation re-centre, offset. Fixed shake disable to read constant at call time. 112/112 total tests pass.
+- [T9] Task 9 complete — qa_checklist.md updated with camera system and edge case sections. SUMMARY.md written. Session complete.
