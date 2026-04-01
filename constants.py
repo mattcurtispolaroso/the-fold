@@ -18,7 +18,27 @@ CAMERA_ZOOM_SPEED: float = 3.0        # zoom lerp speed
 
 # --- Screen Shake ---
 SCREEN_SHAKE_ENABLED: bool = True
-LAND_SHAKE_INTENSITY: float = 3.0      # pixels
-LAND_SHAKE_DURATION: float = 0.15      # seconds
-ROTATE_SHAKE_INTENSITY: float = 6.0    # pixels
-ROTATE_SHAKE_DURATION: float = 0.25    # seconds
+ROTATE_SHAKE_INTENSITY: float = 15.0   # pixels — dramatic world-shifting event
+ROTATE_SHAKE_DURATION: float = 0.4     # seconds
+
+# --- Physics Scale ---
+PPM: int = 50                                             # pixels per meter
+EARTH_GRAVITY: float = 9.8                                # m/s²
+GRAVITY_STRENGTH: float = EARTH_GRAVITY * PPM / FPS**2    # ~0.136 px/frame²
+TERMINAL_VELOCITY: float = 53.0 * PPM / FPS               # ~44.2 px/frame
+
+# --- Player Movement ---
+PLAYER_SIZE: int = 90
+JUMP_SPEED: float = 8.0
+MOVE_SPEED: float = 5.0
+ACCEL: float = 1.5           # ground lateral acceleration per frame
+DECEL: float = 1.0           # ground lateral deceleration per frame
+AIR_ACCEL: float = 0.4       # air lateral acceleration
+AIR_DECEL: float = 0.1       # air lateral deceleration
+MAX_MOVE_SPEED: float = 5.0  # max lateral speed
+
+# --- Jump Tuning ---
+COYOTE_TIME: float = 0.1             # seconds grace period after leaving ground
+JUMP_CUT_MULTIPLIER: float = 0.4     # velocity multiplier on early jump release
+PEAK_GRAVITY_MULT: float = 2.5       # gravity multiplier near jump peak
+PEAK_SPEED_THRESHOLD: float = 2.0    # speed below which peak gravity kicks in

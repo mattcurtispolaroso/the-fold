@@ -1,8 +1,10 @@
-# Session Log — Module 3: Camera System
+# Session Log — Module 1: Physics Extraction
 
-- [T1] Task 1 complete — constants.py created with camera/shake/zoom constants. LevelData gains level_width/level_height fields (default 800x600). level_01.json set to 1200x900. LevelRenderer exposes bounds. 80/80 tests pass.
-- [T2-6] Tasks 2-6 complete — Camera class built in src/rendering/camera.py with: smooth lerp follow, dead zone, bounds clamping, gravity rotation re-centre (0.3s boosted speed), additive screen shake with decay, zoom with lerp. All existing 80 tests pass.
-- [T7] Starting Task 7 — integrating Camera into main.py. Modifying: main.py (add camera, offset all rendering), level_renderer.py (draw accepts camera offset). Reason: all rendering needs camera transform, HUD stays screen-space.
-- [T7] Task 7 complete — Camera integrated. All rendering offset by camera. HUD in screen space. Landing shake and rotation shake triggered. Delta time capped at 0.05s. Player clamped to level bounds instead of screen. 80/80 tests pass.
-- [T8] Task 8 complete — tests/test_camera.py with 32 tests across 8 classes: init, smooth follow, dead zone, bounds, shake, zoom, gravity rotation re-centre, offset. Fixed shake disable to read constant at call time. 112/112 total tests pass.
-- [T9] Task 9 complete — qa_checklist.md updated with camera system and edge case sections. SUMMARY.md written. Session complete.
+- [T1] Audit complete — main.py inventoried, every function categorised in SESSION_PLAN.md.
+- [T2] Physics constants moved to constants.py (PPM, EARTH_GRAVITY, GRAVITY_STRENGTH, TERMINAL_VELOCITY, JUMP_SPEED, ACCEL, DECEL, etc).
+- [T3] src/physics/gravity.py built — gravity directions, rotate_gravity_ccw, gravity_is_vertical, gravity_speed, apply_gravity, clamp_terminal_velocity.
+- [T4] src/physics/collision.py built — resolve_collisions decomposed into _resolve_axis_x/y and _resolve_gravity_x/y helpers.
+- [T5] src/physics/movement.py built — apply_lateral_movement, apply_jump_impulse, apply_jump_cut.
+- [T6] src/physics/__init__.py built — clean public API exporting all physics functions.
+- [T7] main.py cleaned — now 190 lines, imports all physics from src.physics, no physics calculations inline.
+- [T8] test_core.py updated — all imports changed from main.* to src.physics.* and constants.*. 118/118 tests pass.

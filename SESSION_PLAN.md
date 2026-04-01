@@ -1,79 +1,81 @@
-# Session Plan — Module 3: Camera System
+# Session Plan — Module 1: Physics Extraction
 
 ## Goal
-Build a complete camera system in `src/rendering/camera.py` with smooth follow, bounds clamping, gravity rotation handling, screen shake, and zoom foundation. Integrate into main.py.
+Extract all physics code from main.py into src/physics/. Pure refactor — identical behaviour.
 
 ---
 
-## Task 1: Constants and Level Bounds Setup
-- Create `constants.py` with camera constants: CAMERA_FOLLOW_SPEED, CAMERA_DEAD_ZONE_X, CAMERA_DEAD_ZONE_Y, CAMERA_RECENTRE_DURATION, SCREEN_SHAKE_ENABLED, CAMERA_ZOOM_SPEED, LAND_SHAKE_INTENSITY, LAND_SHAKE_DURATION, ROTATE_SHAKE_INTENSITY, ROTATE_SHAKE_DURATION
-- Add `level_width` and `level_height` fields to `LevelData` in level_data.py
-- Update `level_01.json` with level bounds (1200x900 — larger than 800x600 screen)
-- Run tests, fix any failures from the new fields
-- **Acceptance:** constants.py importable, LevelData has bounds, level_01.json loads with bounds, all tests pass
+## Task 1: Audit main.py
 
-## Task 2: Basic Smooth Follow Camera
-- Create `src/rendering/camera.py` with `Camera` class
-- Properties: `x`, `y` (world position of camera centre), `offset` (returns screen offset tuple for rendering)
-- `update(target_x, target_y, dt)` — lerp toward target with dead zone
-- `world_to_screen(wx, wy)` — convert world coordinates to screen coordinates
-- **Acceptance:** Camera follows a moving target, dead zone suppresses small movements, unit tests pass
+### Inventory of main.py (357 lines)
 
-## Task 3: Camera Bounds
-- Add `set_bounds(level_width, level_height, screen_width, screen_height)` to Camera
-- Camera never shows beyond level edges — clamps position so viewport stays inside level bounds
-- Wire into LevelRenderer so bounds are set on load
-- **Acceptance:** Camera at level edge locks rather than following player beyond, tests pass
+**Physics constants (lines 19-38) → constants.py**
+- PPM, EARTH_GRAVITY, GRAVITY_STRENGTH, TERMINAL_VELOCITY
+- JUMP_SPEED, MOVE_SPEED, ACCEL, DECEL, AIR_ACCEL, AIR_DECEL, MAX_MOVE_SPEED
+- COYOTE_TIME, JUMP_CUT_MULTIPLIER, PEAK_GRAVITY_MULT
 
-## Task 4: Gravity Rotation Camera Handling
-- Add `on_gravity_rotate()` to Camera that triggers a smooth re-centre
-- Internal state: `_recentre_timer` that counts down over CAMERA_RECENTRE_DURATION
-- During re-centre, follow speed is boosted so camera reaches correct position smoothly
-- No snap, no jump — smooth interpolation
-- **Acceptance:** After rotation, camera smoothly re-centres within 0.3s, tests pass
+**Gravity direction constants (lines 47-58) → src/physics/gravity.py**
+- GRAVITY_DOWN, GRAVITY_LEFT, GRAVITY_UP, GRAVITY_RIGHT, GRAVITY_LABELS
 
-## Task 5: Screen Shake
-- Add `shake(intensity, duration)` method to Camera
-- Internal shake state: list of active shakes, each with remaining time and intensity
-- `_apply_shake()` called during update — adds random offset, decays over time
-- Shakes stack additively
-- Controlled by SCREEN_SHAKE_ENABLED constant
-- **Acceptance:** shake decays to zero, multiple shakes stack, disabled when constant is False, tests pass
+**Physics functions (lines 65-141) → src/physics/**
+- `rotate_gravity_ccw()` → src/physics/gravity.py
+- `gravity_is_vertical()` → src/physics/gravity.py
+- `gravity_speed()` → src/physics/gravity.py
+- `resolve_collisions()` → src/physics/collision.py
 
-## Task 6: Zoom Foundation
-- Add `zoom` property and `target_zoom` setter with lerp interpolation
-- `world_to_screen(wx, wy)` accounts for zoom
-- Zoom is rendering-only — no physics changes
-- **Acceptance:** zoom=2.0 doubles apparent size, zoom=0.5 halves it, world_to_screen correct at all zoom levels, tests pass
+**Rendering functions (lines 143-160) → stay (asset loading)**
+- `load_player_sprite()` — rendering logic, stays in main.py for now
+- `load_background()` — rendering logic, stays in main.py for now
 
-## Task 7: Integration with main.py
-- Import Camera, create instance in main()
-- Set bounds from level data
-- All rendering offset by camera (level.draw, player draw, goal)
-- HUD stays in screen space (not offset)
-- Trigger shake on landing and gravity rotation
-- Remove player-on-screen clamping (camera handles framing now)
-- Run all tests
-- **Acceptance:** Game runs identically but with smooth camera, all 80+ tests pass
+**Inline physics in main loop (lines 234-297) → src/physics/movement.py**
+- Movement accel/decel (lines 234-267)
+- Gravity application + peak mult (lines 269-274)
+- Terminal velocity clamping (lines 276-282)
+- Jump impulse (lines 216-220) — orchestration, stays
+- Jump cut (lines 222-229) — uses physics helpers, stays as orchestration
+- Coyote timer (lines 293-297) — stays as orchestration
 
-## Task 8: Camera Tests
-- Create `tests/test_camera.py` with comprehensive tests
-- Test classes: smooth follow lerp, dead zone, bounds clamping, screen shake, zoom transform, gravity rotation re-centre
-- **Acceptance:** All new + existing tests pass
+**Orchestration (stays in main.py)**
+- pygame init, display setup, asset loading
+- Main game loop, event handling, draw calls
+- Camera integration, level loading
 
-## Task 9: Session Close
-- Run full test suite
-- Update qa_checklist.md
-- Git commit
-- Write SUMMARY.md
+## Task 2: constants.py — move physics constants
+- **Acceptance:** All physics constants in constants.py. main.py imports from there. 118 tests pass.
 
----
+## Task 3: src/physics/gravity.py
+- Gravity direction constants + GRAVITY_LABELS
+- `rotate_gravity_ccw()`, `gravity_is_vertical()`, `gravity_speed()`
+- `apply_gravity()` — gravity + peak multiplier
+- `clamp_terminal_velocity()` — vector clamping
+- **Acceptance:** All gravity functions importable, type hints, docstrings, 118 tests pass.
 
-## Constraints
-- No functions longer than 40 lines
-- Type hints on all function signatures
-- No file longer than 300 lines
-- Tests after every code change
-- Log every step to SESSION_LOG.md
-- Decisions to DECISIONS_NEEDED.md
-- Git commit after each major task
+## Task 4: src/physics/collision.py
+- `resolve_collisions()` — exact same logic, moved
+- **Acceptance:** Collision works in all 4 orientations, 118 tests pass.
+
+## Task 5: src/physics/movement.py
+- `apply_lateral_movement()` — accel/decel logic extracted
+- `apply_jump_impulse()` — jump velocity calculation
+- `apply_jump_cut()` — variable jump height cut
+- **Acceptance:** Movement functions importable, 118 tests pass.
+
+## Task 6: src/physics/__init__.py
+- Clean public API exporting all physics functions.
+- **Acceptance:** `from src.physics import ...` works for everything main.py needs.
+
+## Task 7: Clean main.py
+- Import from src/physics/, remove inline physics.
+- Target: under 200 lines (150 is aggressive given rendering is still inline).
+- **Acceptance:** No physics calculations in main.py. All tests pass.
+
+## Task 8: Update existing tests
+- Tests import from src.physics instead of main for physics functions.
+- Constants tests import from constants.
+- **Acceptance:** 118 tests pass, all importing from correct modules.
+
+## Task 9: New physics tests (tests/test_physics.py)
+- 20+ new tests for the extracted physics API.
+- **Acceptance:** Total test count >= 138.
+
+## Task 10: Final cleanup, commit, SUMMARY.md

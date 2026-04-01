@@ -1,43 +1,37 @@
+"""The Fold — entry point and game loop orchestrator.
+
+All physics logic lives in src/physics/. All level logic in src/levels/.
+All rendering logic in src/rendering/. This file only orchestrates.
+"""
 import os
 import pygame
 import sys
 
 from constants import (
+    COYOTE_TIME,
     FPS,
-    LAND_SHAKE_DURATION,
-    LAND_SHAKE_INTENSITY,
+    PLAYER_SIZE,
     ROTATE_SHAKE_DURATION,
     ROTATE_SHAKE_INTENSITY,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
 )
 from src.levels.level_renderer import LevelRenderer
+from src.physics import (
+    GRAVITY_LABELS,
+    apply_gravity,
+    apply_jump_cut,
+    apply_jump_impulse,
+    apply_lateral_movement,
+    clamp_terminal_velocity,
+    gravity_is_vertical,
+    resolve_collisions,
+    rotate_gravity_ccw,
+)
 from src.rendering.camera import Camera
 
-# Constants
+# Display
 WIDTH, HEIGHT = SCREEN_WIDTH, SCREEN_HEIGHT
-PLAYER_SIZE = 90
-
-# Physics scale: 50 pixels = 1 meter
-PPM = 50
-EARTH_GRAVITY = 9.8                              # m/s²
-GRAVITY_STRENGTH = EARTH_GRAVITY * PPM / FPS**2  # ~0.136 px/frame²
-TERMINAL_VELOCITY = 53.0 * PPM / FPS             # ~44.2 px/frame
-
-JUMP_SPEED = 8.0
-MOVE_SPEED = 5
-
-# Movement tuning
-ACCEL = 1.5
-DECEL = 1.0
-AIR_ACCEL = 0.4
-AIR_DECEL = 0.1
-MAX_MOVE_SPEED = 5
-
-# Jump tuning
-COYOTE_TIME = 0.1
-JUMP_CUT_MULTIPLIER = 0.4
-PEAK_GRAVITY_MULT = 2.5
 
 # Colors
 BLACK = (0, 0, 0)
@@ -46,100 +40,9 @@ RED = (220, 50, 50)
 BLUE = (50, 80, 180)
 GREEN = (50, 220, 50)
 
-# Gravity — single directional vector as unit (dx, dy).
-GRAVITY_DOWN = (0, 1)
-GRAVITY_LEFT = (-1, 0)
-GRAVITY_UP = (0, -1)
-GRAVITY_RIGHT = (1, 0)
-
-GRAVITY_LABELS = {
-    GRAVITY_DOWN: "Down",
-    GRAVITY_LEFT: "Left",
-    GRAVITY_UP: "Up",
-    GRAVITY_RIGHT: "Right",
-}
-
 # Level file path
 LEVEL_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "levels")
 DEFAULT_LEVEL = os.path.join(LEVEL_DIR, "level_01.json")
-
-
-def rotate_gravity_ccw(gravity_dir):
-    """Rotate gravity 90 degrees counter-clockwise in screen coordinates."""
-    dx, dy = gravity_dir
-    return (dy, -dx)
-
-
-def gravity_is_vertical(gravity_dir):
-    """True if gravity pulls along the Y axis."""
-    return gravity_dir[1] != 0
-
-
-def gravity_speed(vx, vy, gravity_dir):
-    """Return velocity component along the gravity axis (dot product)."""
-    return vx * gravity_dir[0] + vy * gravity_dir[1]
-
-
-def resolve_collisions(px, py, vx, vy, player_w, player_h, platforms, gravity_dir):
-    """Two-pass collision resolution: lateral axis first, gravity axis second.
-
-    Returns (px, py, vx, vy, on_ground).
-    """
-    grav_vert = gravity_is_vertical(gravity_dir)
-    on_ground = False
-
-    if grav_vert:
-        px += vx
-        pr = pygame.Rect(px - player_w / 2, py - player_h / 2, player_w, player_h)
-        for plat in platforms:
-            if pr.colliderect(plat):
-                if vx > 0:
-                    px = plat.left - player_w / 2
-                elif vx < 0:
-                    px = plat.right + player_w / 2
-                vx = 0
-                pr = pygame.Rect(px - player_w / 2, py - player_h / 2, player_w, player_h)
-        py += vy
-        pr = pygame.Rect(px - player_w / 2, py - player_h / 2, player_w, player_h)
-        for plat in platforms:
-            if pr.colliderect(plat):
-                if vy > 0 or (vy == 0 and gravity_dir[1] > 0):
-                    py = plat.top - player_h / 2
-                    if gravity_dir[1] > 0:
-                        on_ground = True
-                else:
-                    py = plat.bottom + player_h / 2
-                    if gravity_dir[1] < 0:
-                        on_ground = True
-                vy = 0
-                pr = pygame.Rect(px - player_w / 2, py - player_h / 2, player_w, player_h)
-    else:
-        py += vy
-        pr = pygame.Rect(px - player_w / 2, py - player_h / 2, player_w, player_h)
-        for plat in platforms:
-            if pr.colliderect(plat):
-                if vy > 0:
-                    py = plat.top - player_h / 2
-                elif vy < 0:
-                    py = plat.bottom + player_h / 2
-                vy = 0
-                pr = pygame.Rect(px - player_w / 2, py - player_h / 2, player_w, player_h)
-        px += vx
-        pr = pygame.Rect(px - player_w / 2, py - player_h / 2, player_w, player_h)
-        for plat in platforms:
-            if pr.colliderect(plat):
-                if vx > 0 or (vx == 0 and gravity_dir[0] > 0):
-                    px = plat.left - player_w / 2
-                    if gravity_dir[0] > 0:
-                        on_ground = True
-                else:
-                    px = plat.right + player_w / 2
-                    if gravity_dir[0] < 0:
-                        on_ground = True
-                vx = 0
-                pr = pygame.Rect(px - player_w / 2, py - player_h / 2, player_w, player_h)
-
-    return px, py, vx, vy, on_ground
 
 
 def load_player_sprite():
@@ -163,6 +66,7 @@ def load_background():
 
 
 def main():
+    """Main game loop — orchestrates physics, rendering, input."""
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption("The Fold")
@@ -176,12 +80,10 @@ def main():
     # Camera
     camera = Camera(WIDTH, HEIGHT)
     camera.set_bounds(level.level_width, level.level_height)
-    camera.x, camera.y = level.spawn  # start on player
+    camera.x, camera.y = level.spawn
 
-    # Load background
+    # Load assets
     background = load_background()
-
-    # Load sprite
     sprite_right = load_player_sprite()
     sprite_left = pygame.transform.flip(sprite_right, True, False) if sprite_right else None
     if sprite_right:
@@ -195,19 +97,15 @@ def main():
     vx, vy = 0.0, 0.0
     gravity_dir = tuple(level.gravity_start)
     on_ground = False
-    was_on_ground = False
     coyote_timer = 0.0
     jumping = False
     goal_reached = False
 
     running = True
     while running:
-        dt = clock.tick(FPS) / 1000.0
-        dt = min(dt, 0.05)  # delta time cap per stability rules
-        grav_vert = gravity_is_vertical(gravity_dir)
-        was_on_ground = on_ground
+        dt = min(clock.tick(FPS) / 1000.0, 0.05)
 
-        # Events
+        # --- Events ---
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -219,24 +117,19 @@ def main():
                     camera.on_gravity_rotate()
                     camera.shake(ROTATE_SHAKE_INTENSITY, ROTATE_SHAKE_DURATION)
                 if event.key in (pygame.K_SPACE, pygame.K_UP, pygame.K_w) and coyote_timer > 0:
-                    vx -= gravity_dir[0] * JUMP_SPEED
-                    vy -= gravity_dir[1] * JUMP_SPEED
+                    vx, vy = apply_jump_impulse(vx, vy, gravity_dir)
                     coyote_timer = 0.0
                     jumping = True
             if event.type == pygame.KEYUP:
                 if event.key in (pygame.K_SPACE, pygame.K_UP, pygame.K_w) and jumping:
-                    going_up = gravity_speed(vx, vy, gravity_dir) < 0
-                    if going_up:
-                        if grav_vert:
-                            vy *= JUMP_CUT_MULTIPLIER
-                        else:
-                            vx *= JUMP_CUT_MULTIPLIER
+                    vx, vy = apply_jump_cut(vx, vy, gravity_dir)
                     jumping = False
 
-        # Movement input
+        # --- Physics ---
+        grav_vert = gravity_is_vertical(gravity_dir)
+
+        # Lateral movement from input
         keys = pygame.key.get_pressed()
-        accel = ACCEL if on_ground else AIR_ACCEL
-        decel = DECEL if on_ground else AIR_DECEL
         if grav_vert:
             move_input = 0
             if keys[pygame.K_LEFT] or keys[pygame.K_a]:
@@ -245,59 +138,28 @@ def main():
             elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
                 move_input = 1
                 facing_right = True
-            if move_input != 0:
-                vx += move_input * accel
-                vx = max(-MAX_MOVE_SPEED, min(MAX_MOVE_SPEED, vx))
-            else:
-                if abs(vx) < decel:
-                    vx = 0
-                else:
-                    vx -= decel if vx > 0 else -decel
         else:
             move_input = 0
             if keys[pygame.K_UP] or keys[pygame.K_w]:
                 move_input = -1
             elif keys[pygame.K_DOWN] or keys[pygame.K_s]:
                 move_input = 1
-            if move_input != 0:
-                vy += move_input * accel
-                vy = max(-MAX_MOVE_SPEED, min(MAX_MOVE_SPEED, vy))
-            else:
-                if abs(vy) < decel:
-                    vy = 0
-                else:
-                    vy -= decel if vy > 0 else -decel
 
-        # Apply gravity
-        grav_vel = gravity_speed(vx, vy, gravity_dir)
-        at_peak = not on_ground and abs(grav_vel) < 2.0
-        mult = PEAK_GRAVITY_MULT if at_peak else 1.0
-        vx += gravity_dir[0] * GRAVITY_STRENGTH * mult
-        vy += gravity_dir[1] * GRAVITY_STRENGTH * mult
+        vx, vy = apply_lateral_movement(vx, vy, move_input, gravity_dir, on_ground)
+        vx, vy = apply_gravity(vx, vy, gravity_dir, on_ground)
+        vx, vy = clamp_terminal_velocity(vx, vy, gravity_dir)
 
-        # Clamp gravity-axis velocity to terminal velocity
-        grav_component = gravity_speed(vx, vy, gravity_dir)
-        if abs(grav_component) > TERMINAL_VELOCITY:
-            clamped = max(-TERMINAL_VELOCITY, min(TERMINAL_VELOCITY, grav_component))
-            diff = clamped - grav_component
-            vx += diff * gravity_dir[0]
-            vy += diff * gravity_dir[1]
-
-        # Update level
+        # Level + collision
         level.update()
-
-        # Collision resolution
         all_platforms = level.all_platform_rects()
         px, py, vx, vy, on_ground = resolve_collisions(
-            px, py, vx, vy, player_w, player_h, all_platforms, gravity_dir
+            px, py, vx, vy, player_w, player_h, all_platforms, gravity_dir,
         )
 
+        # Coyote time
         if on_ground:
             jumping = False
             coyote_timer = COYOTE_TIME
-            # Landing shake
-            if not was_on_ground:
-                camera.shake(LAND_SHAKE_INTENSITY, LAND_SHAKE_DURATION)
         else:
             coyote_timer = max(0.0, coyote_timer - dt)
 
@@ -305,7 +167,7 @@ def main():
         px = max(player_w / 2, min(level.level_width - player_w / 2, px))
         py = max(player_h / 2, min(level.level_height - player_h / 2, py))
 
-        # Update camera
+        # Camera
         camera.update(px, py, dt)
 
         # Goal check
@@ -313,7 +175,7 @@ def main():
         if player_rect.colliderect(level.goal_rect):
             goal_reached = True
 
-        # --- Draw (all world objects offset by camera) ---
+        # --- Draw ---
         if background:
             screen.blit(background, (0, 0))
         else:
@@ -322,11 +184,9 @@ def main():
         cam_offset = camera.offset
         level.draw(screen, cam_offset)
 
-        # Draw player
         ox, oy = cam_offset
         pr_screen = pygame.Rect(
-            px - player_w / 2 + ox,
-            py - player_h / 2 + oy,
+            px - player_w / 2 + ox, py - player_h / 2 + oy,
             player_w, player_h,
         )
         if sprite_right:
@@ -340,13 +200,12 @@ def main():
                 int(cy - gravity_dir[1] * 12),
             ), 4)
 
-        # HUD (screen space — no camera offset)
+        # HUD (screen space)
         label = font.render(
             f"Gravity: {GRAVITY_LABELS[gravity_dir]}  |  R to rotate  |  Arrow keys + Space",
-            True, BLUE
+            True, BLUE,
         )
         screen.blit(label, (10, 10))
-
         if goal_reached:
             goal_text = font.render("GOAL REACHED!", True, GREEN)
             screen.blit(goal_text, (WIDTH // 2 - goal_text.get_width() // 2, HEIGHT // 2))
