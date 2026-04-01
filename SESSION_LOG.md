@@ -8,3 +8,4 @@
 - [2026-03-31 T6] Starting Task 6 — removing STATIC_PLATFORMS, GOAL_RECT, MovingPlatform class, create_moving_platforms() from main.py and replacing with LevelRenderer.load(). Reason: level data now lives in JSON, renderer handles geometry. Physics functions (resolve_collisions, gravity_speed, etc.) stay in main.py.
 - [2026-03-31 T6] Task 6 complete — main.py loads level_01.json via LevelRenderer. Hardcoded level geometry removed. Tests updated to import from new locations. 80/80 tests pass.
 - [2026-03-31 T7] Task 7 complete — level loading tests (TestLevelLoading: 8 tests), level validation tests (TestLevelDataValidation: 2 tests), plus existing tests updated for new imports. 80 total tests passing.
+- [2026-03-31 T8] Task 8 complete — qa_checklist.md updated, SUMMARY.md written, final commit made. Session complete.

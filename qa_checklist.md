@@ -57,3 +57,20 @@ Run through this after each coding session. Launch the game with `python main.py
 - Rotating while pressed against a screen edge can briefly clip the player into the boundary before clamping corrects it
 - Movement keys overlap with jump keys in horizontal gravity orientations (Up/W is both "move up" and "jump") — may cause unintended jumps when moving
 - No platforms yet — testing is limited to the single floor per orientation
+
+## Level Loading
+
+- [ ] Game loads level_01.json on startup without errors
+- [ ] All 7 static platforms render in correct positions
+- [ ] Both moving platforms animate correctly (horizontal oscillation)
+- [ ] Spawn point places player at correct start position (above first platform)
+- [ ] Goal rect renders as green rectangle in upper-left area
+- [ ] "GOAL REACHED!" text appears when player touches goal area
+- [ ] Deleting level_01.json produces a clear error (not silent failure)
+
+## Level Architecture Edge Cases
+
+- [ ] Moving platforms carry correct collision — player can stand on them
+- [ ] Gravity rotation works correctly with multi-platform level (not just single floor)
+- [ ] Player doesn't clip through thin platforms (ceiling platforms are 20px)
+- [ ] Moving platform at ceiling gap is reachable with gravity=up
