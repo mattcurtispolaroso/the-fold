@@ -1,12 +1,11 @@
 """Unit tests for the Camera system.
 
-Run: python -m pytest tests/test_camera.py -v
-  or: python -m unittest tests.test_camera -v
-
+Run: python test_game.py
 Tests run headless — no game window is opened.
 """
 import unittest
 
+import tests.conftest  # noqa: F401
 import constants
 from src.rendering.camera import Camera
 

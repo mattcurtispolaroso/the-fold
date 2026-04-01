@@ -94,3 +94,13 @@ Run through this after each coding session. Launch the game with `python main.py
 - [ ] Player at corner of level — camera clamps to both edges simultaneously
 - [ ] Landing immediately after rotation — both shakes should stack visually
 - [ ] Background image stays full-screen (not offset by camera) — intentional parallax-free for now
+
+## Physics Module (post-extraction)
+
+- [ ] Jump works in all 4 gravity orientations (down, left, up, right)
+- [ ] Variable jump height (tap vs hold) works in all orientations
+- [ ] Coyote time works after walking off any platform edge
+- [ ] Gravity rotation (R) correctly changes physics direction immediately
+- [ ] Terminal velocity caps fall speed in all orientations
+- [ ] Lateral movement accel/decel feels identical to pre-refactor
+- [ ] No physics logic remains in main.py — all in src/physics/

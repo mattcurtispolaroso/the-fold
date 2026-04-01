@@ -8,3 +8,5 @@
 - [T6] src/physics/__init__.py built — clean public API exporting all physics functions.
 - [T7] main.py cleaned — now 190 lines, imports all physics from src.physics, no physics calculations inline.
 - [T8] test_core.py updated — all imports changed from main.* to src.physics.* and constants.*. 118/118 tests pass.
+- [T9] tests/test_physics.py created — 27 new tests for physics API. 145/145 total tests pass.
+- [T10] Final cleanup — all files under 300 lines, no physics in main.py, qa_checklist updated, SUMMARY.md written. Session complete.
