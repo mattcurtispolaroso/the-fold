@@ -1,13 +1,13 @@
-# Session Plan — Code Quality Audit
+# Session Plan — Fix C3: Physics Rect Swap in Horizontal Gravity
 
 ## Goal
-Remove 0.5px hack, audit full codebase, fix correctness and architecture issues, document risks, add missing tests.
+Swap player physics rect dimensions when gravity is horizontal so physics rect matches rotated sprite. Pure fix — no new features.
 
-## Tasks
-1. Remove 0.5px hack from collision.py — replace with clean integer snapping
-2. Full codebase audit — document all issues by category
-3. Fix Category A (physics correctness) and B (architectural violations)
-4. Document Category C (dangerous interactions) and D (stability risks) in DECISIONS_NEEDED.md
-5. Fix test coverage gaps (Category E)
-6. Constants audit — remove unused, add missing
-7. Final verification — tests, game run, SUMMARY.md
+## Steps
+1. Add physics size constants to constants.py
+2. Add get_player_physics_size() to src/physics/gravity.py
+3. Export from src/physics/__init__.py
+4. Update main.py: compute player_w/player_h from gravity_dir each frame, swap on rotation with centre preservation
+5. Update debug overlay to use current physics dimensions
+6. Add tests for get_player_physics_size() and rect swap behaviour
+7. Run tests, verify, commit

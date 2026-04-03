@@ -11,6 +11,7 @@ from src.physics.gravity import (
     GRAVITY_UP,
     GravityDir,
     apply_gravity,
+    get_player_physics_size,
     clamp_terminal_velocity,
     gravity_is_vertical,
     gravity_speed,
@@ -26,7 +27,7 @@ __all__ = [
     "GRAVITY_DOWN", "GRAVITY_LEFT", "GRAVITY_UP", "GRAVITY_RIGHT",
     "GRAVITY_LABELS", "GravityDir",
     "rotate_gravity_ccw", "gravity_is_vertical", "gravity_speed",
-    "apply_gravity", "clamp_terminal_velocity",
+    "apply_gravity", "clamp_terminal_velocity", "get_player_physics_size",
     "resolve_collisions",
     "apply_lateral_movement", "apply_jump_impulse", "apply_jump_cut",
 ]

@@ -41,6 +41,12 @@ JUMP_CUT_MULTIPLIER: float = 0.4     # velocity multiplier on early jump release
 PEAK_GRAVITY_MULT: float = 2.5       # gravity multiplier near jump peak
 PEAK_SPEED_THRESHOLD: float = 2.0    # speed below which peak gravity kicks in
 
+# --- Player Physics Rect ---
+PLAYER_PHYSICS_WIDTH_NORMAL: int = 64    # width when gravity is DOWN or UP
+PLAYER_PHYSICS_HEIGHT_NORMAL: int = 96   # height when gravity is DOWN or UP
+PLAYER_PHYSICS_WIDTH_HORIZONTAL: int = 96  # width when gravity is LEFT or RIGHT
+PLAYER_PHYSICS_HEIGHT_HORIZONTAL: int = 64  # height when gravity is LEFT or RIGHT
+
 # --- Player Sprites ---
 PLAYER_SPRITE_WIDTH: int = 60
 PLAYER_SPRITE_HEIGHT: int = 90

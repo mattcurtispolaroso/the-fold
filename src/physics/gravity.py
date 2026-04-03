@@ -5,7 +5,16 @@ No hardcoded direction assumptions — works for all 4 orientations.
 """
 from __future__ import annotations
 
-from constants import GRAVITY_STRENGTH, PEAK_GRAVITY_MULT, PEAK_SPEED_THRESHOLD, TERMINAL_VELOCITY
+from constants import (
+    GRAVITY_STRENGTH,
+    PEAK_GRAVITY_MULT,
+    PEAK_SPEED_THRESHOLD,
+    PLAYER_PHYSICS_HEIGHT_HORIZONTAL,
+    PLAYER_PHYSICS_HEIGHT_NORMAL,
+    PLAYER_PHYSICS_WIDTH_HORIZONTAL,
+    PLAYER_PHYSICS_WIDTH_NORMAL,
+    TERMINAL_VELOCITY,
+)
 
 # Gravity direction constants — unit vectors.
 GRAVITY_DOWN: tuple[int, int] = (0, 1)
@@ -27,6 +36,13 @@ def rotate_gravity_ccw(gravity_dir: GravityDir) -> GravityDir:
     """Rotate gravity 90 degrees counter-clockwise in screen coordinates."""
     dx, dy = gravity_dir
     return (dy, -dx)
+
+
+def get_player_physics_size(gravity_dir: GravityDir) -> tuple[int, int]:
+    """Return (width, height) for the player physics rect given gravity direction."""
+    if gravity_is_vertical(gravity_dir):
+        return (PLAYER_PHYSICS_WIDTH_NORMAL, PLAYER_PHYSICS_HEIGHT_NORMAL)
+    return (PLAYER_PHYSICS_WIDTH_HORIZONTAL, PLAYER_PHYSICS_HEIGHT_HORIZONTAL)
 
 
 def gravity_is_vertical(gravity_dir: GravityDir) -> bool:

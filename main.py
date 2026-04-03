@@ -25,6 +25,7 @@ from src.physics import (
     apply_jump_impulse,
     apply_lateral_movement,
     clamp_terminal_velocity,
+    get_player_physics_size,
     gravity_is_vertical,
     gravity_speed,
     resolve_collisions,
@@ -93,14 +94,13 @@ def main():
     # Load assets
     background = load_background()
     animator = PlayerAnimator()
-    player_w = animator.width
-    player_h = animator.height
     facing_right = True
 
     # Player state
     px, py = level.spawn
     vx, vy = 0.0, 0.0
     gravity_dir = tuple(level.gravity_start)
+    player_w, player_h = get_player_physics_size(gravity_dir)
     on_ground = False
     coyote_timer = 0.0
     jumping = False
@@ -123,6 +123,11 @@ def main():
                     debug_draw = not debug_draw
                 if event.key == pygame.K_r:
                     gravity_dir = rotate_gravity_ccw(gravity_dir)
+                    # Swap physics rect dimensions, preserve centre
+                    new_w, new_h = get_player_physics_size(gravity_dir)
+                    player_w, player_h = new_w, new_h
+                    px = round(px)
+                    py = round(py)
                     camera.on_gravity_rotate()
                     camera.shake(ROTATE_SHAKE_INTENSITY, ROTATE_SHAKE_DURATION)
                 if event.key in (pygame.K_SPACE, pygame.K_UP, pygame.K_w) and coyote_timer > 0:
@@ -212,11 +217,14 @@ def main():
         cam_offset = camera.offset
         level.draw(screen, cam_offset)
 
+        # Draw sprite centred on physics rect centre
         ox, oy = cam_offset
+        sprite_w = animator.width
+        sprite_h = animator.height
         animator.draw(
             screen,
-            px - player_w / 2 + ox,
-            py - player_h / 2 + oy,
+            px - sprite_w / 2 + ox,
+            py - sprite_h / 2 + oy,
             player_state,
             facing_right,
             gravity_dir,

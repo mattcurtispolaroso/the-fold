@@ -8,8 +8,10 @@ import tests.conftest  # noqa: F401
 import pygame
 
 import constants as C
+import constants as C
 from src.physics import (
     GRAVITY_DOWN, GRAVITY_LEFT, GRAVITY_UP, GRAVITY_RIGHT,
+    get_player_physics_size,
     gravity_speed,
 )
 from src.physics.collision import _check_ground_adjacent, resolve_collisions
@@ -107,6 +109,37 @@ class TestDeterminePlayerState(unittest.TestCase):
         from src.rendering.animation import PlayerState
         state = _determine_player_state(False, 0, 0.5, GRAVITY_DOWN, 0)
         self.assertEqual(state, PlayerState.JUMP_PEAK)
+
+
+class TestGetPlayerPhysicsSize(unittest.TestCase):
+    """get_player_physics_size returns correct dimensions per gravity."""
+
+    def test_gravity_down_returns_normal(self):
+        w, h = get_player_physics_size(GRAVITY_DOWN)
+        self.assertEqual(w, C.PLAYER_PHYSICS_WIDTH_NORMAL)
+        self.assertEqual(h, C.PLAYER_PHYSICS_HEIGHT_NORMAL)
+
+    def test_gravity_up_returns_normal(self):
+        w, h = get_player_physics_size(GRAVITY_UP)
+        self.assertEqual(w, C.PLAYER_PHYSICS_WIDTH_NORMAL)
+        self.assertEqual(h, C.PLAYER_PHYSICS_HEIGHT_NORMAL)
+
+    def test_gravity_left_returns_horizontal(self):
+        w, h = get_player_physics_size(GRAVITY_LEFT)
+        self.assertEqual(w, C.PLAYER_PHYSICS_WIDTH_HORIZONTAL)
+        self.assertEqual(h, C.PLAYER_PHYSICS_HEIGHT_HORIZONTAL)
+
+    def test_gravity_right_returns_horizontal(self):
+        w, h = get_player_physics_size(GRAVITY_RIGHT)
+        self.assertEqual(w, C.PLAYER_PHYSICS_WIDTH_HORIZONTAL)
+        self.assertEqual(h, C.PLAYER_PHYSICS_HEIGHT_HORIZONTAL)
+
+    def test_normal_and_horizontal_are_swapped(self):
+        """Width/height swap when switching between vertical and horizontal gravity."""
+        nw, nh = get_player_physics_size(GRAVITY_DOWN)
+        hw, hh = get_player_physics_size(GRAVITY_LEFT)
+        self.assertEqual(nw, hh)
+        self.assertEqual(nh, hw)
 
 
 if __name__ == "__main__":
