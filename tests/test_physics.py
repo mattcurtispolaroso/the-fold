@@ -183,6 +183,75 @@ class TestCollisionAllOrientations(unittest.TestCase):
         self.assertAlmostEqual(px, 300 - 15)
 
 
+class TestJitterPrevention(unittest.TestCase):
+    """Player velocity should be exactly zero when settled on a platform."""
+
+    def test_velocity_zero_when_grounded_gravity_down(self):
+        plat = pygame.Rect(0, 500, 200, 20)
+        _, _, vx, vy, on_ground = resolve_collisions(
+            100, 486, 0, 0.3, 30, 30, [plat], GRAVITY_DOWN,
+        )
+        self.assertTrue(on_ground)
+        self.assertEqual(vy, 0.0)
+
+    def test_velocity_zero_when_grounded_gravity_left(self):
+        plat = pygame.Rect(100, 0, 20, 200)
+        _, _, vx, vy, on_ground = resolve_collisions(
+            134, 100, -0.3, 0, 30, 30, [plat], GRAVITY_LEFT,
+        )
+        self.assertTrue(on_ground)
+        self.assertEqual(vx, 0.0)
+
+    def test_velocity_zero_when_grounded_gravity_up(self):
+        plat = pygame.Rect(0, 100, 200, 20)
+        _, _, vx, vy, on_ground = resolve_collisions(
+            100, 134, 0, -0.3, 30, 30, [plat], GRAVITY_UP,
+        )
+        self.assertTrue(on_ground)
+        self.assertEqual(vy, 0.0)
+
+    def test_velocity_zero_when_grounded_gravity_right(self):
+        plat = pygame.Rect(200, 0, 20, 200)
+        _, _, vx, vy, on_ground = resolve_collisions(
+            186, 100, 0.3, 0, 30, 30, [plat], GRAVITY_RIGHT,
+        )
+        self.assertTrue(on_ground)
+        self.assertEqual(vx, 0.0)
+
+
+class TestLeftGravityGroundDetection(unittest.TestCase):
+    """Ground detection must work for left gravity against left wall."""
+
+    def test_ground_detected_left_gravity(self):
+        wall = pygame.Rect(0, 0, 20, 600)
+        _, _, _, _, on_ground = resolve_collisions(
+            34, 300, -1, 0, 30, 30, [wall], GRAVITY_LEFT,
+        )
+        self.assertTrue(on_ground)
+
+    def test_jump_impulse_applies_in_left_gravity(self):
+        vx, vy = apply_jump_impulse(0, 0, GRAVITY_LEFT)
+        self.assertGreater(vx, 0)  # jumps rightward
+        self.assertEqual(vy, 0)
+
+    def test_full_jump_cycle_left_gravity(self):
+        """Player on left wall can jump and leave the wall."""
+        wall = pygame.Rect(0, 0, 20, 600)
+        # Place player against wall
+        px, py, vx, vy, on_ground = resolve_collisions(
+            34, 300, -1, 0, 30, 30, [wall], GRAVITY_LEFT,
+        )
+        self.assertTrue(on_ground)
+        # Apply jump
+        vx, vy = apply_jump_impulse(vx, vy, GRAVITY_LEFT)
+        # Step once — should leave wall
+        px2, py2, vx2, vy2, on_ground2 = resolve_collisions(
+            px, py, vx, vy, 30, 30, [wall], GRAVITY_LEFT,
+        )
+        self.assertFalse(on_ground2)
+        self.assertGreater(px2, px)
+
+
 class TestGravityRotationStress(unittest.TestCase):
     """Rapid gravity rotation stress test."""
 
@@ -198,6 +267,73 @@ class TestGravityRotationStress(unittest.TestCase):
             gdir = rotate_gravity_ccw(gdir)
         self.assertEqual(gdir, GRAVITY_LEFT)
         self.assertEqual(gravity_speed(-5, 0, gdir), 5)
+
+
+class TestPositionSnapping(unittest.TestCase):
+    """Positions stabilise after collision resolution."""
+
+    def test_position_stable_after_ground_collision_down(self):
+        """Gravity-axis position should be within 1px of platform surface."""
+        plat = pygame.Rect(0, 500, 200, 20)
+        px, py, _, _, on_ground = resolve_collisions(
+            100.7, 486.3, 0, 2.5, 30, 30, [plat], GRAVITY_DOWN,
+        )
+        self.assertTrue(on_ground)
+        # Player bottom should be at or just inside platform top
+        self.assertAlmostEqual(py + 15, plat.top + 0.5, delta=1.0)
+
+    def test_position_stable_after_ground_collision_left(self):
+        plat = pygame.Rect(100, 0, 20, 200)
+        px, py, _, _, on_ground = resolve_collisions(
+            134.7, 100.3, -2.5, 0, 30, 30, [plat], GRAVITY_LEFT,
+        )
+        self.assertTrue(on_ground)
+        self.assertAlmostEqual(px - 15, plat.right - 0.5, delta=1.0)
+
+    def test_lateral_position_integer_after_wall_collision(self):
+        """Lateral axis (non-gravity) should snap to integer."""
+        wall = pygame.Rect(300, 0, 20, 600)
+        px, py, _, _, _ = resolve_collisions(
+            290.3, 300.7, 5, 0, 30, 30, [wall], GRAVITY_DOWN,
+        )
+        self.assertEqual(px, round(px))
+
+
+class TestGravityVelocityZeroOnGround(unittest.TestCase):
+    """Gravity-axis velocity must be exactly 0.0 when on_ground."""
+
+    def test_vy_exactly_zero_gravity_down(self):
+        plat = pygame.Rect(0, 500, 200, 20)
+        _, _, _, vy, on_ground = resolve_collisions(
+            100, 486, 0, 3.0, 30, 30, [plat], GRAVITY_DOWN,
+        )
+        self.assertTrue(on_ground)
+        self.assertEqual(vy, 0.0)
+        self.assertIs(type(vy), float)
+
+    def test_vx_exactly_zero_gravity_left(self):
+        plat = pygame.Rect(100, 0, 20, 200)
+        _, _, vx, _, on_ground = resolve_collisions(
+            134, 100, -3.0, 0, 30, 30, [plat], GRAVITY_LEFT,
+        )
+        self.assertTrue(on_ground)
+        self.assertEqual(vx, 0.0)
+
+    def test_vx_exactly_zero_gravity_right(self):
+        plat = pygame.Rect(200, 0, 20, 200)
+        _, _, vx, _, on_ground = resolve_collisions(
+            186, 100, 3.0, 0, 30, 30, [plat], GRAVITY_RIGHT,
+        )
+        self.assertTrue(on_ground)
+        self.assertEqual(vx, 0.0)
+
+    def test_vy_exactly_zero_gravity_up(self):
+        plat = pygame.Rect(0, 100, 200, 20)
+        _, _, _, vy, on_ground = resolve_collisions(
+            100, 134, 0, -3.0, 30, 30, [plat], GRAVITY_UP,
+        )
+        self.assertTrue(on_ground)
+        self.assertEqual(vy, 0.0)
 
 
 if __name__ == "__main__":

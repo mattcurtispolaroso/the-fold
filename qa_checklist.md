@@ -95,6 +95,12 @@ Run through this after each coding session. Launch the game with `python main.py
 - [ ] Landing immediately after rotation — both shakes should stack visually
 - [ ] Background image stays full-screen (not offset by camera) — intentional parallax-free for now
 
+## Debug Overlay
+
+- [ ] Press backtick (`` ` ``) to toggle debug overlay — red physics rect outline + green centre dot
+- [ ] Debug overlay visible in all four gravity orientations
+- [ ] Debug overlay does not affect gameplay or physics
+
 ## Physics Module (post-extraction)
 
 - [ ] Jump works in all 4 gravity orientations (down, left, up, right)

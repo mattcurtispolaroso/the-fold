@@ -2,6 +2,8 @@
 
 Two-pass system: lateral axis first, gravity axis second.
 Works correctly with any gravity direction — no hardcoded assumptions.
+All positions snapped to integer after collision. Ground detection uses
+a separate adjacency check to avoid colliderect gap oscillation.
 """
 from __future__ import annotations
 
@@ -24,7 +26,8 @@ def _resolve_axis_x(
                 px = plat.left - player_w / 2
             elif vx < 0:
                 px = plat.right + player_w / 2
-            vx = 0
+            vx = 0.0
+            px = round(px)
             pr = pygame.Rect(px - player_w / 2, py - player_h / 2, player_w, player_h)
     return px, vx
 
@@ -43,7 +46,8 @@ def _resolve_axis_y(
                 py = plat.top - player_h / 2
             elif vy < 0:
                 py = plat.bottom + player_h / 2
-            vy = 0
+            vy = 0.0
+            py = round(py)
             pr = pygame.Rect(px - player_w / 2, py - player_h / 2, player_w, player_h)
     return py, vy
 
@@ -54,7 +58,7 @@ def _resolve_gravity_y(
     platforms: list[pygame.Rect],
     gravity_dir: GravityDir,
 ) -> tuple[float, float, bool]:
-    """Resolve Y-axis collision with ground detection. Returns (py, vy, on_ground)."""
+    """Resolve Y-axis collision with ground detection."""
     on_ground = False
     py += vy
     pr = pygame.Rect(px - player_w / 2, py - player_h / 2, player_w, player_h)
@@ -68,7 +72,8 @@ def _resolve_gravity_y(
                 py = plat.bottom + player_h / 2
                 if gravity_dir[1] < 0:
                     on_ground = True
-            vy = 0
+            vy = 0.0
+            py = round(py)
             pr = pygame.Rect(px - player_w / 2, py - player_h / 2, player_w, player_h)
     return py, vy, on_ground
 
@@ -79,7 +84,7 @@ def _resolve_gravity_x(
     platforms: list[pygame.Rect],
     gravity_dir: GravityDir,
 ) -> tuple[float, float, bool]:
-    """Resolve X-axis collision with ground detection. Returns (px, vx, on_ground)."""
+    """Resolve X-axis collision with ground detection."""
     on_ground = False
     px += vx
     pr = pygame.Rect(px - player_w / 2, py - player_h / 2, player_w, player_h)
@@ -93,9 +98,34 @@ def _resolve_gravity_x(
                 px = plat.right + player_w / 2
                 if gravity_dir[0] < 0:
                     on_ground = True
-            vx = 0
+            vx = 0.0
+            px = round(px)
             pr = pygame.Rect(px - player_w / 2, py - player_h / 2, player_w, player_h)
     return px, vx, on_ground
+
+
+def _check_ground_adjacent(
+    px: float, py: float,
+    player_w: float, player_h: float,
+    platforms: list[pygame.Rect],
+    gravity_dir: GravityDir,
+) -> bool:
+    """Check if player is touching a platform in the gravity direction.
+
+    Uses a 1px probe rect extended in the gravity direction to detect
+    adjacency without requiring overlap. Solves the colliderect gap issue.
+    """
+    if gravity_dir == (0, 1):  # DOWN
+        probe = pygame.Rect(px - player_w / 2 + 1, py + player_h / 2, player_w - 2, 2)
+    elif gravity_dir == (0, -1):  # UP
+        probe = pygame.Rect(px - player_w / 2 + 1, py - player_h / 2 - 2, player_w - 2, 2)
+    elif gravity_dir == (-1, 0):  # LEFT
+        probe = pygame.Rect(px - player_w / 2 - 2, py - player_h / 2 + 1, 2, player_h - 2)
+    elif gravity_dir == (1, 0):  # RIGHT
+        probe = pygame.Rect(px + player_w / 2, py - player_h / 2 + 1, 2, player_h - 2)
+    else:
+        return False
+    return any(probe.colliderect(plat) for plat in platforms)
 
 
 def resolve_collisions(
@@ -107,6 +137,7 @@ def resolve_collisions(
 ) -> tuple[float, float, float, float, bool]:
     """Two-pass collision: lateral axis first, gravity axis second.
 
+    Uses adjacency probe for stable ground detection.
     Returns (px, py, vx, vy, on_ground).
     """
     if gravity_is_vertical(gravity_dir):
@@ -119,4 +150,18 @@ def resolve_collisions(
         px, vx, on_ground = _resolve_gravity_x(
             px, py, vx, player_w, player_h, platforms, gravity_dir,
         )
+
+    # Stable ground detection via adjacency probe
+    if not on_ground:
+        on_ground = _check_ground_adjacent(
+            px, py, player_w, player_h, platforms, gravity_dir,
+        )
+
+    # Zero gravity-axis velocity when grounded
+    if on_ground:
+        if gravity_is_vertical(gravity_dir):
+            vy = 0.0
+        else:
+            vx = 0.0
+
     return px, py, vx, vy, on_ground

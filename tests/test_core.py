@@ -424,7 +424,7 @@ class TestResolveCollisions(unittest.TestCase):
             100, 480, 0, 10, 30, 30, [plat], GRAVITY_DOWN
         )
         self.assertTrue(on_ground)
-        self.assertAlmostEqual(py, 500 - 15)
+        self.assertAlmostEqual(py, 500 - 15, delta=1)
         self.assertEqual(vy, 0)
 
     def test_hit_ceiling_gravity_down(self):
@@ -433,7 +433,7 @@ class TestResolveCollisions(unittest.TestCase):
             100, 130, 0, -10, 30, 30, [plat], GRAVITY_DOWN
         )
         self.assertFalse(on_ground)
-        self.assertAlmostEqual(py, 120 + 15)
+        self.assertAlmostEqual(py, 120 + 15, delta=1)
         self.assertEqual(vy, 0)
 
     def test_land_on_platform_gravity_up(self):
@@ -442,7 +442,7 @@ class TestResolveCollisions(unittest.TestCase):
             100, 130, 0, -10, 30, 30, [plat], GRAVITY_UP
         )
         self.assertTrue(on_ground)
-        self.assertAlmostEqual(py, 120 + 15)
+        self.assertAlmostEqual(py, 120 + 15, delta=1)
         self.assertEqual(vy, 0)
 
     def test_hit_floor_from_below_gravity_up(self):
@@ -451,7 +451,7 @@ class TestResolveCollisions(unittest.TestCase):
             100, 480, 0, 10, 30, 30, [plat], GRAVITY_UP
         )
         self.assertFalse(on_ground)
-        self.assertAlmostEqual(py, 500 - 15)
+        self.assertAlmostEqual(py, 500 - 15, delta=1)
         self.assertEqual(vy, 0)
 
     def test_land_on_platform_gravity_left(self):
@@ -460,7 +460,7 @@ class TestResolveCollisions(unittest.TestCase):
             130, 100, -10, 0, 30, 30, [plat], GRAVITY_LEFT
         )
         self.assertTrue(on_ground)
-        self.assertAlmostEqual(px, 120 + 15)
+        self.assertAlmostEqual(px, 120 + 15, delta=1)
         self.assertEqual(vx, 0)
 
     def test_land_on_platform_gravity_right(self):
@@ -469,7 +469,7 @@ class TestResolveCollisions(unittest.TestCase):
             190, 100, 10, 0, 30, 30, [plat], GRAVITY_RIGHT
         )
         self.assertTrue(on_ground)
-        self.assertAlmostEqual(px, 200 - 15)
+        self.assertAlmostEqual(px, 200 - 15, delta=1)
         self.assertEqual(vx, 0)
 
     def test_lateral_wall_stops_player(self):
@@ -496,7 +496,7 @@ class TestResolveCollisions(unittest.TestCase):
             200, 480, 0, 10, 30, 30, [floor, ceiling], GRAVITY_DOWN
         )
         self.assertTrue(on_ground)
-        self.assertAlmostEqual(py, 500 - 15)
+        self.assertAlmostEqual(py, 500 - 15, delta=1)
 
 
 class TestMovingPlatform(unittest.TestCase):

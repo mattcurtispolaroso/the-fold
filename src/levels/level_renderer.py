@@ -6,7 +6,6 @@ and draws them. Never modifies game state.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 
 import pygame
 
