@@ -24,6 +24,7 @@ from src.physics import (
     apply_jump_cut,
     apply_jump_impulse,
     apply_lateral_movement,
+    check_ground_adjacent,
     clamp_terminal_velocity,
     get_player_physics_size,
     gravity_is_vertical,
@@ -124,10 +125,17 @@ def main():
                 if event.key == pygame.K_r:
                     gravity_dir = rotate_gravity_ccw(gravity_dir)
                     # Swap physics rect dimensions, preserve centre
-                    new_w, new_h = get_player_physics_size(gravity_dir)
-                    player_w, player_h = new_w, new_h
+                    player_w, player_h = get_player_physics_size(gravity_dir)
                     px = round(px)
                     py = round(py)
+                    # Recompute on_ground for new gravity direction immediately
+                    all_plats = level.all_platform_rects()
+                    on_ground = check_ground_adjacent(
+                        px, py, player_w, player_h, all_plats, gravity_dir,
+                    )
+                    if on_ground:
+                        coyote_timer = COYOTE_TIME
+                        jumping = False
                     camera.on_gravity_rotate()
                     camera.shake(ROTATE_SHAKE_INTENSITY, ROTATE_SHAKE_DURATION)
                 if event.key in (pygame.K_SPACE, pygame.K_UP, pygame.K_w) and coyote_timer > 0:

@@ -2,7 +2,7 @@
 
 Public API — import everything main.py and other modules need from here.
 """
-from src.physics.collision import resolve_collisions
+from src.physics.collision import check_ground_adjacent, resolve_collisions
 from src.physics.gravity import (
     GRAVITY_DOWN,
     GRAVITY_LABELS,
@@ -28,6 +28,6 @@ __all__ = [
     "GRAVITY_LABELS", "GravityDir",
     "rotate_gravity_ccw", "gravity_is_vertical", "gravity_speed",
     "apply_gravity", "clamp_terminal_velocity", "get_player_physics_size",
-    "resolve_collisions",
+    "check_ground_adjacent", "resolve_collisions",
     "apply_lateral_movement", "apply_jump_impulse", "apply_jump_cut",
 ]

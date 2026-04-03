@@ -104,7 +104,7 @@ def _resolve_gravity_x(
     return px, vx, on_ground
 
 
-def _check_ground_adjacent(
+def check_ground_adjacent(
     px: float, py: float,
     player_w: float, player_h: float,
     platforms: list[pygame.Rect],
@@ -153,7 +153,7 @@ def resolve_collisions(
 
     # Stable ground detection via adjacency probe
     if not on_ground:
-        on_ground = _check_ground_adjacent(
+        on_ground = check_ground_adjacent(
             px, py, player_w, player_h, platforms, gravity_dir,
         )
 
