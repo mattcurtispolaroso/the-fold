@@ -6,9 +6,16 @@ Serialisable to/from JSON via to_dict() and from_dict() class methods.
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
+
+
+class LevelLoadError(Exception):
+    """Raised when a level file cannot be loaded or parsed."""
 
 
 @dataclass
@@ -139,9 +146,27 @@ class LevelData:
 
     @classmethod
     def load(cls, path: str | Path) -> LevelData:
-        """Load a level from a JSON file."""
-        with open(path, "r") as f:
-            return cls.from_json(f.read())
+        """Load a level from a JSON file. Falls back to safe level on error."""
+        try:
+            with open(path, "r") as f:
+                return cls.from_json(f.read())
+        except (OSError, json.JSONDecodeError, KeyError, TypeError) as e:
+            logger.warning("Level file failed to load (%s): %s", path, e)
+            logger.warning("WARNING: Using fallback level")
+            return cls.fallback()
+
+    @classmethod
+    def fallback(cls) -> LevelData:
+        """Return a minimal safe level — single platform and spawn point."""
+        return cls(
+            name="Fallback Level",
+            gravity_start=(0, 1),
+            spawn=(400.0, 250.0),
+            goal=GoalDef(x=700, y=350, w=40, h=40),
+            static_platforms=[PlatformDef(x=0, y=400, w=800, h=40)],
+            level_width=800,
+            level_height=600,
+        )
 
     def save(self, path: str | Path) -> None:
         """Save the level to a JSON file."""

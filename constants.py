@@ -77,3 +77,17 @@ PLAYER_SPRITE_PATHS: dict = {
     "player_3": "assets/sprites/players/player_3/",
 }
 PLAYER_1_SPRITE_PATH: str = PLAYER_SPRITE_PATHS["player_1"]
+
+# --- Physics Watchdog ---
+PHYSICS_WATCHDOG_THRESHOLD_MS: float = 16.0  # warn if physics step exceeds this
+PHYSICS_WATCHDOG_ENABLED: bool = True
+
+# --- Entity Count Limits (enforced by entity system in Module 5) ---
+MAX_ENEMIES: int = 20
+MAX_PARTICLES: int = 500
+MAX_PROJECTILES: int = 50
+MAX_ACTIVE_ABILITIES: int = 10
+
+# --- Font ---
+FONT_PATH: str = "assets/fonts/main_font.ttf"
+FONT_SIZE: int = 28
