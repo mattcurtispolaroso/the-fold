@@ -164,6 +164,11 @@ def main() -> None:
                             jumping = False
                         camera.on_gravity_rotate()
                         camera.shake(ROTATE_SHAKE_INTENSITY, ROTATE_SHAKE_DURATION)
+                        # Helmet trigger: on when gravity != DOWN
+                        if gravity_dir == (0, 1):
+                            animator.helmet.request_off()
+                        else:
+                            animator.helmet.request_on()
                     if event.key in (pygame.K_SPACE, pygame.K_UP, pygame.K_w) and coyote_timer > 0:
                         vx, vy = apply_jump_impulse(vx, vy, gravity_dir)
                         coyote_timer = 0.0
@@ -261,7 +266,7 @@ def main() -> None:
             ox, oy = cam_offset
             sw, sh = animator.width, animator.height
             animator.draw(screen, px - sw / 2 + ox, py - sh / 2 + oy,
-                          player_state, facing_right, gravity_dir)
+                          player_state, facing_right, gravity_dir, debug_draw)
 
             if debug_draw:
                 dr = pygame.Rect(int(px - player_w / 2 + ox), int(py - player_h / 2 + oy),

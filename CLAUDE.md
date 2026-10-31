@@ -6,12 +6,14 @@ Always use the Conda base Python environment, never `/usr/bin/python3`. Run test
 
 ## Project Overview
 
-2D platformer prototype built with Python/Pygame. Single-file game (`main.py`) with a gravity rotation mechanic.
+2D roguelite platformer built with Python/Pygame, with a gravity rotation mechanic. `main.py` is the entry point and orchestrator; game logic lives in `src/` (see File and Project Structure). `ROADMAP.md` is the source of truth for what to build next.
 
 ## Key Files
 
-- `main.py` — game source (all logic in one file)
-- `test_game.py` — automated unit tests (unittest framework, runs headless)
+- `ROADMAP.md` — milestones, current sprint, known bugs, decisions log. Read before starting any task.
+- `main.py` — entry point and game loop orchestrator
+- `src/` — game modules (physics, levels, rendering, systems)
+- `test_game.py` — test runner; discovers all tests in `tests/` (unittest, runs headless)
 - `qa_checklist.md` — manual QA checklist for playtesting
 - `requirements.txt` — Python dependencies (pygame)
 
@@ -19,7 +21,7 @@ Always use the Conda base Python environment, never `/usr/bin/python3`. Run test
 
 Follow these after every code change:
 
-1. After every change to `main.py`, automatically run `python3 test_game.py` and show the results before considering the task complete.
+1. After every change to `main.py`, automatically run `python test_game.py` and show the results before considering the task complete.
 2. If any tests fail, fix them before moving on — do not ask whether to fix them, just fix them.
 3. After fixing failing tests, run the test suite again to confirm everything passes.
 4. If you add a new mechanic or change existing game logic, add the corresponding unit tests to `test_game.py` at the same time.
@@ -85,11 +87,11 @@ Mac + Windows, shipping on Steam. One time purchase.
 
 ### Development Approach
 
-Solo developer, 3 hours per week. Prototype first, always. Never build what isn't needed yet. Every session must produce something playable. Run `python3 test_game.py` after every change.
+Solo developer, 3 hours per week. Prototype first, always. Never build what isn't needed yet. Every session must produce something playable. Run `python test_game.py` after every change.
 
 ### Current Phase
 
-**Phase 0 — Foundation.** Focus is exclusively on making movement and gravity rotation feel great. Do not suggest or implement features beyond this scope until instructed.
+**Phase 0 — Foundation, finishing up (milestones M0 and M1 in `ROADMAP.md`).** Modules 1-3 and the stability infrastructure are done; Module 13 (sprites/animation) is in progress. Focus is making movement and gravity rotation feel great. After M1, work proceeds in vertical slices (M2 onward) as defined in `ROADMAP.md`, not module by module. Do not suggest or implement features beyond the current milestone until instructed.
 
 ## Resource Systems
 
@@ -295,21 +297,21 @@ Read this before making any structural decisions to ensure all work is consisten
 
 This is a long-term project being built incrementally over many sessions. Every module listed below will eventually be built. When making any structural decision — naming, file location, class design, data format — consider how it will fit into the complete architecture. Never make a local decision that solves today's problem but blocks a future module. When in doubt, build the more flexible version.
 
-**CURRENT PHASE: Phase 0 — Foundation**
-Active modules: Module 1 (Physics), Module 2 (Level Architecture), Module 3 (Camera)
-Do not implement features from future modules — but do not make decisions that prevent them either.
+**CURRENT PHASE: Phase 0 — Foundation (finishing)**
+Done: Module 1 (Physics), Module 2 (Level Architecture), Module 3 (Camera), stability infrastructure. In progress: Module 13 (Sprite and Animation).
+Build order follows the milestones in `ROADMAP.md` (thin vertical slices), not module numbers. Do not implement features from future modules — but do not make decisions that prevent them either.
 
 ### Complete Module Map
 
 #### FOUNDATION LAYER — everything else depends on these
 
-**Module 1 — Physics Engine (IN PROGRESS)**
+**Module 1 — Physics Engine (DONE)**
 Gravity vector system supporting all 4 orientations, collision detection with tunneling prevention, player movement with coyote time and variable jump, delta time with cap, fixed physics timestep, physics validation and clamping. Location: `src/physics/`
 
-**Module 2 — Level Architecture (NEXT)**
+**Module 2 — Level Architecture (DONE)**
 Tile-based level system, JSON level format, LevelRenderer class, ASCII level editor helper, support for all platform types in all gravity orientations. Location: `src/levels/` and `levels/`
 
-**Module 3 — Camera System (NEXT)**
+**Module 3 — Camera System (DONE)**
 Smooth follow camera, gravity rotation handling, zoom for rotation cinematic, screen shake, camera bounds. Location: `src/rendering/camera.py`
 
 #### GAMEPLAY LAYER — the mechanics that make The Fold unique
@@ -349,7 +351,7 @@ Rule-based level generation from room templates. Templates defined in JSON. Room
 **Module 12 — Audio Engine (Phase 3)**
 Sound effect system with pooling, music playback and crossfading, audio zones — music shifts as player approaches singularity, spatial audio for spacetime effects, Fold Energy depletion audio cues. Location: `src/systems/audio.py`
 
-**Module 13 — Sprite and Animation System (Phase 1 — unblocks art)**
+**Module 13 — Sprite and Animation System (Phase 1 — IN PROGRESS)**
 Sprite sheet loading and slicing, animation state machine with defined states: Idle, Walk, Run, Jump Rising, Jump Peak, Jump Falling, Land, Gravity Rotation Trigger, Gravity Rotation Transition, Gravity Rotation Land, Ability 1-3 Active, Ultimate Charging, Ultimate Active (collar extended), Hit, Death. Smooth transitions between states, sprite flipping for direction. Location: `src/rendering/animation.py`
 
 **Module 14 — Particle and VFX System (Phase 3)**
@@ -407,7 +409,7 @@ When given a large multi-part task to complete overnight or over a long session:
 1. Before starting, write a file called `SESSION_PLAN.md` listing every task, sub-task and acceptance criteria in order.
 2. Work through tasks sequentially — fully complete and test each before moving to the next.
 3. After each completed task write a one-line status update to `SESSION_LOG.md` with timestamp.
-4. Run `python3 test_game.py` after every code change — fix failures before proceeding.
+4. Run `python test_game.py` after every code change — fix failures before proceeding.
 5. If you encounter a decision point requiring creative input, write the question to `DECISIONS_NEEDED.md` and continue with the most conservative option.
 6. Never delete or significantly restructure working code without writing the reason to `SESSION_LOG.md` first.
 7. At the end of the session write a `SUMMARY.md` with: what was completed, what was skipped and why, what needs human review, and what the next session should tackle.

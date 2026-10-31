@@ -54,6 +54,10 @@ PLAYER_SPRITE_HEIGHT: int = 90
 DEBUG_DRAW_RECTS: bool = False        # draw physics rects for debugging
 SPRITE_PHYSICS_OFFSET_Y: int = 0      # vertical pixel offset to align sprite to physics rect
 
+# --- Sprite Sheet Source Dimensions ---
+SPRITE_SHEET_FRAME_WIDTH: int = 256   # source frame width on sheets
+SPRITE_SHEET_FRAME_HEIGHT: int = 384  # source frame height on sheets
+
 # Walk animation tuning
 WALK_ANIM_MIN_SPEED: float = 0.5     # lateral speed below which walk anim pauses
 WALK_ANIM_MIN_FPS: int = 6           # slowest walk cycle rate
@@ -71,12 +75,54 @@ SPRITE_ROTATION: dict = {
 JUMP_RISING_THRESHOLD: float = -1.0   # gravity_speed below this = rising
 JUMP_PEAK_THRESHOLD: float = 1.0      # abs(gravity_speed) below this = peak
 
+# --- Jump Sheet Frame Mapping ---
+# 8-frame jump sheet: anticipation, launch, rising_fast, rising_slow,
+#                     peak, falling_slow, falling_fast, land_impact
+JUMP_SHEET_FRAMES: int = 8
+JUMP_SHEET_ANTICIPATION: int = 0
+JUMP_SHEET_LAUNCH: int = 1
+JUMP_SHEET_RISING_FAST: int = 2
+JUMP_SHEET_RISING_SLOW: int = 3
+JUMP_SHEET_PEAK: int = 4
+JUMP_SHEET_FALLING_SLOW: int = 5
+JUMP_SHEET_FALLING_FAST: int = 6
+JUMP_SHEET_LAND_IMPACT: int = 7
+
+# --- Helmet Overlay ---
+HELMET_HEAD_DISTANCE: float = 0.35   # fraction of sprite height from centre to head
+HELMET_HEAD_OFFSET_X: int = 0        # fine-tuning offset applied AFTER gravity calc
+HELMET_HEAD_OFFSET_Y: int = 0        # fine-tuning offset applied AFTER gravity calc
+HELMET_ACTIVATE_FRAMES: int = 5      # frames in activation sequence
+HELMET_ANIM_FPS: int = 12            # playback speed for helmet animation
+
 PLAYER_SPRITE_PATHS: dict = {
     "player_1": "assets/sprites/players/player_1/",
     "player_2": "assets/sprites/players/player_2/",
     "player_3": "assets/sprites/players/player_3/",
 }
 PLAYER_1_SPRITE_PATH: str = PLAYER_SPRITE_PATHS["player_1"]
+
+# Sprite sheet filenames (placed inside each player's sprite directory)
+SHEET_FILENAMES: dict = {
+    "jump": "player_1_jump_sheet.png",
+    "walk": "player_1_walk_sheet.png",
+    "idle": "player_1_idle_sheet.png",
+    "gravity_rotating": "player_1_gravity_rotating_sheet.png",
+    "combat": "player_1_combat_sheet.png",
+    "ability": "player_1_ability_sheet.png",
+}
+SHEET_FRAME_COUNTS: dict = {
+    "jump": 8,
+    "walk": 6,
+    "idle": 4,
+    "gravity_rotating": 5,
+    "combat": 7,
+    "ability": 6,
+}
+
+# Helmet overlay sheet filenames
+HELMET_ACTIVATE_SHEET: str = "player_1_helmet_activate.png"
+HELMET_ON_SPRITE: str = "player_1_helmet_on.png"
 
 # --- Physics Watchdog ---
 PHYSICS_WATCHDOG_THRESHOLD_MS: float = 16.0  # warn if physics step exceeds this

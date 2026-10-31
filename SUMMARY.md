@@ -1,39 +1,48 @@
-# Session Summary — Stability Infrastructure
+# Session Summary — Helmet Overlay Position Fix
 
-## What Was Built
+**Date:** 2026-04-10
 
-1. **LoggingManager** (`src/systems/logging_manager.py`, 95 lines) — manages game_log.txt, performance_log.txt, crash_log.txt. Log rotation at 10MB. All file ops silently fail-safe.
-2. **Crash handler** — main game loop wrapped in try/except. Logs full traceback + player state + last 50 physics frames to crash_log.txt. Graceful pygame shutdown. User-friendly terminal message.
-3. **Physics watchdog** — timer around physics step. Warns at >16ms, CRITICAL at 3 consecutive slow frames. Logged to performance_log.txt. Togglable via PHYSICS_WATCHDOG_ENABLED.
-4. **Level load error handling** — LevelData.load() catches OSError/JSONDecodeError/KeyError. Falls back to safe single-platform level. LevelLoadError exception class added.
-5. **Font infrastructure** — FONT_PATH in constants.py, _load_font() tries bundled font, falls back to SysFont. assets/fonts/ ready for font file.
-6. **Entity count limits** — MAX_ENEMIES=20, MAX_PARTICLES=500, MAX_PROJECTILES=50, MAX_ACTIVE_ABILITIES=10 in constants.py for future Module 5.
-7. **F-key audit** — confirmed no F1-F12 usage. Debug overlay on backtick.
+## Bug
 
-## New Constants Added
-- PHYSICS_WATCHDOG_THRESHOLD_MS = 16.0
-- PHYSICS_WATCHDOG_ENABLED = True
-- MAX_ENEMIES = 20, MAX_PARTICLES = 500, MAX_PROJECTILES = 50, MAX_ACTIVE_ABILITIES = 10
-- FONT_PATH, FONT_SIZE
+Helmet overlay amber placeholder appeared at the wrong position (feet or mid-body) in non-DOWN gravity orientations.
 
-## Test Count
-- Before: 194
-- After: 214 (20 new stability tests)
-- All passing
+## Root Cause
 
-## Files Created/Modified
-- src/systems/logging_manager.py — new
-- tests/test_stability.py — new
-- main.py — crash handler, watchdog, font loading, physics history deque
-- constants.py — watchdog, entity limits, font constants
-- src/levels/level_data.py — fallback level, LevelLoadError
-- .gitignore — added logs/
-- assets/fonts/ — directory created (font file to be added)
+`HelmetOverlay.draw()` applied `HELMET_HEAD_OFFSET_X` (0) and `HELMET_HEAD_OFFSET_Y` (-10) as fixed screen-space pixel offsets from sprite centre. This only placed the helmet at the head when gravity was DOWN. In other orientations the head moves to a different edge of the sprite, but the offset was always "10 pixels up in screen space."
 
-## CLAUDE.md Requirements Addressed
-- D1: Top-level exception handler — done
-- D2: Logging infrastructure — done (3 log files with rotation)
-- D3: Physics watchdog — done
-- D4: Level load error handling — done
-- D5: Entity count limits — defined (enforcement in future Module 5)
-- D6: System font dependency — infrastructure ready, bundled font TBD
+The placeholder path also hardcoded position at the top of the unrotated sprite, then rotated the rectangle shape but not the draw coordinates.
+
+## Fix
+
+Replaced fixed-offset positioning with gravity-aware head calculation:
+
+```
+head_x = cx + (-gravity_dir[0] * HEAD_DIST) + fine_tune_x
+head_y = cy + (-gravity_dir[1] * HEAD_DIST) + fine_tune_y
+```
+
+Where `HEAD_DIST = 0.35 * PLAYER_SPRITE_HEIGHT` (~31.5 pixels from centre). The head is always opposite to gravity direction — this single formula handles all four orientations correctly.
+
+## Changes
+
+| File | What changed |
+|---|---|
+| `src/rendering/animation.py` | Rewrote `HelmetOverlay.draw()` with gravity-aware positioning. Added `head_position()` static method. Added `debug` parameter for cyan dot. Threaded `debug` through `PlayerAnimator.draw()`. |
+| `constants.py` | Added `HELMET_HEAD_DISTANCE = 0.35`. Reset `HELMET_HEAD_OFFSET_Y` to 0 (was -10). |
+| `main.py` | Passes `debug_draw` to `animator.draw()`. |
+| `tests/test_sprite_sheet.py` | Updated placeholder draw test. Added 7 new tests: head position in all 4 gravity orientations, distance matches constant, debug dot on/off. |
+| `SESSION_LOG.md` | Audit findings and fix details. |
+
+## Debug Feature Added
+
+Press backtick (`) to toggle debug mode. A **cyan dot** now appears at the calculated head position — visible in all four gravity orientations. This is permanent for future tuning when real helmet sprites arrive.
+
+## Test Results
+
+253 tests pass (was 246). Zero regressions.
+
+## Constants to Tune Later
+
+- `HELMET_HEAD_DISTANCE` (0.35) — fraction of sprite height from centre to head
+- `HELMET_HEAD_OFFSET_X` (0) — fine-tuning after gravity calculation
+- `HELMET_HEAD_OFFSET_Y` (0) — fine-tuning after gravity calculation
