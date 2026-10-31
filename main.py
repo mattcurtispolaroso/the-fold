@@ -17,6 +17,7 @@ from constants import (
     FONT_PATH,
     FONT_SIZE,
     FPS,
+    PHYSICS_DT,
     JUMP_PEAK_THRESHOLD,
     JUMP_RISING_THRESHOLD,
     PHYSICS_WATCHDOG_ENABLED,
@@ -131,6 +132,7 @@ def main() -> None:
     goal_reached = False
     move_input = 0
     debug_draw = False
+    physics_accumulator: float = 0.0
 
     # Physics frame history for crash reports
     physics_history: deque = deque(maxlen=50)
@@ -139,7 +141,8 @@ def main() -> None:
     try:
         running = True
         while running:
-            dt = min(clock.tick(FPS) / 1000.0, 0.05)
+            frame_dt = min(clock.tick(FPS) / 1000.0, 0.05)
+            physics_accumulator += frame_dt
 
             # --- Events ---
             for event in pygame.event.get():
@@ -178,77 +181,80 @@ def main() -> None:
                         vx, vy = apply_jump_cut(vx, vy, gravity_dir)
                         jumping = False
 
-            # --- Physics (with watchdog) ---
-            physics_start = time.perf_counter()
-
+            # --- Physics (fixed 60hz steps) ---
             grav_vert = gravity_is_vertical(gravity_dir)
-            keys = pygame.key.get_pressed()
-            if grav_vert:
-                move_input = 0
-                if keys[pygame.K_LEFT] or keys[pygame.K_a]:
-                    move_input = -1
-                    facing_right = False
-                elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-                    move_input = 1
-                    facing_right = True
-            else:
-                move_input = 0
-                if keys[pygame.K_UP] or keys[pygame.K_w]:
-                    move_input = -1
-                elif keys[pygame.K_DOWN] or keys[pygame.K_s]:
-                    move_input = 1
+            while physics_accumulator >= PHYSICS_DT:
+                physics_start = time.perf_counter()
 
-            vx, vy = apply_lateral_movement(vx, vy, move_input, gravity_dir, on_ground)
-            if not on_ground:
-                vx, vy = apply_gravity(vx, vy, gravity_dir, on_ground)
-                vx, vy = clamp_terminal_velocity(vx, vy, gravity_dir)
+                keys = pygame.key.get_pressed()
+                if grav_vert:
+                    move_input = 0
+                    if keys[pygame.K_LEFT] or keys[pygame.K_a]:
+                        move_input = -1
+                        facing_right = False
+                    elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
+                        move_input = 1
+                        facing_right = True
+                else:
+                    move_input = 0
+                    if keys[pygame.K_UP] or keys[pygame.K_w]:
+                        move_input = -1
+                    elif keys[pygame.K_DOWN] or keys[pygame.K_s]:
+                        move_input = 1
 
-            level.update()
-            all_platforms = level.all_platform_rects()
-            px, py, vx, vy, on_ground = resolve_collisions(
-                px, py, vx, vy, player_w, player_h, all_platforms, gravity_dir,
-            )
+                vx, vy = apply_lateral_movement(vx, vy, move_input, gravity_dir, on_ground)
+                if not on_ground:
+                    vx, vy = apply_gravity(vx, vy, gravity_dir, on_ground)
+                    vx, vy = clamp_terminal_velocity(vx, vy, gravity_dir)
 
-            if on_ground:
-                jumping = False
-                coyote_timer = COYOTE_TIME
-            else:
-                coyote_timer = max(0.0, coyote_timer - dt)
-
-            # Level bounds clamp
-            px_c = round(max(player_w / 2, min(level.level_width - player_w / 2, px)))
-            py_c = round(max(player_h / 2, min(level.level_height - player_h / 2, py)))
-            if px_c != round(px):
-                if (gravity_dir[0] < 0 and px_c > px) or (gravity_dir[0] > 0 and px_c < px):
-                    on_ground, jumping, coyote_timer = True, False, COYOTE_TIME
-                vx, px = 0.0, float(px_c)
-            if py_c != round(py):
-                if (gravity_dir[1] < 0 and py_c > py) or (gravity_dir[1] > 0 and py_c < py):
-                    on_ground, jumping, coyote_timer = True, False, COYOTE_TIME
-                vy, py = 0.0, float(py_c)
-
-            # Physics watchdog
-            physics_ms = (time.perf_counter() - physics_start) * 1000
-            if PHYSICS_WATCHDOG_ENABLED and physics_ms > PHYSICS_WATCHDOG_THRESHOLD_MS:
-                watchdog_consecutive += 1
-                level_str = "CRITICAL" if watchdog_consecutive >= 3 else "WARNING"
-                logger.log_performance(
-                    f"{level_str}: Physics step slow",
-                    physics_ms, len(all_platforms),
+                level.update()
+                all_platforms = level.all_platform_rects()
+                px, py, vx, vy, on_ground = resolve_collisions(
+                    px, py, vx, vy, player_w, player_h, all_platforms, gravity_dir,
                 )
-            else:
-                watchdog_consecutive = 0
 
-            # Record physics frame
-            physics_history.append(_player_snapshot(
-                px, py, vx, vy, gravity_dir, on_ground,
-            ))
+                if on_ground:
+                    jumping = False
+                    coyote_timer = COYOTE_TIME
+                else:
+                    coyote_timer = max(0.0, coyote_timer - PHYSICS_DT)
 
-            # Camera + animation
-            camera.update(px, py, dt)
+                # Level bounds clamp
+                px_c = round(max(player_w / 2, min(level.level_width - player_w / 2, px)))
+                py_c = round(max(player_h / 2, min(level.level_height - player_h / 2, py)))
+                if px_c != round(px):
+                    if (gravity_dir[0] < 0 and px_c > px) or (gravity_dir[0] > 0 and px_c < px):
+                        on_ground, jumping, coyote_timer = True, False, COYOTE_TIME
+                    vx, px = 0.0, float(px_c)
+                if py_c != round(py):
+                    if (gravity_dir[1] < 0 and py_c > py) or (gravity_dir[1] > 0 and py_c < py):
+                        on_ground, jumping, coyote_timer = True, False, COYOTE_TIME
+                    vy, py = 0.0, float(py_c)
+
+                # Physics watchdog
+                physics_ms = (time.perf_counter() - physics_start) * 1000
+                if PHYSICS_WATCHDOG_ENABLED and physics_ms > PHYSICS_WATCHDOG_THRESHOLD_MS:
+                    watchdog_consecutive += 1
+                    level_str = "CRITICAL" if watchdog_consecutive >= 3 else "WARNING"
+                    logger.log_performance(
+                        f"{level_str}: Physics step slow",
+                        physics_ms, len(all_platforms),
+                    )
+                else:
+                    watchdog_consecutive = 0
+
+                # Record physics frame
+                physics_history.append(_player_snapshot(
+                    px, py, vx, vy, gravity_dir, on_ground,
+                ))
+
+                physics_accumulator -= PHYSICS_DT
+
+            # Camera + animation (once per render frame)
+            camera.update(px, py, frame_dt)
             player_state = _determine_player_state(on_ground, vx, vy, gravity_dir, move_input)
             lateral_speed = vx if grav_vert else vy
-            animator.update(dt, player_state, lateral_speed)
+            animator.update(frame_dt, player_state, lateral_speed)
 
             # Goal check
             pr = pygame.Rect(px - player_w / 2, py - player_h / 2, player_w, player_h)

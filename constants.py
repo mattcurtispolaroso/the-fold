@@ -7,6 +7,7 @@ Import from here — never hardcode numeric values in logic files.
 SCREEN_WIDTH: int = 800
 SCREEN_HEIGHT: int = 600
 FPS: int = 60
+PHYSICS_DT: float = 1.0 / FPS  # fixed physics timestep (seconds per step)
 
 # --- Camera ---
 CAMERA_FOLLOW_SPEED: float = 5.0      # lerp speed (higher = snappier)
