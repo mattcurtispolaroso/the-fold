@@ -60,7 +60,7 @@ GREEN = (50, 220, 50)
 # Level file path
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LEVEL_DIR = os.path.join(BASE_DIR, "levels")
-DEFAULT_LEVEL = os.path.join(LEVEL_DIR, "level_01.json")
+LEVELS = [os.path.join(LEVEL_DIR, f"level_0{i}.json") for i in range(1, 4)]
 
 
 def _load_font() -> pygame.font.Font:
@@ -111,8 +111,9 @@ def main() -> None:
     font = _load_font()
 
     # Load level
+    current_level_idx = 0
     level = LevelRenderer()
-    level.load(DEFAULT_LEVEL)
+    level.load(LEVELS[current_level_idx])
 
     # Camera
     camera = Camera(WIDTH, HEIGHT)
@@ -156,6 +157,25 @@ def main() -> None:
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         running = False
+                    if event.key == pygame.K_TAB:
+                        current_level_idx = (current_level_idx + 1) % len(LEVELS)
+                        level.load(LEVELS[current_level_idx])
+                        camera.set_bounds(level.level_width, level.level_height)
+                        camera.x, camera.y = level.spawn
+                        px, py = level.spawn
+                        vx, vy = 0.0, 0.0
+                        gravity_dir = tuple(level.gravity_start)
+                        player_w, player_h = get_player_physics_size(gravity_dir)
+                        on_ground = False
+                        coyote_timer = 0.0
+                        jumping = False
+                        goal_reached = False
+                        physics_accumulator = 0.0
+                        flash_timer = 0.0
+                        if gravity_dir == (0, 1):
+                            animator.helmet.request_off()
+                        else:
+                            animator.helmet.request_on()
                     if event.key == pygame.K_BACKQUOTE:
                         debug_draw = not debug_draw
                     if event.key == pygame.K_r:
@@ -293,7 +313,7 @@ def main() -> None:
                 screen.blit(flash_surf, (0, 0))
 
             label = font.render(
-                f"Gravity: {GRAVITY_LABELS[gravity_dir]}  |  R rotate  |  Arrows+Space",
+                f"Gravity: {GRAVITY_LABELS[gravity_dir]}  |  R rotate  |  TAB next level",
                 True, BLUE)
             screen.blit(label, (10, 10))
             if goal_reached:

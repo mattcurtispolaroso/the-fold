@@ -25,7 +25,7 @@ from src.levels.level_data import LevelData, PlatformDef, MovingPlatformDef, Goa
 
 # Load level_01 once for level geometry tests
 _level = LevelRenderer()
-_level.load(main.DEFAULT_LEVEL)
+_level.load(main.LEVELS[0])
 
 
 class TestConstants(unittest.TestCase):
@@ -43,7 +43,7 @@ class TestConstants(unittest.TestCase):
         self.assertEqual(len(GRAVITY_LABELS), 4)
 
     def test_default_level_exists(self):
-        self.assertTrue(os.path.isfile(main.DEFAULT_LEVEL))
+        self.assertTrue(os.path.isfile(main.LEVELS[0]))
 
 
 class TestGravityDirections(unittest.TestCase):
@@ -540,7 +540,7 @@ class TestLevelLoading(unittest.TestCase):
 
     def test_load_level_01(self):
         renderer = LevelRenderer()
-        data = renderer.load(main.DEFAULT_LEVEL)
+        data = renderer.load(main.LEVELS[0])
         self.assertEqual(data.name, "Test Level")
 
     def test_level_01_has_correct_platform_count(self):
@@ -559,7 +559,7 @@ class TestLevelLoading(unittest.TestCase):
         self.assertEqual(_level.goal_rect, pygame.Rect(15, 100, 50, 40))
 
     def test_roundtrip_serialisation(self):
-        data = LevelData.load(main.DEFAULT_LEVEL)
+        data = LevelData.load(main.LEVELS[0])
         json_str = data.to_json()
         data2 = LevelData.from_json(json_str)
         self.assertEqual(data.name, data2.name)

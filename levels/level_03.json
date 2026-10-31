@@ -1,0 +1,16 @@
+{
+  "name": "Side Step",
+  "gravity_start": [0, 1],
+  "spawn": [100.0, 800.0],
+  "tile_size": 40,
+  "level_width": 2400,
+  "level_height": 900,
+  "goal": {"x": 2160, "y": 400, "w": 200, "h": 300},
+  "static_platforms": [
+    {"x": 0, "y": 860, "w": 600, "h": 40},
+    {"x": 0, "y": 0, "w": 2400, "h": 40},
+    {"x": 0, "y": 40, "w": 40, "h": 820},
+    {"x": 2360, "y": 0, "w": 40, "h": 900}
+  ],
+  "moving_platforms": []
+}
