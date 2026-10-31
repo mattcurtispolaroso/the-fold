@@ -22,6 +22,11 @@ SCREEN_SHAKE_ENABLED: bool = True
 ROTATE_SHAKE_INTENSITY: float = 15.0   # pixels — dramatic world-shifting event
 ROTATE_SHAKE_DURATION: float = 0.4     # seconds
 
+# --- Rotation Flash Overlay ---
+ROTATION_FLASH_COLOR: tuple = (200, 220, 255)  # pale blue-white
+ROTATION_FLASH_DURATION: float = 0.35          # seconds to fade out
+ROTATION_FLASH_MAX_ALPHA: int = 90             # peak opacity (0-255)
+
 # --- Physics Scale ---
 PPM: int = 50                                             # pixels per meter
 EARTH_GRAVITY: float = 9.8                                # m/s²

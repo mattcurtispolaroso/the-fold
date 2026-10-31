@@ -24,6 +24,9 @@ from constants import (
     PHYSICS_WATCHDOG_THRESHOLD_MS,
     ROTATE_SHAKE_DURATION,
     ROTATE_SHAKE_INTENSITY,
+    ROTATION_FLASH_COLOR,
+    ROTATION_FLASH_DURATION,
+    ROTATION_FLASH_MAX_ALPHA,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
 )
@@ -120,6 +123,7 @@ def main() -> None:
     background = load_background()
     animator = PlayerAnimator()
     facing_right = True
+    flash_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
 
     # Player state
     px, py = level.spawn
@@ -133,6 +137,7 @@ def main() -> None:
     move_input = 0
     debug_draw = False
     physics_accumulator: float = 0.0
+    flash_timer: float = 0.0
 
     # Physics frame history for crash reports
     physics_history: deque = deque(maxlen=50)
@@ -167,6 +172,7 @@ def main() -> None:
                             jumping = False
                         camera.on_gravity_rotate()
                         camera.shake(ROTATE_SHAKE_INTENSITY, ROTATE_SHAKE_DURATION)
+                        flash_timer = ROTATION_FLASH_DURATION
                         # Helmet trigger: on when gravity != DOWN
                         if gravity_dir == (0, 1):
                             animator.helmet.request_off()
@@ -279,6 +285,12 @@ def main() -> None:
                                  player_w, player_h)
                 pygame.draw.rect(screen, (255, 0, 0), dr, 2)
                 pygame.draw.circle(screen, (0, 255, 0), (int(px + ox), int(py + oy)), 4)
+
+            if flash_timer > 0:
+                flash_timer = max(0.0, flash_timer - frame_dt)
+                alpha = int(ROTATION_FLASH_MAX_ALPHA * (flash_timer / ROTATION_FLASH_DURATION))
+                flash_surf.fill((*ROTATION_FLASH_COLOR, alpha))
+                screen.blit(flash_surf, (0, 0))
 
             label = font.render(
                 f"Gravity: {GRAVITY_LABELS[gravity_dir]}  |  R rotate  |  Arrows+Space",
