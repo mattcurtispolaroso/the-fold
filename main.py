@@ -15,6 +15,7 @@ from constants import (
     ANCHOR_INTEGRITY_MAX,
     BLACK_HOLE_STABILITY_COST,
     COYOTE_TIME,
+    DEBUG_ITEMS,
     FOLD_STABILITY_INTEGRITY_COST,
     FOLD_STABILITY_MAX,
     HOLE_ENCOUNTER_PHASE1_DURATION,
@@ -56,6 +57,9 @@ from src.rendering.hud import (
 from src.rendering.loader import load_background, load_font
 from src.systems.combat import check_hit, compute_knockback
 from src.systems.events import EventBus, GameEvent
+from src.systems.items import ItemManager, load_item_registry
+from src.systems.items.effects import EffectContext
+from src.data.items import OwnedItem
 from src.systems.logging_manager import LoggingManager
 from src.systems.spacetime import make_time_dilation
 
@@ -96,6 +100,14 @@ def _apply_hole_consequences(
         run_state.deaths += 1
 
 
+def _grant_debug_items(run_state: object, item_manager: object, item_registry: object) -> None:
+    """Grant one of each item at rank 1 for playtesting. Only active when DEBUG_ITEMS=True."""
+    from src.data.items import OwnedItem
+    owned = [OwnedItem(id=defn.id, rank=1) for defn in item_registry.all_items()]
+    run_state.owned_items = [{"id": o.id, "rank": o.rank} for o in owned]
+    item_manager.sync_owned(owned)
+
+
 def main() -> None:
     """Main game loop — orchestrates physics, rendering, input."""
     pygame.init()
@@ -124,6 +136,12 @@ def main() -> None:
     run_state = RunState(fold_stability=100.0, current_node_idx=0, run_seed=0, is_active=False)
     bus = EventBus()
     time_dilation = make_time_dilation()
+    item_registry = load_item_registry(BASE_DIR, logger)
+    item_manager = ItemManager(
+        registry=item_registry, bus=bus, player=player, enemies=[enemy],
+        run_state=run_state, ability_slot=time_dilation, rng_seed=0,
+    )
+    item_manager.sync_owned([])
     game_state = "start"
     debug_draw = False
     physics_accumulator: float = 0.0
@@ -149,6 +167,8 @@ def main() -> None:
                     elif event.key == pygame.K_RETURN:
                         if game_state == "start":
                             run_state = RunState.new_run()
+                            item_manager.reset()
+                            item_manager.sync_owned([])
                             game_state = "node_map"
                             physics_accumulator = 0.0
                         elif game_state == "node_map":
@@ -184,6 +204,8 @@ def main() -> None:
                             bus.emit(GameEvent.ROOM_ENTERED)
                         if event.key == pygame.K_BACKQUOTE:
                             debug_draw = not debug_draw
+                        if DEBUG_ITEMS and event.key == pygame.K_f:
+                            _grant_debug_items(run_state, item_manager, item_registry)
                         if event.key == pygame.K_r:
                             bus.emit(GameEvent.GRAVITY_ROTATED, gravity_dir=player.gravity_dir)
                             player.set_gravity(rotate_gravity_ccw(player.gravity_dir))
@@ -228,6 +250,7 @@ def main() -> None:
 
             if game_state == "playing":
                 time_dilation.tick(frame_dt, bus)
+                item_manager.tick(frame_dt)
                 time_scale = time_dilation.time_scale()
                 if flash_timer > 0:
                     flash_timer = max(0.0, flash_timer - frame_dt)
@@ -266,7 +289,7 @@ def main() -> None:
                         )
 
                     level.update(time_scale)
-                    enemy.update(time_scale)
+                    enemy.update(time_scale, dt=PHYSICS_DT)
                     if player.on_ground:
                         pvx, pvy = level.riding_velocity(
                             player.px, player.py, player.player_w, player.player_h,

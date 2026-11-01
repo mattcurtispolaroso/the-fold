@@ -33,9 +33,13 @@ class TemporalEcho:
         self.h = h
         self.direction: int = 1
         self._start_px: float = px
+        self.frozen_timer: float = 0.0  # seconds remaining of Hawking Emitter freeze
 
-    def update(self, time_scale: float = 1.0) -> None:
-        """Move one step; time_scale=0 freezes the enemy (Time Dilation active)."""
+    def update(self, time_scale: float = 1.0, dt: float = 0.0) -> None:
+        """Move one step; time_scale=0 or frozen_timer>0 freezes the enemy."""
+        if self.frozen_timer > 0.0:
+            self.frozen_timer = max(0.0, self.frozen_timer - dt)
+            return
         self.px += self.speed * self.direction * time_scale
         if self.px >= self.max_x:
             self.px = self.max_x
@@ -48,6 +52,7 @@ class TemporalEcho:
         """Return to spawn position and initial direction."""
         self.px = self._start_px
         self.direction = 1
+        self.frozen_timer = 0.0
 
     @property
     def rect(self) -> pygame.Rect:

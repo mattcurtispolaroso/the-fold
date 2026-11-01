@@ -1,0 +1,44 @@
+[
+  {
+    "id": "kerr_ring",
+    "name": "Kerr Ring",
+    "tier": "artifact",
+    "domain": "none",
+    "trigger": "GRAVITY_ROTATED",
+    "effect": "trigger_ability",
+    "params_by_rank": [
+      {"ability_name": "time_dilation", "every_n": 4}
+    ],
+    "internal_cooldown": 0.0,
+    "description": "Every 4th gravity rotation (full revolution) triggers a free Time Dilation.",
+    "unlocked_by": null
+  },
+  {
+    "id": "hawking_emitter",
+    "name": "Hawking Emitter",
+    "tier": "artifact",
+    "domain": "none",
+    "trigger": "INTEGRITY_ZERO",
+    "effect": "freeze_enemies_in_radius",
+    "params_by_rank": [
+      {"radius": 200.0, "duration": 1.0}
+    ],
+    "internal_cooldown": 0.0,
+    "description": "When integrity drops, freeze all enemies within range for 1 second.",
+    "unlocked_by": null
+  },
+  {
+    "id": "penrose_diagram",
+    "name": "Penrose Diagram",
+    "tier": "artifact",
+    "domain": "none",
+    "trigger": "ROOM_CLEARED",
+    "effect": "add_reward_option",
+    "params_by_rank": [
+      {"extra_options": 1}
+    ],
+    "internal_cooldown": 0.0,
+    "description": "Every reward screen shows 4 options instead of 3.",
+    "unlocked_by": null
+  }
+]

@@ -1,0 +1,98 @@
+[
+  {
+    "id": "redshift",
+    "name": "Redshift",
+    "tier": "modifier",
+    "domain": "time",
+    "trigger": "ABILITY_USED",
+    "effect": "extend_active_ability",
+    "params_by_rank": [
+      {"ability_name": "time_dilation", "seconds": 0.5},
+      {"ability_name": "time_dilation", "seconds": 1.0},
+      {"ability_name": "time_dilation", "seconds": 1.5}
+    ],
+    "internal_cooldown": 0.0,
+    "description": "Time Dilation lasts longer.",
+    "unlocked_by": null
+  },
+  {
+    "id": "closed_timelike_curve",
+    "name": "Closed Timelike Curve",
+    "tier": "modifier",
+    "domain": "time",
+    "trigger": "INTEGRITY_ZERO",
+    "effect": "cancel_and_restore",
+    "params_by_rank": [
+      {"per_room_charges": 1, "per_run_bonus": 0},
+      {"per_room_charges": 1, "per_run_bonus": 1},
+      {"per_room_charges": 2, "per_run_bonus": 0}
+    ],
+    "internal_cooldown": 0.0,
+    "description": "Once per room: cancel an integrity-zero, restore 1 integrity, return to last safe position.",
+    "unlocked_by": null
+  },
+  {
+    "id": "tidal_coupling",
+    "name": "Tidal Coupling",
+    "tier": "modifier",
+    "domain": "gravity",
+    "trigger": "GRAVITY_ROTATED",
+    "effect": "add_chrono",
+    "params_by_rank": [
+      {"amount": 8},
+      {"amount": 12},
+      {"amount": 16}
+    ],
+    "internal_cooldown": 1.5,
+    "description": "Rotating gravity restores Chrono Reserve.",
+    "unlocked_by": null
+  },
+  {
+    "id": "geodesic",
+    "name": "Geodesic",
+    "tier": "modifier",
+    "domain": "gravity",
+    "trigger": "GRAVITY_ROTATED",
+    "effect": "grant_iframes",
+    "params_by_rank": [
+      {"seconds": 0.3},
+      {"seconds": 0.5},
+      {"seconds": 0.7}
+    ],
+    "internal_cooldown": 0.0,
+    "description": "Rotating gravity grants brief invincibility.",
+    "unlocked_by": null
+  },
+  {
+    "id": "event_horizon",
+    "name": "Event Horizon",
+    "tier": "modifier",
+    "domain": "horizon",
+    "trigger": "HOLE_RESOLVED",
+    "effect": "modify_hole_outcome",
+    "params_by_rank": [
+      {"stability_reduction": 5, "extra_reward_options": 0},
+      {"stability_reduction": 8, "extra_reward_options": 0},
+      {"stability_reduction": 10, "extra_reward_options": 1}
+    ],
+    "internal_cooldown": 0.0,
+    "description": "Black holes cost less stability. At max rank, white holes show an extra reward option.",
+    "unlocked_by": null
+  },
+  {
+    "id": "quantum_foam",
+    "name": "Quantum Foam",
+    "tier": "modifier",
+    "domain": "horizon",
+    "trigger": "PLAYER_HIT",
+    "effect": "phase_hit",
+    "params_by_rank": [
+      {"chance": 0.15},
+      {"chance": 0.25},
+      {"chance": 0.35}
+    ],
+    "internal_cooldown": 0.0,
+    "description": "Chance to phase through a hit entirely.",
+    "unlocked_by": null
+  }
+]

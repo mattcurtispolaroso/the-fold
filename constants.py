@@ -140,6 +140,15 @@ MAX_PARTICLES: int = 500
 MAX_PROJECTILES: int = 50
 MAX_ACTIVE_ABILITIES: int = 10
 
+# --- Item System (M5a) ---
+MODIFIER_CAP: int = 6
+HAWKING_RADIUS: float = 200.0
+PARADOX_OFFER_CHANCE: float = 0.25
+DEBUG_ITEMS: bool = True
+ARTIFACT_COST_PENROSE_DIAGRAM: float = 10.0
+ARTIFACT_COST_KERR_RING: float = 20.0
+ARTIFACT_COST_HAWKING_EMITTER: float = 25.0
+
 # --- Fold Stability (run survival resource) ---
 FOLD_STABILITY_MAX: float = 100.0
 FOLD_STABILITY_INTEGRITY_COST: float = 20.0  # lost per integrity-0 death (5 deaths end a run)

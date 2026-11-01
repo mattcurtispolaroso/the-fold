@@ -26,3 +26,15 @@
 - Added debug cyan dot at head position when backtick debug mode is active.
 - Added 7 new tests for head positioning in all 4 gravity orientations + debug dot.
 - All 253 tests pass.
+
+[2026-11-01] M5a Session 2: Item system (no UI) — complete.
+- Created src/data/items.py: ItemDef, OwnedItem, ResonanceDef dataclasses.
+- Created assets/data/items/modifiers.json (6 modifiers), artifacts.json (3 artifacts), resonances.json (3 resonances).
+- Created src/systems/items/registry.py: load_item_registry(), ItemRegistry — validates JSON on load, logs and skips invalid entries.
+- Created src/systems/items/effects.py: 11 effect primitives in EFFECT_REGISTRY (add_chrono, grant_iframes, extend_active_ability, cancel_and_restore, phase_hit, modify_hole_outcome, add_reward_option, freeze_enemies_in_radius, trigger_ability, grant_iframes_on_phase, ctc_undo_integrity_loss).
+- Created src/systems/items/manager.py: ItemManager subscribes owned items to event bus, tracks internal cooldowns, per-room charges, and resonances.
+- Updated RunState: added owned_items, paradox_spent, extra_reward_options fields.
+- Updated TemporalEcho: added frozen_timer field and Hawking Emitter freeze support.
+- Wired ItemManager into main.py: load at startup, tick() each frame, F-key debug grant.
+- Added MODIFIER_CAP, HAWKING_RADIUS, PARADOX_OFFER_CHANCE, DEBUG_ITEMS, artifact cost constants.
+- 418 tests pass (46 new: registry validation, each effect primitive, resonance detection, cooldown management, physics invariance).

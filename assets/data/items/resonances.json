@@ -1,0 +1,29 @@
+[
+  {
+    "id": "spaghettification",
+    "name": "Spaghettification",
+    "requires": ["tidal_coupling", "redshift"],
+    "trigger": "GRAVITY_ROTATED",
+    "effect": "extend_active_ability",
+    "params": {"ability_name": "time_dilation", "seconds": 1.0, "only_when_active": true},
+    "description": "Rotating gravity during Time Dilation extends it by 1 second (once per activation)."
+  },
+  {
+    "id": "ergosphere",
+    "name": "Ergosphere",
+    "requires": ["geodesic", "quantum_foam"],
+    "trigger": "PLAYER_HIT",
+    "effect": "grant_iframes_on_phase",
+    "params": {"seconds": 0.5},
+    "description": "Hits phased by Quantum Foam also grant Geodesic i-frames."
+  },
+  {
+    "id": "information_paradox",
+    "name": "Information Paradox",
+    "requires": ["closed_timelike_curve", "event_horizon"],
+    "trigger": "HOLE_RESOLVED",
+    "effect": "ctc_undo_integrity_loss",
+    "params": {},
+    "description": "A black hole's integrity loss is undone by Closed Timelike Curve without spending its charge."
+  }
+]
