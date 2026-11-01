@@ -51,14 +51,15 @@ from src.rendering.animation import PlayerAnimator, PlayerState, determine_playe
 from src.rendering.camera import Camera
 from src.rendering.hud import (
     draw_debug_overlay, draw_death_screen, draw_flash_overlay, draw_fold_tint,
-    draw_hole_screen, draw_hud_labels, draw_node_map, draw_start_screen,
-    draw_win_screen, draw_world,
+    draw_hole_screen, draw_hud_labels, draw_node_map, draw_reward_screen,
+    draw_start_screen, draw_win_screen, draw_world,
 )
 from src.rendering.loader import load_background, load_font
 from src.systems.combat import check_hit, compute_knockback
 from src.systems.events import EventBus, GameEvent
 from src.systems.items import ItemManager, load_item_registry
 from src.systems.items.effects import EffectContext
+from src.systems.items.offers import generate_offers
 from src.data.items import OwnedItem
 from src.systems.logging_manager import LoggingManager
 from src.systems.spacetime import make_time_dilation
@@ -98,6 +99,43 @@ def _apply_hole_consequences(
             0.0, run_state.fold_stability - BLACK_HOLE_STABILITY_COST,
         )
         run_state.deaths += 1
+
+
+def _owned_item_list(run_state: object) -> list:
+    """Convert run_state.owned_items dicts to OwnedItem instances."""
+    return [OwnedItem(id=e["id"], rank=e.get("rank", 1)) for e in run_state.owned_items]
+
+
+def _apply_offer(offer: object, run_state: object, item_manager: object, item_registry: object) -> None:
+    """Apply a picked offer to run_state and sync the item manager."""
+    from constants import MODIFIER_CAP
+
+    if offer.is_paradox:
+        run_state.fold_stability -= offer.paradox_cost
+        run_state.paradox_spent += offer.paradox_cost
+
+    entry = {"id": offer.item_def.id, "rank": offer.target_rank}
+    owned = list(run_state.owned_items)
+
+    if offer.is_rank_up:
+        for i, e in enumerate(owned):
+            if e["id"] == entry["id"]:
+                owned[i] = entry
+                break
+    else:
+        # At modifier cap: drop the oldest modifier
+        if offer.item_def.tier == "modifier":
+            modifier_indices = [
+                i for i, e in enumerate(owned)
+                if item_registry.get_item(e["id"]) is not None
+                and item_registry.get_item(e["id"]).tier == "modifier"
+            ]
+            if len(modifier_indices) >= MODIFIER_CAP:
+                owned.pop(modifier_indices[0])
+        owned.append(entry)
+
+    run_state.owned_items = owned
+    item_manager.sync_owned(_owned_item_list(run_state))
 
 
 def _grant_debug_items(run_state: object, item_manager: object, item_registry: object) -> None:
@@ -148,6 +186,8 @@ def main() -> None:
     flash_timer: float = 0.0
     hole_timer: float = 0.0
     hole_is_white: bool = False
+    reward_offers: list = []
+    pending_node_advance: bool = False
 
     physics_history: deque = deque(maxlen=50)
     watchdog_consecutive: int = 0
@@ -194,6 +234,27 @@ def main() -> None:
                             run_state.is_active = False
                             current_level_idx = 0
                             level.load(LEVELS[current_level_idx])
+                    elif game_state == "reward":
+                        picked_idx = None
+                        if event.key == pygame.K_1:
+                            picked_idx = 0
+                        elif event.key == pygame.K_2:
+                            picked_idx = 1
+                        elif event.key == pygame.K_3:
+                            picked_idx = 2
+                        elif event.key == pygame.K_4:
+                            picked_idx = 3
+                        skip = event.key in (pygame.K_s, pygame.K_0)
+                        if skip or (picked_idx is not None and picked_idx < len(reward_offers)):
+                            if not skip:
+                                offer = reward_offers[picked_idx]
+                                if offer.takeable(run_state.fold_stability):
+                                    _apply_offer(offer, run_state, item_manager, item_registry)
+                            if pending_node_advance:
+                                run_state.advance_node()
+                            game_state = "node_map"
+                            reward_offers = []
+                            pending_node_advance = False
                     elif game_state == "playing":
                         if event.key == pygame.K_TAB:
                             current_level_idx = (current_level_idx + 1) % len(LEVELS)
@@ -245,8 +306,20 @@ def main() -> None:
             if game_state == "hole_encounter":
                 hole_timer = max(0.0, hole_timer - frame_dt)
                 if hole_timer <= 0:
-                    run_state.advance_node()
-                    game_state = "dead" if run_state.fold_stability <= 0.0 else "node_map"
+                    if run_state.fold_stability <= 0.0:
+                        run_state.advance_node()
+                        game_state = "dead"
+                    elif hole_is_white:
+                        reward_offers = generate_offers(
+                            item_registry, _owned_item_list(run_state),
+                            run_state.run_seed, run_state.current_node_idx,
+                            getattr(run_state, "extra_reward_options", 0),
+                        )
+                        pending_node_advance = True
+                        game_state = "reward"
+                    else:
+                        run_state.advance_node()
+                        game_state = "node_map"
 
             if game_state == "playing":
                 time_dilation.tick(frame_dt, bus)
@@ -367,15 +440,29 @@ def main() -> None:
 
                 if player.goal_reached:
                     bus.emit(GameEvent.ROOM_CLEARED)
-                    run_state.advance_node()
-                    game_state = "node_map"
+                    reward_offers = generate_offers(
+                        item_registry, _owned_item_list(run_state),
+                        run_state.run_seed, run_state.current_node_idx,
+                        getattr(run_state, "extra_reward_options", 0),
+                    )
+                    pending_node_advance = True
+                    game_state = "reward"
                     physics_accumulator = flash_timer = 0.0
                     time_dilation.reset()
 
             if game_state == "start":
                 draw_start_screen(screen, font, WIDTH, HEIGHT)
             elif game_state == "node_map":
-                draw_node_map(screen, font, run_state, WIDTH, HEIGHT)
+                draw_node_map(screen, font, run_state, WIDTH, HEIGHT, registry=item_registry)
+            elif game_state == "reward":
+                from constants import MODIFIER_CAP
+                at_cap = sum(
+                    1 for o in run_state.owned_items
+                    if item_registry.get_item(o.get("id", "")) is not None
+                    and item_registry.get_item(o["id"]).tier == "modifier"
+                ) >= MODIFIER_CAP
+                draw_reward_screen(screen, font, reward_offers, run_state.fold_stability,
+                                   WIDTH, HEIGHT, at_modifier_cap=at_cap)
             elif game_state == "hole_encounter":
                 draw_hole_screen(screen, font, hole_timer, hole_is_white, WIDTH, HEIGHT)
             elif game_state == "dead":

@@ -136,3 +136,38 @@ Run through this after each coding session. Launch the game with `python main.py
 - [ ] Terminal velocity caps fall speed in all orientations
 - [ ] Lateral movement accel/decel feels identical to pre-refactor
 - [ ] No physics logic remains in main.py — all in src/physics/
+
+## Build System (M5a)
+
+### Offer Screen
+- [ ] After clearing a combat room — reward screen appears before node map
+- [ ] After a white hole — reward screen appears before node map
+- [ ] After a black hole — NO reward screen (go directly to node map)
+- [ ] Press 1/2/3 to pick an offer — item appears in ITEMS list on node map
+- [ ] Press S to skip — no item granted, node map resumes correctly
+- [ ] Rank-up offer shows "R1 → R2" and only appears when item is owned below max rank
+- [ ] Maxed modifier (rank 3) never appears as an offer
+- [ ] Paradox offer shown in red with stability cost
+- [ ] Paradox offer NOT pickable if cost would drop stability to ≤ 0
+- [ ] Picking a Paradox offer reduces fold_stability by the shown cost
+- [ ] With Penrose Diagram owned — reward screen shows 4 options instead of 3
+
+### Modifier Cap
+- [ ] ITEMS line on node map shows all owned items with rank
+- [ ] When 6 modifiers owned and a 7th is picked — oldest is dropped, new one added
+- [ ] "MODIFIER CAP REACHED" warning shown on reward screen when at cap
+
+### Debug
+- [ ] F key (in game) grants all items at rank 1 for playtesting
+- [ ] After F grant — ITEMS line on node map shows all items
+
+### Item Effects (verify via F-key grant + play)
+- [ ] Tidal Coupling — chrono reserve increases on gravity rotation (with 1.5s cooldown)
+- [ ] Geodesic — brief i-frames on gravity rotation (can walk through enemy hit)
+- [ ] Redshift — Time Dilation duration extended when active
+- [ ] Closed Timelike Curve — integrity-zero cancelled once per room, position restored
+- [ ] Event Horizon — black hole costs less stability
+- [ ] Quantum Foam — occasional hit cancellation
+- [ ] Kerr Ring — every 4th rotation triggers free Time Dilation
+- [ ] Hawking Emitter — enemy freezes briefly when player integrity drops
+- [ ] Penrose Diagram — 4 options on reward screen

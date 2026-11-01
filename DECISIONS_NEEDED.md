@@ -296,6 +296,89 @@ Both `take_hit()` and `take_fall_damage()` return `True` when integrity hits 0. 
 
 ---
 
+## M5a Session 3 — Reward Flow ✅ APPROVED 2026-11-01
+
+**Touches 5 files (1 new).**
+
+### What this session delivers
+
+The `"reward"` game state. After a combat room clears or a white hole resolves, the player sees a pick-1-of-3 offer screen before returning to the node map. Black holes give no reward.
+
+### Flow
+
+```
+"playing" → goal_reached → generate offers → "reward" → pick → advance_node → "node_map"
+"hole_encounter" (white) → timer ends → generate offers → "reward" → pick → advance_node → "node_map"
+"hole_encounter" (black) → timer ends → advance_node → "node_map"  (unchanged)
+```
+
+`run_state.advance_node()` moves to the reward screen handler — called after pick or skip, not before. Two new flags in main.py locals: `reward_offers: list` and `pending_node_advance: bool`.
+
+### Offer generation — `src/systems/items/offers.py` (new)
+
+```python
+@dataclass
+class Offer:
+    item_def: ItemDef
+    is_rank_up: bool
+    is_paradox: bool
+    paradox_cost: float   # fold_stability; 0 if not paradox
+
+def generate_offers(
+    registry, run_state, node_idx, extra_options=0
+) -> list[Offer]:
+    ...
+```
+
+**Algorithm:**
+1. Base count = 3 + `extra_options` (Penrose Diagram adds 1).
+2. RNG seeded from `run_state.run_seed ^ (node_idx * 0x9e3779b9 & 0xFFFFFFFF)` — deterministic per run+node.
+3. Build candidate pool:
+   - Owned modifiers below max rank → rank-up offers (prioritised first).
+   - Unowned modifiers — if player has ≥1 item in a domain, weight that domain × 3.
+   - Filter out fully-maxed modifiers.
+4. Fill base_count slots (no duplicates within a single offer set).
+5. Paradox check: `rng.random() < PARADOX_OFFER_CHANCE` → append one artifact offer, cost from constants. Can only be taken if `fold_stability - cost > 0`.
+
+### Modifier-cap handling
+
+When MODIFIER_CAP (6) is reached and player picks a new modifier: auto-drop the oldest one in `run_state.owned_items`. Show a note on screen. No explicit drop screen in this session (Session 4 tuning pass can add it).
+
+### Key bindings on reward screen
+
+| Key | Action |
+|---|---|
+| `1` / `2` / `3` (`4` with Penrose) | Pick that offer |
+| `S` or `0` | Skip — no item, advance |
+
+### Node map update
+
+Show owned items as a compact list below the node list:
+```
+ITEMS: Tidal Coupling R1, Redshift R2
+```
+One line, truncated if too many.
+
+### Files
+
+| File | Change |
+|---|---|
+| `src/systems/items/offers.py` | new — `Offer` dataclass, `generate_offers()` |
+| `src/rendering/hud.py` | add `draw_reward_screen()`, update `draw_node_map()` |
+| `main.py` | "reward" game_state branch, key handlers, transition logic |
+| `tests/test_core.py` | `TestOfferGeneration`, `TestRewardFlow` |
+| `qa_checklist.md` | add "Build system" section |
+
+### Accept criteria (from brief §6 Session 3)
+
+- Same seed + node index produces the same offers.
+- A Paradox offer is never takeable if cost would drop stability to ≤ 0.
+- A full 5-node run is playable with picks (at least one reward screen works end to end).
+- `qa_checklist.md` gets a "Build system" section.
+- 450+ tests pass (≥32 new).
+
+---
+
 ## M5a Session 1 — Event Bus + Spacetime Refactor ✅ APPROVED 2026-11-01
 
 **Touches 5+ files. Pure refactor — zero behaviour change.**

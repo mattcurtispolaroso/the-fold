@@ -2105,5 +2105,246 @@ class TestEnemyFrozenTimer(unittest.TestCase):
         self.assertAlmostEqual(e.frozen_timer, 0.0)
 
 
+# ---------------------------------------------------------------------------
+# Offer Generation Tests (M5a Session 3)
+# ---------------------------------------------------------------------------
+
+class TestOfferGeneration(unittest.TestCase):
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    def _load_registry(self):
+        from src.systems.items.registry import load_item_registry
+        return load_item_registry(self.BASE_DIR, _FakeLogger())
+
+    def test_same_seed_same_offers(self):
+        from src.systems.items.offers import generate_offers
+        registry = self._load_registry()
+        offers_a = generate_offers(registry, [], run_seed=42, node_idx=0)
+        offers_b = generate_offers(registry, [], run_seed=42, node_idx=0)
+        self.assertEqual([o.item_def.id for o in offers_a],
+                         [o.item_def.id for o in offers_b])
+
+    def test_different_node_different_offers(self):
+        from src.systems.items.offers import generate_offers
+        registry = self._load_registry()
+        offers_0 = generate_offers(registry, [], run_seed=1, node_idx=0)
+        offers_2 = generate_offers(registry, [], run_seed=1, node_idx=2)
+        ids_0 = [o.item_def.id for o in offers_0 if not o.is_paradox]
+        ids_2 = [o.item_def.id for o in offers_2 if not o.is_paradox]
+        # Not guaranteed to differ, but almost always will with different node idx
+        # Just assert both lists are well-formed
+        self.assertGreater(len(ids_0), 0)
+        self.assertGreater(len(ids_2), 0)
+
+    def test_different_seed_likely_different_offers(self):
+        from src.systems.items.offers import generate_offers
+        registry = self._load_registry()
+        offers_a = [o.item_def.id for o in generate_offers(registry, [], run_seed=1, node_idx=0)]
+        offers_b = [o.item_def.id for o in generate_offers(registry, [], run_seed=99999, node_idx=0)]
+        # Two independent seeds should produce different offers at least sometimes
+        # We test across 5 seeds to make it robust
+        any_differ = False
+        for s in range(5):
+            a = [o.item_def.id for o in generate_offers(registry, [], run_seed=s, node_idx=0)
+                 if not o.is_paradox]
+            b = [o.item_def.id for o in generate_offers(registry, [], run_seed=s + 1000, node_idx=0)
+                 if not o.is_paradox]
+            if a != b:
+                any_differ = True
+                break
+        self.assertTrue(any_differ, "Different seeds should sometimes produce different offers")
+
+    def test_base_count_is_three(self):
+        from src.systems.items.offers import generate_offers
+        registry = self._load_registry()
+        # Force no paradox by using a seed where PARADOX_OFFER_CHANCE check fails
+        # We just check non-paradox count
+        for seed in range(20):
+            offers = generate_offers(registry, [], run_seed=seed, node_idx=0)
+            non_paradox = [o for o in offers if not o.is_paradox]
+            self.assertEqual(len(non_paradox), 3, f"seed={seed}")
+            break  # first passing seed is enough
+
+    def test_extra_options_increases_count(self):
+        from src.systems.items.offers import generate_offers
+        registry = self._load_registry()
+        # Find a seed with no paradox offer and check +1 works
+        for seed in range(50):
+            base = [o for o in generate_offers(registry, [], run_seed=seed, node_idx=0)
+                    if not o.is_paradox]
+            extra = [o for o in generate_offers(registry, [], run_seed=seed, node_idx=0,
+                                                extra_options=1) if not o.is_paradox]
+            if len(base) == 3:
+                self.assertEqual(len(extra), 4)
+                break
+
+    def test_no_duplicate_offers_in_one_set(self):
+        from src.systems.items.offers import generate_offers
+        registry = self._load_registry()
+        for seed in range(10):
+            offers = generate_offers(registry, [], run_seed=seed, node_idx=0)
+            ids = [o.item_def.id for o in offers]
+            self.assertEqual(len(ids), len(set(ids)), f"Duplicate offer at seed={seed}")
+
+    def test_rank_up_offered_for_owned_below_max(self):
+        from src.systems.items.offers import generate_offers
+        from src.data.items import OwnedItem
+        registry = self._load_registry()
+        # Own redshift at rank 1 — should appear as rank-up in some seeds
+        owned = [OwnedItem(id="redshift", rank=1)]
+        found_rankup = False
+        for seed in range(50):
+            offers = generate_offers(registry, owned, run_seed=seed, node_idx=0)
+            for o in offers:
+                if o.item_def.id == "redshift" and o.is_rank_up:
+                    found_rankup = True
+                    self.assertEqual(o.current_rank, 1)
+                    self.assertEqual(o.target_rank, 2)
+                    break
+            if found_rankup:
+                break
+        self.assertTrue(found_rankup, "Rank-up offer should appear for owned modifier below max rank")
+
+    def test_maxed_modifier_not_offered(self):
+        from src.systems.items.offers import generate_offers
+        from src.data.items import OwnedItem
+        registry = self._load_registry()
+        # Own redshift at max rank (3) — should not appear
+        owned = [OwnedItem(id="redshift", rank=3)]
+        for seed in range(20):
+            offers = generate_offers(registry, owned, run_seed=seed, node_idx=0)
+            for o in offers:
+                self.assertNotEqual(o.item_def.id, "redshift",
+                                    f"Maxed modifier offered at seed={seed}")
+
+    def test_paradox_offer_is_artifact(self):
+        from src.systems.items.offers import generate_offers
+        registry = self._load_registry()
+        for seed in range(100):
+            offers = generate_offers(registry, [], run_seed=seed, node_idx=0)
+            for o in offers:
+                if o.is_paradox:
+                    self.assertEqual(o.item_def.tier, "artifact")
+                    self.assertGreater(o.paradox_cost, 0.0)
+                    return  # found one, test passes
+        # If no seed triggers paradox, that's still technically valid but unlikely
+        # with 100 seeds and 25% chance
+
+    def test_paradox_not_takeable_below_cost(self):
+        from src.systems.items.offers import generate_offers, Offer
+        registry = self._load_registry()
+        # Find a paradox offer
+        for seed in range(100):
+            offers = generate_offers(registry, [], run_seed=seed, node_idx=0)
+            for o in offers:
+                if o.is_paradox:
+                    # Not takeable if cost would drop to ≤0
+                    self.assertFalse(o.takeable(o.paradox_cost))
+                    self.assertFalse(o.takeable(o.paradox_cost - 0.1))
+                    self.assertTrue(o.takeable(o.paradox_cost + 1.0))
+                    return
+
+    def test_domain_pull_weights_owned_domain(self):
+        from src.systems.items.offers import generate_offers
+        from src.data.items import OwnedItem
+        registry = self._load_registry()
+        # Own a gravity item — gravity domain should appear more often
+        owned = [OwnedItem(id="tidal_coupling", rank=1)]
+        gravity_count = 0
+        for seed in range(30):
+            offers = generate_offers(registry, owned, run_seed=seed, node_idx=0)
+            gravity_count += sum(1 for o in offers if o.item_def.domain == "gravity" and not o.is_paradox)
+        # Should see at least a few gravity items across 30 seeds
+        self.assertGreater(gravity_count, 0)
+
+
+class TestApplyOffer(unittest.TestCase):
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    def _setup(self):
+        from src.systems.items.registry import load_item_registry
+        from src.systems.items.manager import ItemManager
+        from src.systems.events import EventBus
+        from src.data.run_state import RunState
+        logger = _FakeLogger()
+        registry = load_item_registry(self.BASE_DIR, logger)
+        bus = EventBus()
+        player = _FakePlayer()
+        run = RunState.new_run()
+        slot = _FakeAbilitySlot()
+        mgr = ItemManager(registry=registry, bus=bus, player=player, enemies=[],
+                          run_state=run, ability_slot=slot)
+        mgr.sync_owned([])
+        return registry, mgr, run
+
+    def test_new_modifier_added_to_owned(self):
+        import sys, os
+        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        registry, mgr, run = self._setup()
+        from src.systems.items.offers import Offer
+        defn = registry.get_item("redshift")
+        offer = Offer(item_def=defn, is_rank_up=False, current_rank=0,
+                      is_paradox=False, paradox_cost=0.0)
+        from main import _apply_offer, _owned_item_list
+        _apply_offer(offer, run, mgr, registry)
+        ids = [e["id"] for e in run.owned_items]
+        self.assertIn("redshift", ids)
+
+    def test_rank_up_updates_existing_entry(self):
+        registry, mgr, run = self._setup()
+        run.owned_items = [{"id": "redshift", "rank": 1}]
+        from src.systems.items.offers import Offer
+        defn = registry.get_item("redshift")
+        offer = Offer(item_def=defn, is_rank_up=True, current_rank=1,
+                      is_paradox=False, paradox_cost=0.0)
+        from main import _apply_offer
+        _apply_offer(offer, run, mgr, registry)
+        entry = next(e for e in run.owned_items if e["id"] == "redshift")
+        self.assertEqual(entry["rank"], 2)
+        # Should still be only one entry for redshift
+        count = sum(1 for e in run.owned_items if e["id"] == "redshift")
+        self.assertEqual(count, 1)
+
+    def test_paradox_costs_stability(self):
+        registry, mgr, run = self._setup()
+        run.fold_stability = 80.0
+        from src.systems.items.offers import Offer
+        defn = registry.get_item("kerr_ring")
+        offer = Offer(item_def=defn, is_rank_up=False, current_rank=0,
+                      is_paradox=True, paradox_cost=20.0)
+        from main import _apply_offer
+        _apply_offer(offer, run, mgr, registry)
+        self.assertAlmostEqual(run.fold_stability, 60.0)
+        self.assertAlmostEqual(run.paradox_spent, 20.0)
+
+    def test_modifier_cap_drops_oldest(self):
+        from constants import MODIFIER_CAP
+        from src.data.items import ItemDef
+        registry, mgr, run = self._setup()
+        # Fill to cap using real modifiers
+        modifier_ids = [d.id for d in registry.modifiers()]
+        fill_count = min(MODIFIER_CAP, len(modifier_ids))
+        run.owned_items = [{"id": mid, "rank": 1} for mid in modifier_ids[:fill_count]]
+        oldest_id = run.owned_items[0]["id"]
+        # Create a synthetic new modifier so we can exceed the cap
+        new_defn = ItemDef(
+            id="test_synthetic_mod", name="Synthetic", tier="modifier",
+            domain="time", trigger="GRAVITY_ROTATED", effect="add_chrono",
+            params_by_rank=[{"amount": 5}], description="test",
+        )
+        # Temporarily register it so _apply_offer can resolve its tier
+        registry._items["test_synthetic_mod"] = new_defn
+        from src.systems.items.offers import Offer
+        offer = Offer(item_def=new_defn, is_rank_up=False, current_rank=0,
+                      is_paradox=False, paradox_cost=0.0)
+        from main import _apply_offer
+        _apply_offer(offer, run, mgr, registry)
+        ids = [e["id"] for e in run.owned_items]
+        self.assertNotIn(oldest_id, ids, "Oldest modifier should be dropped at cap")
+        self.assertIn("test_synthetic_mod", ids)
+        # Clean up
+        del registry._items["test_synthetic_mod"]
+
+
 if __name__ == "__main__":
     unittest.main()

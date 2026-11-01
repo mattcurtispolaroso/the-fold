@@ -38,3 +38,10 @@
 - Wired ItemManager into main.py: load at startup, tick() each frame, F-key debug grant.
 - Added MODIFIER_CAP, HAWKING_RADIUS, PARADOX_OFFER_CHANCE, DEBUG_ITEMS, artifact cost constants.
 - 418 tests pass (46 new: registry validation, each effect primitive, resonance detection, cooldown management, physics invariance).
+
+[2026-11-01] M5a Session 3: Reward flow — complete.
+- Created src/systems/items/offers.py: Offer dataclass + generate_offers() with seeded RNG, domain pull, rank-ups, Paradox offers.
+- Updated src/rendering/hud.py: draw_reward_screen() (text-only pick UI), draw_node_map() shows ITEMS line.
+- Updated main.py: "reward" game_state, 1/2/3/S key handlers, _apply_offer() helper, _owned_item_list() helper. Combat clear and white hole now route through reward before node_map.
+- Updated qa_checklist.md: "Build system" section added.
+- 433 tests pass (15 new: offer generation, determinism, domain pull, _apply_offer, cap drop).

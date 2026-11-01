@@ -144,15 +144,16 @@ def draw_node_map(
     run_state: object,
     screen_width: int,
     screen_height: int,
+    registry: object = None,
 ) -> None:
-    """Draw the between-room node list showing run progress."""
+    """Draw the between-room node list showing run progress and owned items."""
     screen.fill((0, 0, 0))
     cx = screen_width // 2
     title = font.render("NODE MAP", True, (200, 220, 255))
     screen.blit(title, (cx - title.get_width() // 2, 80))
 
     node_labels = {"combat": "COMBAT", "hole": "ANOMALY", "singularity": "SINGULARITY"}
-    y = 180
+    y = 160
     for i, node_type in enumerate(C.NODE_SEQUENCE):
         if i < run_state.current_node_idx:
             color = (60, 60, 60)
@@ -166,10 +167,85 @@ def draw_node_map(
         label = node_labels.get(node_type, node_type.upper())
         surf = font.render(f"{marker}NODE {i + 1} — {label}", True, color)
         screen.blit(surf, (cx - surf.get_width() // 2, y))
-        y += 50
+        y += 46
+
+    # Show owned items if any
+    owned = getattr(run_state, "owned_items", [])
+    if owned and registry is not None:
+        parts = []
+        for entry in owned:
+            defn = registry.get_item(entry["id"])
+            name = defn.name if defn else entry["id"]
+            rank = entry.get("rank", 1)
+            parts.append(f"{name} R{rank}")
+        items_text = "ITEMS: " + ", ".join(parts)
+        # Truncate if too wide
+        max_chars = 70
+        if len(items_text) > max_chars:
+            items_text = items_text[:max_chars - 1] + "…"
+        item_surf = font.render(items_text, True, (100, 160, 100))
+        screen.blit(item_surf, (cx - item_surf.get_width() // 2, y + 20))
 
     prompt = font.render("Press ENTER to continue", True, (80, 100, 140))
     screen.blit(prompt, (cx - prompt.get_width() // 2, screen_height - 60))
+
+
+def draw_reward_screen(
+    screen: pygame.Surface,
+    font: pygame.font.Font,
+    offers: list,
+    fold_stability: float,
+    screen_width: int,
+    screen_height: int,
+    at_modifier_cap: bool = False,
+) -> None:
+    """Draw the pick-1-of-N reward screen after a combat room or white hole."""
+    screen.fill((0, 0, 0))
+    cx = screen_width // 2
+
+    title = font.render("CHOOSE YOUR REWARD", True, (200, 220, 255))
+    screen.blit(title, (cx - title.get_width() // 2, 60))
+
+    if at_modifier_cap:
+        cap_warn = font.render("MODIFIER CAP REACHED — OLDEST WILL BE DROPPED", True, (220, 160, 60))
+        screen.blit(cap_warn, (cx - cap_warn.get_width() // 2, 100))
+
+    y = 155
+    for i, offer in enumerate(offers):
+        defn = offer.item_def
+        key_label = str(i + 1)
+
+        if offer.is_paradox:
+            takeable = offer.takeable(fold_stability)
+            name_color = (200, 80, 80) if takeable else (80, 60, 60)
+            cost_str = f"  [PARADOX: -{offer.paradox_cost:.0f} STABILITY]"
+            if not takeable:
+                cost_str += " INSUFFICIENT"
+            rank_str = ""
+        else:
+            name_color = (180, 200, 255)
+            cost_str = ""
+            if offer.is_rank_up:
+                rank_str = f"  R{offer.current_rank} → R{offer.target_rank}"
+            else:
+                tier_label = "MOD" if defn.tier == "modifier" else "ART"
+                rank_str = f"  [{tier_label}] {defn.domain.upper()}"
+
+        header = font.render(f"  {key_label}. {defn.name}{rank_str}", True, name_color)
+        screen.blit(header, (cx - header.get_width() // 2, y))
+        y += 28
+
+        desc_color = (100, 120, 140) if not offer.is_paradox else (140, 80, 80)
+        desc_text = defn.description
+        if cost_str:
+            desc_text += cost_str
+        desc = font.render(f"     {desc_text}", True, desc_color)
+        screen.blit(desc, (cx - desc.get_width() // 2, y))
+        y += 40
+
+    skip_color = (80, 100, 140)
+    skip = font.render("  S. Skip — take nothing", True, skip_color)
+    screen.blit(skip, (cx - skip.get_width() // 2, y + 10))
 
 
 def draw_hole_screen(
