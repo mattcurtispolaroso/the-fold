@@ -31,21 +31,21 @@ A retrofuturistic 1962 roguelite platformer where you bend gravity and time, and
 Stop building by layer. Build **thin vertical slices**, each ending in something playable, and put a go/no-go "is the loop fun?" gate after the first full run (M4). Content breadth (items, enemies, procgen, polish) comes only after that gate.
 
 ## Current milestone
-**M0: Re-baseline, then M1: Feel** (Phase 0 exit)
+**M2: First Toy** (current)
 
 ## Milestones
 
-**M0. Re-baseline** (1-2 sessions)
-Done when: WIP committed, 253 tests confirmed green on your Mac, QA checklist ticked, CLAUDE.md phase/overview corrected, `/pm` workflow in place.
+**M0. Re-baseline** ✅ Done 2026-10-31
 
-**M1. Feel** (5-7 sessions): finishes Phase 0
-- Fixed 60hz timestep with accumulator (do now: time dilation and rewind depend on deterministic steps)
-- Resolve C2 (unify bounds into collision)
-- Horizontal-gravity controls: **no change for now** (decided 2026-10-31); revisit after M1 playtests
-- Simple rotation transition (~0.3-0.5s) so rotation reads as an event; full cinematic stays in M6
-- Finish Module 13 minimally: working idle/walk/jump with placeholders for missing frames, split `animation.py` under 300 lines
-- 2 more levels that require rotation to solve
-Done when: QA checklist fully ticked; 2 people who are not you play 5 minutes and understand rotation without being told.
+**M1. Feel** ✅ Done 2026-11-01
+- Fixed 60hz timestep with accumulator ✅
+- C2: unified bounds into collision system via boundary_rects() ✅
+- C3: fixed fallback rect swap for horizontal gravity ✅
+- Rotation flash overlay ✅
+- animation.py split under 300 lines (helmet.py extracted) ✅
+- levels 02 and 03 require rotation to solve ✅
+- TAB level cycling ✅
+- QA checklist updated and ticked ✅
 
 **M2. First Toy** (6-8 sessions)
 - Refactor-only session first: player into an entity/dataclass with serialisable state (no features in that session)
@@ -79,9 +79,9 @@ VFX (pooled particles), juice, full rotation cinematic, singularity difficulty c
 Save/meta-progression, second character, Mac/Windows PyInstaller builds, Steam integration.
 
 ## This sprint (max 3 tasks)
-- [ ] Commit WIP and run `python test_game.py` on your Mac | done when: clean `git status`, 253+ tests green
-- [ ] Play `level_01` for 20 min and tick `qa_checklist.md` | done when: every box checked or turned into a Known bug
-- [ ] Add `ROADMAP.md` + `/pm` command to the repo and fix CLAUDE.md phase/overview text | done when: `/pm start` runs and reports accurately
+- [ ] Refactor-only: player state into `Player` dataclass in `src/entities/player.py` | done when: all 266 tests pass, no new features added, player state is serialisable to dict
+- [ ] `chrono_reserve` resource on `Player` with regen rules | done when: resource exists, regenerates during movement, drains placeholder, visible in debug overlay
+- [ ] Time Dilation ability affecting one moving platform | done when: level_01 moving platform visibly slows/stops when ability fires
 
 ## Known bugs / open items
 - C2: bounds clamping separate from collision | severity: annoying (edge cases only) | see DECISIONS_NEEDED.md
@@ -113,7 +113,7 @@ Cult enemies (Witness, Ordained, Architect); Archivist and Diplomat characters; 
 - 2026-10-31: controls unchanged for now (Space/Up/W jump in every orientation). Option on the table if revisited: Space always jumps plus an orientation-aware arrow jump (Down gravity: Up/W; Up: Down/S; Right: Left/A; Left: Right/D), built as a switchable constant and A/B tested.
 
 ## Last session
-Date: 2026-04-10
-Did: helmet overlay gravity-aware positioning fix; stability infrastructure complete
-State of tests: 253 passing (not re-run 2026-10-31)
-Next up: see "This sprint"
+Date: 2026-11-01
+Did: C2 (boundary platforms), C3 (fallback rect), animation.py split, levels 02/03, TAB cycling, ROADMAP/checklist updates. M1 complete.
+State of tests: 266 passing
+Next up: M2 refactor session — player entity/dataclass
