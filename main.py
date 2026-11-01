@@ -234,7 +234,7 @@ def main() -> None:
                     vx, vy = clamp_terminal_velocity(vx, vy, gravity_dir)
 
                 level.update()
-                all_platforms = level.all_platform_rects()
+                all_platforms = level.all_platform_rects() + level.boundary_rects()
                 px, py, vx, vy, on_ground = resolve_collisions(
                     px, py, vx, vy, player_w, player_h, all_platforms, gravity_dir,
                 )
@@ -244,18 +244,6 @@ def main() -> None:
                     coyote_timer = COYOTE_TIME
                 else:
                     coyote_timer = max(0.0, coyote_timer - PHYSICS_DT)
-
-                # Level bounds clamp
-                px_c = round(max(player_w / 2, min(level.level_width - player_w / 2, px)))
-                py_c = round(max(player_h / 2, min(level.level_height - player_h / 2, py)))
-                if px_c != round(px):
-                    if (gravity_dir[0] < 0 and px_c > px) or (gravity_dir[0] > 0 and px_c < px):
-                        on_ground, jumping, coyote_timer = True, False, COYOTE_TIME
-                    vx, px = 0.0, float(px_c)
-                if py_c != round(py):
-                    if (gravity_dir[1] < 0 and py_c > py) or (gravity_dir[1] > 0 and py_c < py):
-                        on_ground, jumping, coyote_timer = True, False, COYOTE_TIME
-                    vy, py = 0.0, float(py_c)
 
                 # Physics watchdog
                 physics_ms = (time.perf_counter() - physics_start) * 1000

@@ -643,5 +643,70 @@ class TestLevelGeometry(unittest.TestCase):
         self.assertTrue(found, "No platform near the goal")
 
 
+class TestBoundaryRects(unittest.TestCase):
+    """boundary_rects() seals the level with four platforms outside its edges."""
+
+    def setUp(self) -> None:
+        self.level = LevelRenderer()
+        self.level.load(main.LEVELS[0])
+        self.W = self.level.level_width
+        self.H = self.level.level_height
+
+    def test_returns_four_rects(self) -> None:
+        self.assertEqual(len(self.level.boundary_rects()), 4)
+
+    def test_left_wall_is_left_of_zero(self) -> None:
+        self.assertTrue(any(r.right <= 0 for r in self.level.boundary_rects()))
+
+    def test_right_wall_is_right_of_level_width(self) -> None:
+        self.assertTrue(any(r.left >= self.W for r in self.level.boundary_rects()))
+
+    def test_top_wall_is_above_zero(self) -> None:
+        self.assertTrue(any(r.bottom <= 0 for r in self.level.boundary_rects()))
+
+    def test_bottom_wall_is_below_level_height(self) -> None:
+        self.assertTrue(any(r.top >= self.H for r in self.level.boundary_rects()))
+
+    def test_stops_player_moving_past_left_edge(self) -> None:
+        player_w, player_h = 60, 90
+        px, py, vx, vy = 28.0, 400.0, -5.0, 0.0
+        new_px, _, new_vx, _, _ = resolve_collisions(
+            px, py, vx, vy, player_w, player_h, self.level.boundary_rects(), (0, 1),
+        )
+        self.assertGreaterEqual(new_px, player_w / 2)
+        self.assertEqual(new_vx, 0.0)
+
+    def test_stops_player_falling_through_bottom(self) -> None:
+        player_w, player_h = 60, 90
+        px, py, vx, vy = 400.0, self.H - player_h / 2 - 5.0, 0.0, 20.0
+        _, new_py, _, new_vy, on_ground = resolve_collisions(
+            px, py, vx, vy, player_w, player_h, self.level.boundary_rects(), (0, 1),
+        )
+        self.assertLessEqual(new_py, self.H - player_h / 2)
+        self.assertEqual(new_vy, 0.0)
+        self.assertTrue(on_ground)
+
+    def test_subpixel_position_past_boundary_is_caught(self) -> None:
+        """px=29.7 puts the left edge at -0.3 — boundary must catch it.
+
+        The old round()-based clamp missed this: round(29.7)==30==round(30.0)
+        so the comparison evaluated False and the clamp never fired.
+        """
+        player_w, player_h = 60, 90
+        px, py, vx, vy = 29.7, 400.0, -5.0, 0.0
+        new_px, _, new_vx, _, _ = resolve_collisions(
+            px, py, vx, vy, player_w, player_h, self.level.boundary_rects(), (0, 1),
+        )
+        self.assertGreaterEqual(new_px, player_w / 2)
+        self.assertEqual(new_vx, 0.0)
+
+    def test_boundary_rects_rebuild_after_level_reload(self) -> None:
+        """Boundary rects reflect new level dimensions after a reload."""
+        self.level.load(main.LEVELS[1])
+        new_W = self.level.level_width
+        self.assertNotEqual(new_W, self.W)  # level_02 is wider than level_01
+        self.assertTrue(any(r.left >= new_W for r in self.level.boundary_rects()))
+
+
 if __name__ == "__main__":
     unittest.main()
