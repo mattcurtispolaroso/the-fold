@@ -6,7 +6,6 @@ All rendering logic in src/rendering/. This file only orchestrates.
 from __future__ import annotations
 
 import os
-import sys
 import time
 from collections import deque
 
@@ -30,6 +29,7 @@ from constants import (
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
 )
+from src.entities.player import Player
 from src.levels.level_renderer import LevelRenderer
 from src.physics import (
     GRAVITY_LABELS,
@@ -39,7 +39,6 @@ from src.physics import (
     apply_lateral_movement,
     check_ground_adjacent,
     clamp_terminal_velocity,
-    get_player_physics_size,
     gravity_is_vertical,
     gravity_speed,
     resolve_collisions,
@@ -93,13 +92,6 @@ def _determine_player_state(
     return PlayerState.JUMP_PEAK if abs(gv) <= JUMP_PEAK_THRESHOLD else PlayerState.JUMP_FALLING
 
 
-def _player_snapshot(px: float, py: float, vx: float, vy: float,
-                     gravity_dir: tuple[int, int], on_ground: bool) -> dict:
-    """Snapshot player state for crash logging."""
-    return {"px": px, "py": py, "vx": vx, "vy": vy,
-            "gravity_dir": gravity_dir, "on_ground": on_ground}
-
-
 def main() -> None:
     """Main game loop — orchestrates physics, rendering, input."""
     pygame.init()
@@ -123,19 +115,10 @@ def main() -> None:
     # Load assets
     background = load_background()
     animator = PlayerAnimator()
-    facing_right = True
     flash_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
 
-    # Player state
-    px, py = level.spawn
-    vx, vy = 0.0, 0.0
-    gravity_dir = tuple(level.gravity_start)
-    player_w, player_h = get_player_physics_size(gravity_dir)
-    on_ground = False
-    coyote_timer = 0.0
-    jumping = False
-    goal_reached = False
-    move_input = 0
+    # Player and non-player loop state
+    player = Player.from_spawn(level.spawn, tuple(level.gravity_start))
     debug_draw = False
     physics_accumulator: float = 0.0
     flash_timer: float = 0.0
@@ -162,88 +145,91 @@ def main() -> None:
                         level.load(LEVELS[current_level_idx])
                         camera.set_bounds(level.level_width, level.level_height)
                         camera.x, camera.y = level.spawn
-                        px, py = level.spawn
-                        vx, vy = 0.0, 0.0
-                        gravity_dir = tuple(level.gravity_start)
-                        player_w, player_h = get_player_physics_size(gravity_dir)
-                        on_ground = False
-                        coyote_timer = 0.0
-                        jumping = False
-                        goal_reached = False
+                        player.reset(level.spawn, tuple(level.gravity_start))
                         physics_accumulator = 0.0
                         flash_timer = 0.0
-                        if gravity_dir == (0, 1):
+                        if player.gravity_dir == (0, 1):
                             animator.helmet.request_off()
                         else:
                             animator.helmet.request_on()
                     if event.key == pygame.K_BACKQUOTE:
                         debug_draw = not debug_draw
                     if event.key == pygame.K_r:
-                        gravity_dir = rotate_gravity_ccw(gravity_dir)
-                        player_w, player_h = get_player_physics_size(gravity_dir)
-                        px = round(px)
-                        py = round(py)
+                        player.set_gravity(rotate_gravity_ccw(player.gravity_dir))
+                        player.px = round(player.px)
+                        player.py = round(player.py)
                         all_plats = level.all_platform_rects()
-                        on_ground = check_ground_adjacent(
-                            px, py, player_w, player_h, all_plats, gravity_dir,
+                        player.on_ground = check_ground_adjacent(
+                            player.px, player.py, player.player_w, player.player_h,
+                            all_plats, player.gravity_dir,
                         )
-                        if on_ground:
-                            coyote_timer = COYOTE_TIME
-                            jumping = False
+                        if player.on_ground:
+                            player.coyote_timer = COYOTE_TIME
+                            player.jumping = False
                         camera.on_gravity_rotate()
                         camera.shake(ROTATE_SHAKE_INTENSITY, ROTATE_SHAKE_DURATION)
                         flash_timer = ROTATION_FLASH_DURATION
-                        # Helmet trigger: on when gravity != DOWN
-                        if gravity_dir == (0, 1):
+                        if player.gravity_dir == (0, 1):
                             animator.helmet.request_off()
                         else:
                             animator.helmet.request_on()
-                    if event.key in (pygame.K_SPACE, pygame.K_UP, pygame.K_w) and coyote_timer > 0:
-                        vx, vy = apply_jump_impulse(vx, vy, gravity_dir)
-                        coyote_timer = 0.0
-                        jumping = True
+                    if event.key in (pygame.K_SPACE, pygame.K_UP, pygame.K_w) and player.coyote_timer > 0:
+                        player.vx, player.vy = apply_jump_impulse(
+                            player.vx, player.vy, player.gravity_dir,
+                        )
+                        player.coyote_timer = 0.0
+                        player.jumping = True
                 if event.type == pygame.KEYUP:
-                    if event.key in (pygame.K_SPACE, pygame.K_UP, pygame.K_w) and jumping:
-                        vx, vy = apply_jump_cut(vx, vy, gravity_dir)
-                        jumping = False
+                    if event.key in (pygame.K_SPACE, pygame.K_UP, pygame.K_w) and player.jumping:
+                        player.vx, player.vy = apply_jump_cut(
+                            player.vx, player.vy, player.gravity_dir,
+                        )
+                        player.jumping = False
 
             # --- Physics (fixed 60hz steps) ---
-            grav_vert = gravity_is_vertical(gravity_dir)
+            grav_vert = gravity_is_vertical(player.gravity_dir)
             while physics_accumulator >= PHYSICS_DT:
                 physics_start = time.perf_counter()
 
                 keys = pygame.key.get_pressed()
                 if grav_vert:
-                    move_input = 0
+                    player.move_input = 0
                     if keys[pygame.K_LEFT] or keys[pygame.K_a]:
-                        move_input = -1
-                        facing_right = False
+                        player.move_input = -1
+                        player.facing_right = False
                     elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-                        move_input = 1
-                        facing_right = True
+                        player.move_input = 1
+                        player.facing_right = True
                 else:
-                    move_input = 0
+                    player.move_input = 0
                     if keys[pygame.K_UP] or keys[pygame.K_w]:
-                        move_input = -1
+                        player.move_input = -1
                     elif keys[pygame.K_DOWN] or keys[pygame.K_s]:
-                        move_input = 1
+                        player.move_input = 1
 
-                vx, vy = apply_lateral_movement(vx, vy, move_input, gravity_dir, on_ground)
-                if not on_ground:
-                    vx, vy = apply_gravity(vx, vy, gravity_dir, on_ground)
-                    vx, vy = clamp_terminal_velocity(vx, vy, gravity_dir)
+                player.vx, player.vy = apply_lateral_movement(
+                    player.vx, player.vy, player.move_input, player.gravity_dir, player.on_ground,
+                )
+                if not player.on_ground:
+                    player.vx, player.vy = apply_gravity(
+                        player.vx, player.vy, player.gravity_dir, player.on_ground,
+                    )
+                    player.vx, player.vy = clamp_terminal_velocity(
+                        player.vx, player.vy, player.gravity_dir,
+                    )
 
                 level.update()
                 all_platforms = level.all_platform_rects() + level.boundary_rects()
-                px, py, vx, vy, on_ground = resolve_collisions(
-                    px, py, vx, vy, player_w, player_h, all_platforms, gravity_dir,
+                player.px, player.py, player.vx, player.vy, player.on_ground = resolve_collisions(
+                    player.px, player.py, player.vx, player.vy,
+                    player.player_w, player.player_h, all_platforms, player.gravity_dir,
                 )
 
-                if on_ground:
-                    jumping = False
-                    coyote_timer = COYOTE_TIME
+                if player.on_ground:
+                    player.jumping = False
+                    player.coyote_timer = COYOTE_TIME
                 else:
-                    coyote_timer = max(0.0, coyote_timer - PHYSICS_DT)
+                    player.coyote_timer = max(0.0, player.coyote_timer - PHYSICS_DT)
 
                 # Physics watchdog
                 physics_ms = (time.perf_counter() - physics_start) * 1000
@@ -257,23 +243,24 @@ def main() -> None:
                 else:
                     watchdog_consecutive = 0
 
-                # Record physics frame
-                physics_history.append(_player_snapshot(
-                    px, py, vx, vy, gravity_dir, on_ground,
-                ))
-
+                physics_history.append(player.to_dict())
                 physics_accumulator -= PHYSICS_DT
 
             # Camera + animation (once per render frame)
-            camera.update(px, py, frame_dt)
-            player_state = _determine_player_state(on_ground, vx, vy, gravity_dir, move_input)
-            lateral_speed = vx if grav_vert else vy
+            camera.update(player.px, player.py, frame_dt)
+            player_state = _determine_player_state(
+                player.on_ground, player.vx, player.vy, player.gravity_dir, player.move_input,
+            )
+            lateral_speed = player.vx if grav_vert else player.vy
             animator.update(frame_dt, player_state, lateral_speed)
 
             # Goal check
-            pr = pygame.Rect(px - player_w / 2, py - player_h / 2, player_w, player_h)
+            pr = pygame.Rect(
+                player.px - player.player_w / 2, player.py - player.player_h / 2,
+                player.player_w, player.player_h,
+            )
             if pr.colliderect(level.goal_rect):
-                goal_reached = True
+                player.goal_reached = True
 
             # --- Draw ---
             screen.fill(BLACK)
@@ -285,14 +272,19 @@ def main() -> None:
 
             ox, oy = cam_offset
             sw, sh = animator.width, animator.height
-            animator.draw(screen, px - sw / 2 + ox, py - sh / 2 + oy,
-                          player_state, facing_right, gravity_dir, debug_draw)
+            animator.draw(
+                screen, player.px - sw / 2 + ox, player.py - sh / 2 + oy,
+                player_state, player.facing_right, player.gravity_dir, debug_draw,
+            )
 
             if debug_draw:
-                dr = pygame.Rect(int(px - player_w / 2 + ox), int(py - player_h / 2 + oy),
-                                 player_w, player_h)
+                dr = pygame.Rect(
+                    int(player.px - player.player_w / 2 + ox),
+                    int(player.py - player.player_h / 2 + oy),
+                    player.player_w, player.player_h,
+                )
                 pygame.draw.rect(screen, (255, 0, 0), dr, 2)
-                pygame.draw.circle(screen, (0, 255, 0), (int(px + ox), int(py + oy)), 4)
+                pygame.draw.circle(screen, (0, 255, 0), (int(player.px + ox), int(player.py + oy)), 4)
 
             if flash_timer > 0:
                 flash_timer = max(0.0, flash_timer - frame_dt)
@@ -301,21 +293,18 @@ def main() -> None:
                 screen.blit(flash_surf, (0, 0))
 
             label = font.render(
-                f"Gravity: {GRAVITY_LABELS[gravity_dir]}  |  R rotate  |  TAB next level",
-                True, BLUE)
+                f"Gravity: {GRAVITY_LABELS[player.gravity_dir]}  |  R rotate  |  TAB next level",
+                True, BLUE,
+            )
             screen.blit(label, (10, 10))
-            if goal_reached:
+            if player.goal_reached:
                 gt = font.render("GOAL REACHED!", True, GREEN)
                 screen.blit(gt, (WIDTH // 2 - gt.get_width() // 2, HEIGHT // 2))
 
             pygame.display.flip()
 
     except Exception as e:
-        logger.log_crash(
-            e,
-            _player_snapshot(px, py, vx, vy, gravity_dir, on_ground),
-            list(physics_history),
-        )
+        logger.log_crash(e, player.to_dict(), list(physics_history))
         print(f"The Fold encountered an error. Crash log written to {logger.crash_log_path}")
         raise
     finally:

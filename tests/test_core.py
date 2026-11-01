@@ -13,6 +13,7 @@ import tests.conftest  # noqa: F401
 import pygame
 import main
 import constants as C
+from src.entities.player import Player
 from src.physics import (
     GRAVITY_DOWN, GRAVITY_LEFT, GRAVITY_UP, GRAVITY_RIGHT, GRAVITY_LABELS,
     rotate_gravity_ccw, gravity_is_vertical, gravity_speed,
@@ -734,6 +735,78 @@ class TestBoundaryRects(unittest.TestCase):
         new_W = self.level.level_width
         self.assertNotEqual(new_W, self.W)  # level_02 is wider than level_01
         self.assertTrue(any(r.left >= new_W for r in self.level.boundary_rects()))
+
+
+class TestPlayer(unittest.TestCase):
+    """Player dataclass creation, reset, gravity, and serialisation."""
+
+    def test_from_spawn_sets_position(self) -> None:
+        p = Player.from_spawn((100.0, 200.0))
+        self.assertAlmostEqual(p.px, 100.0)
+        self.assertAlmostEqual(p.py, 200.0)
+
+    def test_from_spawn_zero_velocity(self) -> None:
+        p = Player.from_spawn((100.0, 200.0))
+        self.assertEqual(p.vx, 0.0)
+        self.assertEqual(p.vy, 0.0)
+
+    def test_from_spawn_default_gravity_down(self) -> None:
+        p = Player.from_spawn((0.0, 0.0))
+        self.assertEqual(p.gravity_dir, GRAVITY_DOWN)
+
+    def test_from_spawn_physics_size_matches_gravity(self) -> None:
+        p = Player.from_spawn((0.0, 0.0), GRAVITY_RIGHT)
+        w, h = get_player_physics_size(GRAVITY_RIGHT)
+        self.assertEqual(p.player_w, w)
+        self.assertEqual(p.player_h, h)
+
+    def test_set_gravity_updates_direction(self) -> None:
+        p = Player.from_spawn((0.0, 0.0))
+        p.set_gravity(GRAVITY_LEFT)
+        self.assertEqual(p.gravity_dir, GRAVITY_LEFT)
+
+    def test_set_gravity_updates_physics_size(self) -> None:
+        p = Player.from_spawn((0.0, 0.0))
+        p.set_gravity(GRAVITY_RIGHT)
+        w, h = get_player_physics_size(GRAVITY_RIGHT)
+        self.assertEqual(p.player_w, w)
+        self.assertEqual(p.player_h, h)
+
+    def test_reset_restores_position(self) -> None:
+        p = Player.from_spawn((100.0, 200.0))
+        p.px, p.py = 999.0, 999.0
+        p.reset((50.0, 75.0), GRAVITY_DOWN)
+        self.assertAlmostEqual(p.px, 50.0)
+        self.assertAlmostEqual(p.py, 75.0)
+
+    def test_reset_clears_velocity(self) -> None:
+        p = Player.from_spawn((100.0, 200.0))
+        p.vx, p.vy = 10.0, -5.0
+        p.reset((100.0, 200.0), GRAVITY_DOWN)
+        self.assertEqual(p.vx, 0.0)
+        self.assertEqual(p.vy, 0.0)
+
+    def test_reset_clears_flags(self) -> None:
+        p = Player.from_spawn((100.0, 200.0))
+        p.on_ground = True
+        p.jumping = True
+        p.goal_reached = True
+        p.reset((100.0, 200.0), GRAVITY_DOWN)
+        self.assertFalse(p.on_ground)
+        self.assertFalse(p.jumping)
+        self.assertFalse(p.goal_reached)
+
+    def test_to_dict_contains_position(self) -> None:
+        p = Player.from_spawn((42.0, 84.0))
+        d = p.to_dict()
+        self.assertIn("px", d)
+        self.assertIn("py", d)
+        self.assertAlmostEqual(d["px"], 42.0)
+        self.assertAlmostEqual(d["py"], 84.0)
+
+    def test_to_dict_is_json_serialisable(self) -> None:
+        p = Player.from_spawn((0.0, 0.0))
+        json.dumps(p.to_dict())  # must not raise
 
 
 if __name__ == "__main__":
