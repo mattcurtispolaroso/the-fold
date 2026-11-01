@@ -5,33 +5,27 @@ Written 2026-10-31 after a repo review. Estimates are rough and assume one ~3 hr
 ## Vision
 A retrofuturistic 1962 roguelite platformer where you bend gravity and time, and every black/white hole is a committed gamble. Powers weaken as you near the singularity. Physics never changes, so players can master it.
 
-## Status review (as of 2026-10-31)
+## Status review (as of 2026-11-01)
 
-**Where the project actually is:** a solid, well-tested foundation, but not yet a game. There is one test level, no enemies, no abilities, no resources, no win/lose loop.
+**Where the project actually is:** solid physics foundation, Player entity with two resources, one ability (Time Dilation), three levels. Not yet a game — no enemies, no combat, no win/lose loop.
 
 | Area | State |
 |---|---|
-| Module 1 Physics (4 gravity orientations, coyote, variable jump) | Done |
-| Module 2 Level architecture (JSON levels, moving platforms, ASCII helper) | Done, one test level only |
-| Module 3 Camera (follow, bounds, shake) | Done |
+| Module 1 Physics (4 gravity orientations, coyote, variable jump, 60hz timestep) | Done |
+| Module 2 Level architecture (JSON levels, moving platforms, 3 levels, boundary system) | Done |
+| Module 3 Camera (follow, bounds, shake, re-centre on rotate) | Done |
 | Stability infra (crash handler, 3 logs, watchdog, level fallback, entity caps) | Done |
-| Module 13 Sprite/animation | ~70%. Uncommitted. 3 player sprites exist (idle, jump_rising, 1 walk frame). Helmet sprites referenced in constants but absent. No `EXOSKELETON_GLOW_PATH` |
-| Modules 4-12, 14-19 (abilities, entities, enemies, combat, run state, items, node map, level gen, audio, VFX, UI, save, juice, cinematic, Steam) | Not started. `src/entities/` and `src/data/` are empty |
-| Tests | 253 passing per last recorded session (2026-04-10). **Not re-run during this review** (no pygame in the review sandbox). Run `python test_game.py` on your Mac first |
-
-**Findings**
-1. **Idle ~6.5 months.** Last commit 2026-04-02, last session 2026-04-10.
-2. **Uncommitted work at risk:** ~365 changed lines in `animation.py`/`constants.py`/`main.py`, plus untracked `sprite_sheet.py` and `tests/test_sprite_sheet.py`.
-3. **Manual QA checklist is entirely unchecked.** Phase 0's goal ("movement and rotation feel great") has never been formally validated.
-4. **Plan is horizontal, not vertical.** 19 modules built layer by layer means no playable "game" for a long time. At this cadence that is years.
-5. **Gaps vs your own CLAUDE.md rules:** variable (capped) dt instead of fixed 60hz timestep; `animation.py` is 424 lines (limit 300); player state appears to live as locals in `main()` rather than an entity/dataclass; open item C2 (bounds clamping uses a separate code path from collision); swept collision not verified in this review.
-6. **Doc drift:** CLAUDE.md still says "single-file game" and "Phase 0" while Modules 1-3 and stability are done; mixes `python` / `python3`.
+| src/entities/player.py (Player dataclass, chrono_reserve, serialisable) | Done |
+| Time Dilation ability (E key, freezes platforms 3s, costs 25 CR) | Done |
+| Module 13 Sprite/animation (~70%) | 3 player sprites. Helmet sprites absent. No `EXOSKELETON_GLOW_PATH` |
+| Modules 4-12, 14-19 | Not started |
+| Tests | 289 passing (2026-11-01) |
 
 ## Strategy
 Stop building by layer. Build **thin vertical slices**, each ending in something playable, and put a go/no-go "is the loop fun?" gate after the first full run (M4). Content breadth (items, enemies, procgen, polish) comes only after that gate.
 
 ## Current milestone
-**M2: First Toy** (current)
+**M2: First Toy** (in progress)
 
 ## Milestones
 
@@ -47,11 +41,12 @@ Stop building by layer. Build **thin vertical slices**, each ending in something
 - TAB level cycling ✅
 - QA checklist updated and ticked ✅
 
-**M2. First Toy** (6-8 sessions)
-- Refactor-only session first: player into an entity/dataclass with serialisable state (no features in that session)
-- `chrono_reserve` resource with regen rules
-- One ability: Time Dilation, affecting a moving platform and a hazard independently of the player
-- Amber glow overlay driven by resource (needs `EXOSKELETON_GLOW_PATH`, from the glow reference image)
+**M2. First Toy** (in progress)
+- Player dataclass refactor, serialisable to dict ✅
+- `chrono_reserve` resource with movement-driven regen (15/s moving, 0/s idle) ✅
+- Time Dilation ability — E key, 3s platform freeze, 25 CR cost, 2s cooldown ✅
+- Amber glow overlay driven by `chrono_reserve` — deferred to art update (needs `EXOSKELETON_GLOW_PATH`)
+- level_04: level that cannot be solved without Time Dilation
 Done when: a level exists that cannot be solved without dilating something.
 
 **M3. First Fight** (6-8 sessions)
@@ -79,16 +74,15 @@ VFX (pooled particles), juice, full rotation cinematic, singularity difficulty c
 Save/meta-progression, second character, Mac/Windows PyInstaller builds, Steam integration.
 
 ## This sprint (max 3 tasks)
-- [ ] Refactor-only: player state into `Player` dataclass in `src/entities/player.py` | done when: all 266 tests pass, no new features added, player state is serialisable to dict
-- [ ] `chrono_reserve` resource on `Player` with regen rules | done when: resource exists, regenerates during movement, drains placeholder, visible in debug overlay
-- [ ] Time Dilation ability affecting one moving platform | done when: level_01 moving platform visibly slows/stops when ability fires
+- [ ] level_04 "Frozen Gate": level requiring Time Dilation to solve | done when: gap is uncrossable without freezing the platform, level added to TAB cycle, 289+ tests pass
+- [ ] `anchor_integrity` on Player (3-hit pool, visual TBD) | done when: field exists, serialisable, resets on spawn, falls off screen costs 1 hit
+- [ ] First enemy placeholder — Temporal Echo patrol rect | done when: enemy rect spawns in level, moves back and forth, stops when Time Dilation is active
 
 ## Known bugs / open items
-- C2: bounds clamping separate from collision | severity: annoying (edge cases only) | see DECISIONS_NEEDED.md
-- Rotating against a screen edge can briefly clip the player before clamp corrects | annoying
 - Up/W doubles as move and jump in horizontal gravity | annoying, may cause unintended jumps | deliberately left as is for now (see Decisions log)
-- `animation.py` 424 lines, over the 300-line limit | cosmetic/process
 - Helmet sprite files referenced in constants.py do not exist | cosmetic (placeholder renders)
+- `main.py` slightly over 300 lines | process/cosmetic — extract draw helpers if it grows further
+- Amber glow overlay not implemented | deferred — needs `EXOSKELETON_GLOW_PATH` art asset (glow reference image showing exoskeleton path on black background)
 
 ## Risks
 1. **Cadence.** 19 modules at 3 hr/week is multi-year. The M4 gate exists to avoid sinking that time into an unproven loop.
@@ -97,7 +91,7 @@ Save/meta-progression, second character, Mac/Windows PyInstaller builds, Steam i
 4. **Procgen.** "Valid in 2+ gravity orientations" is the hardest algorithmic piece. Hand-authored templates first.
 
 ## Backlog (parked, not commitments)
-Cult enemies (Witness, Ordained, Architect); Archivist and Diplomat characters; Closed Loop rewind ultimate; spatial audio; controller rumble; Steam cloud and trading cards; Codex.
+Cult enemies (Witness, Ordained, Architect); Archivist and Diplomat characters; Closed Loop rewind ultimate; spatial audio; controller rumble; Steam cloud and trading cards; Codex; amber glow overlay (needs `EXOSKELETON_GLOW_PATH` art asset).
 
 ## Decisions needed from Matt
 1. ~~Re-order to vertical slices?~~ Decided: yes.
@@ -111,9 +105,10 @@ Cult enemies (Witness, Ordained, Architect); Archivist and Diplomat characters; 
 - 2026-10-31: v1.0 scope is lean: 1 character, 3 enemy types, 3 abilities, 3 modifiers, 3 artifacts. Cult enemies, extra characters and the rewind ultimate are post-launch.
 - 2026-10-31: art through M4 is placeholders (colored shapes) for enemies, platforms, holes and UI; real art only for the player and the existing background.
 - 2026-10-31: controls unchanged for now (Space/Up/W jump in every orientation). Option on the table if revisited: Space always jumps plus an orientation-aware arrow jump (Down gravity: Up/W; Up: Down/S; Right: Left/A; Left: Right/D), built as a switchable constant and A/B tested.
+- 2026-11-01: amber glow overlay deferred — requires `EXOSKELETON_GLOW_PATH` (a reference image showing the exoskeleton lit against black, used to define glow coordinates). Will be implemented in a dedicated art-update session once the asset exists.
 
 ## Last session
 Date: 2026-11-01
-Did: C2 (boundary platforms), C3 (fallback rect), animation.py split, levels 02/03, TAB cycling, ROADMAP/checklist updates. M1 complete.
-State of tests: 266 passing
-Next up: M2 refactor session — player entity/dataclass
+Did: M2 sprint complete — Player dataclass refactor (11 new tests), chrono_reserve resource with movement-driven regen (7 new tests), Time Dilation ability E-key (5 new tests). Amber glow deferred to art update.
+State of tests: 289 passing
+Next up: level_04 "Frozen Gate" — first required-dilation level
