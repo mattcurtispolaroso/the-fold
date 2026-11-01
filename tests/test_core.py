@@ -823,6 +823,47 @@ class TestPlayer(unittest.TestCase):
         json.dumps(p.to_dict())  # must not raise
 
 
+class TestTimeDilation(unittest.TestCase):
+    """MovingPlatform respects time_scale; LevelRenderer passes it through."""
+
+    def _make(self, x=100, speed=3):
+        from src.levels.level_data import MovingPlatformDef
+        from src.levels.level_renderer import MovingPlatform
+        return MovingPlatform(MovingPlatformDef(x, 200, 50, 20, "x", 100, 300, speed))
+
+    def test_zero_time_scale_freezes_platform(self) -> None:
+        mp = self._make()
+        x_before = mp.rect.x
+        mp.update(time_scale=0.0)
+        self.assertEqual(mp.rect.x, x_before)
+
+    def test_full_time_scale_moves_normally(self) -> None:
+        mp = self._make()
+        mp.update(time_scale=1.0)
+        self.assertEqual(mp.rect.x, 103)
+
+    def test_default_time_scale_is_one(self) -> None:
+        mp = self._make()
+        mp.update()
+        self.assertEqual(mp.rect.x, 103)
+
+    def test_level_update_accepts_time_scale(self) -> None:
+        level = LevelRenderer()
+        level.load(main.LEVELS[0])
+        positions_before = [mp.rect.x for mp in level.moving_platforms]
+        level.update(time_scale=0.0)
+        positions_after = [mp.rect.x for mp in level.moving_platforms]
+        self.assertEqual(positions_before, positions_after)
+
+    def test_level_update_moves_platforms_at_full_scale(self) -> None:
+        level = LevelRenderer()
+        level.load(main.LEVELS[0])
+        positions_before = [mp.rect.x for mp in level.moving_platforms]
+        level.update(time_scale=1.0)
+        positions_after = [mp.rect.x for mp in level.moving_platforms]
+        self.assertNotEqual(positions_before, positions_after)
+
+
 class TestChronoRegen(unittest.TestCase):
     """tick_chrono_regen fills during movement, idles earns nothing, caps at max."""
 

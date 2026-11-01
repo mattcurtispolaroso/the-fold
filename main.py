@@ -15,6 +15,10 @@ from constants import (
     CHRONO_DRAIN_TEST,
     CHRONO_RESERVE_MAX,
     COYOTE_TIME,
+    TIME_DILATION_COOLDOWN,
+    TIME_DILATION_COST,
+    TIME_DILATION_DURATION,
+    TIME_DILATION_FACTOR,
     FONT_PATH,
     FONT_SIZE,
     FPS,
@@ -124,6 +128,8 @@ def main() -> None:
     debug_draw = False
     physics_accumulator: float = 0.0
     flash_timer: float = 0.0
+    dilation_timer: float = 0.0
+    dilation_cooldown: float = 0.0
 
     # Physics frame history for crash reports
     physics_history: deque = deque(maxlen=50)
@@ -150,6 +156,8 @@ def main() -> None:
                         player.reset(level.spawn, tuple(level.gravity_start))
                         physics_accumulator = 0.0
                         flash_timer = 0.0
+                        dilation_timer = 0.0
+                        dilation_cooldown = 0.0
                         if player.gravity_dir == (0, 1):
                             animator.helmet.request_off()
                         else:
@@ -175,6 +183,10 @@ def main() -> None:
                             animator.helmet.request_off()
                         else:
                             animator.helmet.request_on()
+                    if event.key == pygame.K_e and dilation_cooldown <= 0 and player.chrono_reserve >= TIME_DILATION_COST:
+                        player.chrono_reserve -= TIME_DILATION_COST
+                        dilation_timer = TIME_DILATION_DURATION
+                        dilation_cooldown = TIME_DILATION_DURATION + TIME_DILATION_COOLDOWN
                     if event.key in (pygame.K_SPACE, pygame.K_UP, pygame.K_w) and player.coyote_timer > 0:
                         player.vx, player.vy = apply_jump_impulse(
                             player.vx, player.vy, player.gravity_dir,
@@ -187,6 +199,11 @@ def main() -> None:
                             player.vx, player.vy, player.gravity_dir,
                         )
                         player.jumping = False
+
+            # Time dilation: compute scale first, then tick timers
+            time_scale = TIME_DILATION_FACTOR if dilation_timer > 0 else 1.0
+            dilation_timer = max(0.0, dilation_timer - frame_dt)
+            dilation_cooldown = max(0.0, dilation_cooldown - frame_dt)
 
             # --- Physics (fixed 60hz steps) ---
             grav_vert = gravity_is_vertical(player.gravity_dir)
@@ -226,7 +243,7 @@ def main() -> None:
                         player.vx, player.vy, player.gravity_dir,
                     )
 
-                level.update()
+                level.update(time_scale)
                 all_platforms = level.all_platform_rects() + level.boundary_rects()
                 player.px, player.py, player.vx, player.vy, player.on_ground = resolve_collisions(
                     player.px, player.py, player.vx, player.vy,
@@ -315,6 +332,9 @@ def main() -> None:
             if player.goal_reached:
                 gt = font.render("GOAL REACHED!", True, GREEN)
                 screen.blit(gt, (WIDTH // 2 - gt.get_width() // 2, HEIGHT // 2))
+            if dilation_timer > 0:
+                dil_surf = font.render(f"TIME DILATION  {dilation_timer:.1f}s", True, (80, 180, 255))
+                screen.blit(dil_surf, (WIDTH // 2 - dil_surf.get_width() // 2, HEIGHT - 50))
 
             pygame.display.flip()
 

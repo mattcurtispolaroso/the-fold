@@ -146,6 +146,12 @@ CHRONO_REGEN_MOVE: float = 15.0   # per second during active lateral movement
 CHRONO_REGEN_IDLE: float = 0.0    # per second while idle (passive play earns nothing)
 CHRONO_DRAIN_TEST: float = 30.0   # per second drain via Q key (placeholder until abilities land)
 
+# --- Time Dilation (M2 ability, E key) ---
+TIME_DILATION_COST: float = 25.0      # chrono_reserve spent on activation
+TIME_DILATION_DURATION: float = 3.0   # seconds platforms are frozen
+TIME_DILATION_COOLDOWN: float = 2.0   # seconds after duration before reuse
+TIME_DILATION_FACTOR: float = 0.0     # platform time scale while active (0 = frozen)
+
 # --- Font ---
 FONT_PATH: str = "assets/fonts/main_font.ttf"
 FONT_SIZE: int = 28

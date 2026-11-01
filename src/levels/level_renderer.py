@@ -40,10 +40,13 @@ class MovingPlatform:
         self.speed: int = definition.speed
         self.direction: int = 1
 
-    def update(self) -> None:
-        """Move the platform one step and reverse at bounds."""
+    def update(self, time_scale: float = 1.0) -> None:
+        """Move the platform one step and reverse at bounds.
+
+        time_scale=0.0 freezes the platform (Time Dilation ability).
+        """
         if self.axis == "x":
-            self.rect.x += self.speed * self.direction
+            self.rect.x += int(self.speed * self.direction * time_scale)
             if self.rect.x >= self.max_val:
                 self.rect.x = self.max_val
                 self.direction = -1
@@ -51,7 +54,7 @@ class MovingPlatform:
                 self.rect.x = self.min_val
                 self.direction = 1
         else:
-            self.rect.y += self.speed * self.direction
+            self.rect.y += int(self.speed * self.direction * time_scale)
             if self.rect.y >= self.max_val:
                 self.rect.y = self.max_val
                 self.direction = -1
@@ -110,10 +113,10 @@ class LevelRenderer:
             pygame.Rect(-T, H, W + 2 * T, T),         # bottom wall
         ]
 
-    def update(self) -> None:
-        """Update all dynamic level elements."""
+    def update(self, time_scale: float = 1.0) -> None:
+        """Update all dynamic level elements. time_scale=0 freezes moving platforms."""
         for mp in self.moving_platforms:
-            mp.update()
+            mp.update(time_scale)
 
     def all_platform_rects(self) -> list[pygame.Rect]:
         """Return all collision rects (static + moving)."""
