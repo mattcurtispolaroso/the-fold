@@ -163,7 +163,6 @@ ANCHOR_INTEGRITY_MAX: int = 3
 CHRONO_RESERVE_MAX: float = 100.0
 CHRONO_REGEN_MOVE: float = 15.0   # per second during active lateral movement
 CHRONO_REGEN_IDLE: float = 0.0    # per second while idle (passive play earns nothing)
-CHRONO_DRAIN_TEST: float = 30.0   # per second drain via Q key (placeholder until abilities land)
 
 # --- Time Dilation (M2 ability, E key) ---
 TIME_DILATION_COST: float = 25.0      # chrono_reserve spent on activation

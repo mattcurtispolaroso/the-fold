@@ -1350,6 +1350,166 @@ class TestHoleEncounter(unittest.TestCase):
         self.assertGreater(HOLE_ENCOUNTER_PHASE2_DURATION, 0)
 
 
+class TestEventBus(unittest.TestCase):
+    """EventBus dispatches events, supports cancellation, handles no-listener case."""
+
+    def setUp(self):
+        from src.systems.events import EventBus, GameEvent, EventResult
+        self.EventBus = EventBus
+        self.GameEvent = GameEvent
+        self.EventResult = EventResult
+
+    def test_emit_with_no_listeners_returns_uncancelled(self):
+        bus = self.EventBus()
+        result = bus.emit(self.GameEvent.GRAVITY_ROTATED)
+        self.assertFalse(result.cancelled)
+
+    def test_registered_handler_is_called(self):
+        bus = self.EventBus()
+        called = []
+        bus.subscribe(self.GameEvent.GRAVITY_ROTATED, lambda r: called.append(True))
+        bus.emit(self.GameEvent.GRAVITY_ROTATED)
+        self.assertEqual(len(called), 1)
+
+    def test_handler_not_called_for_different_event(self):
+        bus = self.EventBus()
+        called = []
+        bus.subscribe(self.GameEvent.GRAVITY_ROTATED, lambda r: called.append(True))
+        bus.emit(self.GameEvent.ABILITY_USED)
+        self.assertEqual(len(called), 0)
+
+    def test_multiple_handlers_all_called(self):
+        bus = self.EventBus()
+        calls = []
+        bus.subscribe(self.GameEvent.ROOM_CLEARED, lambda r: calls.append(1))
+        bus.subscribe(self.GameEvent.ROOM_CLEARED, lambda r: calls.append(2))
+        bus.emit(self.GameEvent.ROOM_CLEARED)
+        self.assertEqual(calls, [1, 2])
+
+    def test_cancellable_event_respects_cancelled_flag(self):
+        bus = self.EventBus()
+        def cancel(result):
+            result.cancelled = True
+        bus.subscribe(self.GameEvent.INTEGRITY_ZERO, cancel)
+        result = bus.emit(self.GameEvent.INTEGRITY_ZERO)
+        self.assertTrue(result.cancelled)
+
+    def test_kwargs_passed_to_handler(self):
+        bus = self.EventBus()
+        received = {}
+        def handler(result, **kwargs):
+            received.update(kwargs)
+        bus.subscribe(self.GameEvent.HOLE_RESOLVED, handler)
+        bus.emit(self.GameEvent.HOLE_RESOLVED, is_white=True)
+        self.assertEqual(received.get("is_white"), True)
+
+    def test_unsubscribe_removes_handler(self):
+        bus = self.EventBus()
+        calls = []
+        handler = lambda r: calls.append(True)
+        bus.subscribe(self.GameEvent.ABILITY_USED, handler)
+        bus.unsubscribe(self.GameEvent.ABILITY_USED, handler)
+        bus.emit(self.GameEvent.ABILITY_USED)
+        self.assertEqual(len(calls), 0)
+
+    def test_clear_removes_all_listeners(self):
+        bus = self.EventBus()
+        calls = []
+        bus.subscribe(self.GameEvent.GRAVITY_ROTATED, lambda r: calls.append(True))
+        bus.clear()
+        bus.emit(self.GameEvent.GRAVITY_ROTATED)
+        self.assertEqual(len(calls), 0)
+
+
+class TestAbilitySlot(unittest.TestCase):
+    """AbilitySlot manages timers, activation, and ABILITY_ENDED emission."""
+
+    def setUp(self):
+        from src.systems.events import EventBus, GameEvent
+        from src.systems.spacetime import AbilitySlot, make_time_dilation
+        self.EventBus = EventBus
+        self.GameEvent = GameEvent
+        self.AbilitySlot = AbilitySlot
+        self.make_time_dilation = make_time_dilation
+
+    def _make_slot(self, duration=3.0, cost=25.0, cooldown=2.0):
+        return self.AbilitySlot(name="test", duration=duration, cost=cost, cooldown=cooldown)
+
+    def test_not_active_initially(self):
+        slot = self._make_slot()
+        self.assertFalse(slot.is_active)
+
+    def test_is_ready_initially(self):
+        slot = self._make_slot()
+        self.assertTrue(slot.is_ready)
+
+    def test_activate_deducts_cost(self):
+        slot = self._make_slot(cost=25.0)
+        remaining = slot.activate(100.0)
+        self.assertAlmostEqual(remaining, 75.0)
+
+    def test_activate_starts_active(self):
+        slot = self._make_slot(duration=3.0)
+        slot.activate(100.0)
+        self.assertTrue(slot.is_active)
+
+    def test_activate_starts_cooldown(self):
+        slot = self._make_slot(duration=3.0, cooldown=2.0)
+        slot.activate(100.0)
+        self.assertFalse(slot.is_ready)
+
+    def test_time_scale_is_dilated_when_active(self):
+        from constants import TIME_DILATION_FACTOR
+        slot = self.make_time_dilation()
+        slot.activate(100.0)
+        self.assertAlmostEqual(slot.time_scale(), TIME_DILATION_FACTOR)
+
+    def test_time_scale_is_normal_when_inactive(self):
+        slot = self.make_time_dilation()
+        self.assertAlmostEqual(slot.time_scale(), 1.0)
+
+    def test_tick_decrements_active_timer(self):
+        bus = self.EventBus()
+        slot = self._make_slot(duration=3.0)
+        slot.activate(100.0)
+        slot.tick(1.0, bus)
+        self.assertAlmostEqual(slot.active_timer, 2.0)
+
+    def test_tick_emits_ability_ended_when_expires(self):
+        bus = self.EventBus()
+        ended = []
+        bus.subscribe(self.GameEvent.ABILITY_ENDED, lambda r, **kw: ended.append(kw))
+        slot = self._make_slot(duration=1.0)
+        slot.activate(100.0)
+        slot.tick(1.0, bus)
+        self.assertEqual(len(ended), 1)
+        self.assertEqual(ended[0].get("ability_name"), "test")
+
+    def test_tick_does_not_emit_ended_before_expiry(self):
+        bus = self.EventBus()
+        ended = []
+        bus.subscribe(self.GameEvent.ABILITY_ENDED, lambda r, **kw: ended.append(True))
+        slot = self._make_slot(duration=3.0)
+        slot.activate(100.0)
+        slot.tick(1.0, bus)
+        self.assertEqual(len(ended), 0)
+
+    def test_reset_clears_both_timers(self):
+        bus = self.EventBus()
+        slot = self._make_slot(duration=3.0, cooldown=2.0)
+        slot.activate(100.0)
+        slot.reset()
+        self.assertFalse(slot.is_active)
+        self.assertTrue(slot.is_ready)
+
+    def test_make_time_dilation_uses_constants(self):
+        from constants import TIME_DILATION_DURATION, TIME_DILATION_COST, TIME_DILATION_COOLDOWN
+        slot = self.make_time_dilation()
+        self.assertAlmostEqual(slot.duration, TIME_DILATION_DURATION)
+        self.assertAlmostEqual(slot.cost, TIME_DILATION_COST)
+        self.assertAlmostEqual(slot.cooldown, TIME_DILATION_COOLDOWN)
+
+
 class TestLevelGoalValidity(unittest.TestCase):
     """Goal rect must not contain the spawn point in any gravity orientation.
 

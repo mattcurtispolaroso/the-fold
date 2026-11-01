@@ -294,6 +294,76 @@ Both `take_hit()` and `take_fall_damage()` return `True` when integrity hits 0. 
 - **Risk:** 90/270 degree rotation swaps sprite width/height but physics rect stays PLAYER_SPRITE_WIDTH x PLAYER_SPRITE_HEIGHT. Visual and collision rects disagree in left/right gravity.
 - **Recommended fix:** Either swap player_w/player_h in main.py when gravity is horizontal, or keep physics rect as the larger dimension always. Needs design decision — gameplay implications.
 
+---
+
+## M5a Session 1 — Event Bus + Spacetime Refactor ✅ APPROVED 2026-11-01
+
+**Touches 5+ files. Pure refactor — zero behaviour change.**
+
+### Decisions locked (from M5_BUILD_BRIEF.md §0)
+
+1. **Pool size:** Time Dilation is the only ability in this slice. No new abilities. 6 modifiers + 3 artifacts are Session 2.
+2. **Domain names:** Time / Gravity / Horizon confirmed.
+3. **Artifact costs:** Penrose Diagram 10 fold_stability, Kerr Ring 20, Hawking Emitter 25. Tunable later.
+4. **Skip reward:** gives nothing.
+
+### What Session 1 delivers
+
+Infrastructure only. No gameplay change. All 352 existing tests pass unchanged.
+
+| Task | File |
+|---|---|
+| `GameEvent` enum + `EventBus` pub/sub | `src/systems/events.py` (new) |
+| `AbilitySlot` dataclass; `TimeDilationAbility` instance | `src/systems/spacetime.py` (new) |
+| Wire `dilation_timer`/`dilation_cooldown` through `AbilitySlot` | `main.py` |
+| Emit 8 events from existing code paths | `main.py` |
+| Remove `CHRONO_DRAIN_TEST` Q key | `main.py`, `constants.py` |
+| Tests: event dispatch, cancellation, AbilitySlot tick | `tests/test_core.py` |
+
+### Event list (all emitted in Session 1, no handlers yet)
+
+| Event | Emitted when |
+|---|---|
+| `GRAVITY_ROTATED` | R key handler |
+| `ABILITY_USED` | Time Dilation activates (E key) |
+| `ABILITY_ENDED` | `AbilitySlot.tick()` — active_timer hits 0 |
+| `PLAYER_HIT` | cancellable — before `player.take_hit()` |
+| `INTEGRITY_ZERO` | cancellable — when integrity hits 0 (hit or fall) |
+| `ROOM_ENTERED` | game_state transitions to "playing" |
+| `ROOM_CLEARED` | goal reached, before advance_node |
+| `HOLE_RESOLVED` | inside `_apply_hole_consequences` |
+
+### AbilitySlot interface
+
+```python
+@dataclass
+class AbilitySlot:
+    name: str
+    duration: float   # reads from constants, modifiers can adjust later
+    cost: float
+    cooldown: float
+    active_timer: float = 0.0
+    cooldown_timer: float = 0.0
+
+    @property
+    def is_active(self) -> bool: ...
+    @property
+    def is_ready(self) -> bool: ...
+    def activate(self, chrono_reserve: float) -> float: ...  # returns updated reserve
+    def tick(self, dt: float, bus: EventBus) -> None: ...    # emits ABILITY_ENDED
+    def reset(self) -> None: ...                             # clears both timers
+    def time_scale(self) -> float: ...                       # TIME_DILATION_FACTOR or 1.0
+```
+
+### Accept criteria
+
+- All 352 existing tests pass.
+- New tests: EventBus dispatches to registered handlers; cancellable events respect cancelled flag; AbilitySlot.tick emits ABILITY_ENDED exactly once when active_timer reaches 0; time_scale() returns correct values.
+- Time Dilation behaves identically in play (same duration, same cost, same cooldown).
+- Q key removed; CHRONO_DRAIN_TEST removed from constants.py.
+
+---
+
 ## Resolved (removed from active list)
 
 - **C1** — Stale on_ground after gravity rotation. Fixed: commit `426edb9`.
