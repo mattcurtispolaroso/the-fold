@@ -20,6 +20,7 @@ from src.physics import (
     resolve_collisions,
     apply_jump_impulse, apply_jump_cut, apply_lateral_movement,
 )
+from src.physics import get_player_physics_size
 from src.levels.level_renderer import LevelRenderer, MovingPlatform
 from src.levels.level_data import LevelData, PlatformDef, MovingPlatformDef, GoalDef
 
@@ -641,6 +642,33 @@ class TestLevelGeometry(unittest.TestCase):
         goal_area = _level.goal_rect.inflate(40, 40)
         found = any(plat.colliderect(goal_area) for plat in _level.static_platforms)
         self.assertTrue(found, "No platform near the goal")
+
+
+class TestPlayerPhysicsSize(unittest.TestCase):
+    """get_player_physics_size swaps dimensions for horizontal gravity."""
+
+    def test_vertical_gravity_returns_normal_size(self) -> None:
+        w, h = get_player_physics_size(GRAVITY_DOWN)
+        self.assertEqual(w, C.PLAYER_PHYSICS_WIDTH_NORMAL)
+        self.assertEqual(h, C.PLAYER_PHYSICS_HEIGHT_NORMAL)
+
+    def test_up_gravity_returns_normal_size(self) -> None:
+        w, h = get_player_physics_size(GRAVITY_UP)
+        self.assertEqual(w, C.PLAYER_PHYSICS_WIDTH_NORMAL)
+        self.assertEqual(h, C.PLAYER_PHYSICS_HEIGHT_NORMAL)
+
+    def test_horizontal_gravity_swaps_dimensions(self) -> None:
+        wR, hR = get_player_physics_size(GRAVITY_RIGHT)
+        wL, hL = get_player_physics_size(GRAVITY_LEFT)
+        self.assertEqual(wR, C.PLAYER_PHYSICS_WIDTH_HORIZONTAL)
+        self.assertEqual(hR, C.PLAYER_PHYSICS_HEIGHT_HORIZONTAL)
+        self.assertEqual(wL, C.PLAYER_PHYSICS_WIDTH_HORIZONTAL)
+        self.assertEqual(hL, C.PLAYER_PHYSICS_HEIGHT_HORIZONTAL)
+
+    def test_horizontal_width_equals_normal_height(self) -> None:
+        """The horizontal rect is the normal rect rotated 90°."""
+        self.assertEqual(C.PLAYER_PHYSICS_WIDTH_HORIZONTAL, C.PLAYER_PHYSICS_HEIGHT_NORMAL)
+        self.assertEqual(C.PLAYER_PHYSICS_HEIGHT_HORIZONTAL, C.PLAYER_PHYSICS_WIDTH_NORMAL)
 
 
 class TestBoundaryRects(unittest.TestCase):

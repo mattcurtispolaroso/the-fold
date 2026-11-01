@@ -408,12 +408,12 @@ class PlayerAnimator:
             # Always draw fallback so player is visible
             state_name = state.name.lower()
             color = FALLBACK_COLORS.get(state_name, DEFAULT_FALLBACK)
-            rect = pygame.Rect(
-                int(cx - C.PLAYER_SPRITE_WIDTH / 2),
-                int(cy - C.PLAYER_SPRITE_HEIGHT / 2),
-                C.PLAYER_SPRITE_WIDTH,
-                C.PLAYER_SPRITE_HEIGHT,
-            )
+            # Swap sprite dimensions to match 90° rotation in horizontal gravity
+            if gravity_dir[1] != 0:
+                fw, fh = C.PLAYER_SPRITE_WIDTH, C.PLAYER_SPRITE_HEIGHT
+            else:
+                fw, fh = C.PLAYER_SPRITE_HEIGHT, C.PLAYER_SPRITE_WIDTH
+            rect = pygame.Rect(int(cx - fw / 2), int(cy - fh / 2), fw, fh)
             pygame.draw.rect(surface, color, rect)
 
         # Draw helmet overlay on top
