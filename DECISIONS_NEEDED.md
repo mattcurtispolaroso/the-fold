@@ -1,5 +1,287 @@
 # Decisions Needed — Code Quality Audit
 
+---
+
+## M4b — Node Map, Hole Encounters, Death/Win Screens ✅ APPROVED 2026-11-01
+
+**Touches 5 files. Requires review before coding.**
+
+### What this sprint delivers
+
+A completable run: 5 nodes, two platform rooms, two hole encounters, a singularity win. The loop that M4 is gating on.
+
+| Task | Done when |
+|---|---|
+| Node sequence on `RunState` | 5-node list generated at run start from `run_seed`; `current_node_idx` advances on room clear |
+| Node map screen | `game_state = "node_map"` — draws 5 node icons, current position, ENTER advances |
+| Hole encounter screen | `game_state = "hole_encounter"` — black screen, 2s reveal, applies resource consequences, ENTER continues |
+| Death screen | `game_state = "dead"` — run summary (nodes reached, deaths), ENTER → start screen |
+| Win screen | `game_state = "win"` — singularity reached, ENTER → start screen |
+
+---
+
+### Node sequence
+
+Fixed pattern, seeded-random combat level assignment:
+
+```
+Node 0: combat   → level picked from [level_01, level_02] via run_seed
+Node 1: hole     → black or white (50/50 from run_seed, unknown until entered)
+Node 2: combat   → level picked from [level_03, level_04] via run_seed
+Node 3: hole     → black or white (50/50 from run_seed, unknown until entered)
+Node 4: singularity → win condition, no room
+```
+
+Hole outcomes are fixed at run start (same run, same holes) but unknown to the player until entered. This is the core design bible mechanic.
+
+`RunState` gains two new fields:
+- `combat_levels: list[int]` — level indices for the two combat nodes (e.g. `[1, 3]`)
+- `hole_outcomes: list[bool]` — `True` = white hole, one per hole node (e.g. `[True, False]`)
+
+Both generated deterministically from `run_seed` in `new_run()`.
+
+---
+
+### game_state additions
+
+Current states: `"start"`, `"playing"`
+
+M4b adds: `"node_map"`, `"hole_encounter"`, `"dead"`, `"win"`
+
+Flow:
+```
+"start" → ENTER → "node_map"
+"node_map" → ENTER → "playing" (loads combat level) or "hole_encounter" or "win" (singularity)
+"playing" → goal_reached → "node_map" (advance node_idx)
+"playing" → fold_stability ≤ 0 → "dead"
+"hole_encounter" → 2s timer → apply consequences → "node_map" (advance node_idx)
+"dead" → ENTER → "start"
+"win" → ENTER → "start"
+```
+
+---
+
+### Node map visual
+
+Text-only for M4b (styled UI is M5). One line per node:
+
+```
+  ● NODE 1 — COMBAT          [completed]
+  ● NODE 2 — ANOMALY          ← current
+  ○ NODE 3 — COMBAT
+  ○ NODE 4 — ANOMALY
+  ○ NODE 5 — SINGULARITY
+```
+
+Current node highlighted. Completed nodes dimmed. ENTER continues into the current node.
+
+---
+
+### Hole encounter screen
+
+Black screen. Two phases, timed:
+
+**Phase 1 (0.0–1.5s):** "ENTERING THE ANOMALY..." — no information, both outcomes look identical.
+
+**Phase 2 (1.5–3.5s, auto-advance):** Reveal outcome and apply consequences immediately:
+- White hole: "WHITE HOLE — TEMPORAL ANCHOR RESTORED" — restore `anchor_integrity` to max, `fold_stability += WHITE_HOLE_STABILITY_RESTORE`
+- Black hole: "BLACK HOLE — ANCHOR DESTABILISED" — `anchor_integrity -= 1` (can trigger level reset if at 0), `fold_stability -= BLACK_HOLE_STABILITY_COST`
+
+After phase 2 ends: return to `"node_map"` with node advanced.
+
+If the black hole integrity hit triggers fold_stability ≤ 0: go to `"dead"` instead.
+
+→ **Decision needed: white hole restores +5 or +10 fold_stability? Black hole costs 10 or 15?**
+→ **Recommendation: white +5, black -15. Black holes should feel genuinely dangerous.**
+
+---
+
+### Death screen
+
+```
+RUN OVER
+
+Nodes reached:  3 / 5
+Deaths:         3
+Fold stability: 0
+
+Press ENTER
+```
+
+Stats read from `RunState`. No run history yet (M5+).
+
+---
+
+### Win screen
+
+```
+THE FOLD HOLDS
+
+Nodes reached:  5 / 5
+Deaths:         1
+Fold stability: 60
+
+Press ENTER
+```
+
+---
+
+### Files to change
+
+| File | Change |
+|---|---|
+| `constants.py` | `WHITE_HOLE_STABILITY_RESTORE`, `BLACK_HOLE_STABILITY_COST`, `HOLE_ENCOUNTER_PHASE1_DURATION`, `HOLE_ENCOUNTER_PHASE2_DURATION`, node map colors |
+| `src/data/run_state.py` | Add `combat_levels`, `hole_outcomes`, `deaths` fields; update `new_run()`; add `current_node_type` property, `advance_node()`, `hole_index_for_current_node()` |
+| `src/rendering/hud.py` | Add `draw_node_map()`, `draw_hole_screen()`, `draw_death_screen()`, `draw_win_screen()` |
+| `main.py` | New `game_state` branches, hole timer, node advancement on goal_reached, death/win routing |
+| `tests/test_core.py` | `TestRunStateM4b`, `TestHoleEncounter` classes |
+
+---
+
+### What this is NOT
+
+- Star chart / branching node map (M5)
+- Merchant or rest nodes (M5)
+- Fold distortion shader (M6)
+- Run history or meta-progression (M7)
+- Hole encounter as a playable room (M5 — for M4b it's a resolve screen)
+
+---
+
+## M4a — fold_stability, RunState, Start Screen ✅ APPROVED 2026-11-01
+
+**Touches 5 files (1 new). Requires review before coding.**
+
+### What this sprint delivers
+
+Foundation for M4. Nothing in the game loop changes until these three are in place.
+
+| Task | Done when |
+|---|---|
+| `fold_stability` resource + tint | field on RunState, tint deepens as it depletes, integrity-0 death costs fold_stability |
+| `RunState` dataclass | serialisable, holds fold_stability + node + seed, lives in `src/data/run_state.py` |
+| Start screen | game shows black screen + text on launch, ENTER starts run, ESC quits |
+
+---
+
+### Design decisions — answers needed
+
+**1. Where does `fold_stability` live?**
+
+It is a run-level resource (permanent depletion across rooms), not a character stat. It belongs on `RunState`, not `Player`. When `anchor_integrity` hits 0, main.py pays the fold_stability cost from `run_state.fold_stability` before resetting the level.
+
+→ **Recommendation: RunState. No question.**
+
+**2. How much fold_stability does each integrity-0 death cost?**
+
+`FOLD_STABILITY_MAX = 100`. With a cost of:
+- 25 → run ends after 4 deaths
+- 20 → run ends after 5 deaths
+- 33 → run ends after 3 deaths
+
+Hole encounters, enemy abilities, and node timers will also cost fold_stability in M4b, so deaths shouldn't eat the whole budget. **Recommendation: 20 (5 deaths). Leaves room for other drains.**
+
+→ **Decision needed: 20, 25, or other?**
+
+**3. Fold tint visual**
+
+A full-screen red overlay. Alpha scales linearly:
+- fold_stability ≥ 80 → alpha 0 (invisible)
+- fold_stability = 50 → alpha 40 (subtle red)
+- fold_stability = 0 → alpha 110 (strong red, world is visibly dying)
+
+Drawn on top of the background but under level geometry + player. Later (M6) replaced by real shader distortion.
+
+→ **Recommendation: tint starts at 80, max alpha 110. Confirm or adjust threshold.**
+
+**4. Start screen**
+
+Black screen, two lines of text:
+
+```
+THE FOLD
+
+Press ENTER to begin
+```
+
+ENTER → starts a new run (new RunState, resets level to level_01, resets player).
+ESC → quits.
+
+No game world visible behind it. Styled UI is M5.
+
+→ **Recommendation: yes. Any text changes?**
+
+**5. Game state machine**
+
+Add `game_state: str` variable in `main()` with two values for this sprint: `"start"` and `"playing"`. Sets up the pattern for `"dead"` and `"win"` screens in M4b.
+
+When `game_state == "start"`: draw start screen, only ENTER/ESC handled.
+When `game_state == "playing"`: current game loop runs as-is.
+
+→ **No question — just noting the approach.**
+
+**6. Run seed**
+
+`RunState.run_seed` is generated with `random.randint(0, 2**32)` in `RunState.new_run()`. Stored but not consumed yet — procedural node map (M4b) will use it.
+
+→ **No question — just noting it's there.**
+
+---
+
+### Files to change
+
+| File | Change |
+|---|---|
+| `constants.py` | `FOLD_STABILITY_MAX`, `FOLD_STABILITY_INTEGRITY_COST` |
+| `src/data/run_state.py` | **new** — `RunState` dataclass |
+| `src/rendering/hud.py` | `draw_fold_tint()`, `draw_start_screen()` |
+| `main.py` | `game_state`, `RunState` integration, fold_stability drain on death |
+| `tests/test_core.py` | `TestRunState` class |
+
+---
+
+### Death flow change (M3 → M4a)
+
+Currently: integrity 0 → `_reset_level_state()` immediately (free).
+
+M4a: integrity 0 → `run_state.fold_stability -= FOLD_STABILITY_INTEGRITY_COST` → if fold_stability ≤ 0: `game_state = "dead"` (M4b will render death screen; for now just reset back to start screen) → else: `_reset_level_state()` as before.
+
+---
+
+### What this is NOT
+
+- Node map UI or navigation (M4b)
+- Hole encounter mechanics (M4b)
+- Death screen with run summary (M4b)
+- Win screen / singularity node (M4b)
+- Fold distortion shader (M6)
+
+---
+
+## M3 Combat — Hit Detection, Knockback, I-frames ✅ APPROVED 2026-11-01
+
+### Design decisions (resolved)
+
+- **Anchored state**: no per-frame death timer. Integrity 0 → level resets immediately (same level, same as TAB but same index). Full anchored state with fold_stability cost is M4.
+- **Knockback**: override velocity (not add) — predictable, testable.
+- **Fall damage at integrity 0**: same level-reset path as combat death (unified).
+
+### Files changed
+
+| File | Change |
+|---|---|
+| `constants.py` | `IFRAMES_DURATION`, `KNOCKBACK_FORCE` |
+| `src/entities/player.py` | `iframes_timer` field; `take_hit()` returns bool; `take_fall_damage()` returns bool |
+| `src/systems/combat.py` | new — `check_hit()`, `compute_knockback()` |
+| `main.py` | `_reset_level_state()` helper; hit detection; iframes tick |
+| `tests/test_core.py` | `TestCombat` class |
+
+### Signal convention
+
+Both `take_hit()` and `take_fall_damage()` return `True` when integrity hits 0. Caller handles the level reset — Player has no reference to level/camera/enemy.
+
+---
+
 ## Open Items
 
 ### C2: Level bounds clamping precision

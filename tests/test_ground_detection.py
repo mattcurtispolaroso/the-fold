@@ -81,31 +81,31 @@ class TestDeterminePlayerState(unittest.TestCase):
     """_determine_player_state in main.py should return correct states."""
 
     def test_idle_on_ground_no_input(self):
-        from main import _determine_player_state
+        from src.rendering.animation import determine_player_state as _determine_player_state
         from src.rendering.animation import PlayerState
         state = _determine_player_state(True, 0, 0, GRAVITY_DOWN, 0)
         self.assertEqual(state, PlayerState.IDLE)
 
     def test_walk_on_ground_with_input(self):
-        from main import _determine_player_state
+        from src.rendering.animation import determine_player_state as _determine_player_state
         from src.rendering.animation import PlayerState
         state = _determine_player_state(True, 3, 0, GRAVITY_DOWN, 1)
         self.assertEqual(state, PlayerState.WALK)
 
     def test_jump_rising_airborne(self):
-        from main import _determine_player_state
+        from src.rendering.animation import determine_player_state as _determine_player_state
         from src.rendering.animation import PlayerState
         state = _determine_player_state(False, 0, -5, GRAVITY_DOWN, 0)
         self.assertEqual(state, PlayerState.JUMP_RISING)
 
     def test_jump_falling_airborne(self):
-        from main import _determine_player_state
+        from src.rendering.animation import determine_player_state as _determine_player_state
         from src.rendering.animation import PlayerState
         state = _determine_player_state(False, 0, 5, GRAVITY_DOWN, 0)
         self.assertEqual(state, PlayerState.JUMP_FALLING)
 
     def test_jump_peak_airborne(self):
-        from main import _determine_player_state
+        from src.rendering.animation import determine_player_state as _determine_player_state
         from src.rendering.animation import PlayerState
         state = _determine_player_state(False, 0, 0.5, GRAVITY_DOWN, 0)
         self.assertEqual(state, PlayerState.JUMP_PEAK)

@@ -118,6 +118,40 @@ class LevelRenderer:
         for mp in self.moving_platforms:
             mp.update(time_scale)
 
+    def riding_velocity(
+        self,
+        px: float, py: float,
+        player_w: float, player_h: float,
+        gravity_dir: tuple[int, int],
+        time_scale: float = 1.0,
+    ) -> tuple[float, float]:
+        """Return (vx, vy) of the moving platform the player is standing on.
+
+        Uses a 2px probe in the gravity direction — same geometry as
+        check_ground_adjacent. Returns (0.0, 0.0) if not on any moving platform
+        or if time is frozen (time_scale=0 means platform isn't moving either).
+        """
+        if time_scale == 0.0 or not self.moving_platforms:
+            return 0.0, 0.0
+        if gravity_dir == (0, 1):
+            probe = pygame.Rect(px - player_w / 2 + 1, py + player_h / 2, player_w - 2, 2)
+        elif gravity_dir == (0, -1):
+            probe = pygame.Rect(px - player_w / 2 + 1, py - player_h / 2 - 2, player_w - 2, 2)
+        elif gravity_dir == (-1, 0):
+            probe = pygame.Rect(px - player_w / 2 - 2, py - player_h / 2 + 1, 2, player_h - 2)
+        elif gravity_dir == (1, 0):
+            probe = pygame.Rect(px + player_w / 2, py - player_h / 2 + 1, 2, player_h - 2)
+        else:
+            return 0.0, 0.0
+        for mp in self.moving_platforms:
+            if probe.colliderect(mp.rect):
+                vel = mp.speed * mp.direction * time_scale
+                if mp.axis == "x":
+                    return float(vel), 0.0
+                else:
+                    return 0.0, float(vel)
+        return 0.0, 0.0
+
     def all_platform_rects(self) -> list[pygame.Rect]:
         """Return all collision rects (static + moving)."""
         return self.static_platforms + [

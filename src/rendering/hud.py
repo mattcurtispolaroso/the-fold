@@ -1,0 +1,247 @@
+"""HUD and frame-drawing helpers.
+
+Extracted from main.py to keep the entry point under 300 lines.
+All functions are pure draw calls — they read state and render, never mutate it.
+"""
+from __future__ import annotations
+
+import pygame
+
+import constants as C
+from src.entities.enemy import TemporalEcho
+from src.entities.player import Player
+from src.levels.level_renderer import LevelRenderer
+from src.physics import GRAVITY_LABELS
+from src.rendering.animation import PlayerAnimator, PlayerState
+
+_BLACK = (0, 0, 0)
+_BLUE = (50, 80, 180)
+_GREEN = (50, 220, 50)
+
+
+def draw_world(
+    screen: pygame.Surface,
+    background: pygame.Surface | None,
+    level: LevelRenderer,
+    enemy: TemporalEcho,
+    animator: PlayerAnimator,
+    player: Player,
+    player_state: PlayerState,
+    cam_offset: tuple[float, float],
+    debug_draw: bool,
+) -> None:
+    """Draw background, level geometry, enemy, and player sprite."""
+    screen.fill(_BLACK)
+    if background:
+        screen.blit(background, (0, 0))
+    level.draw(screen, cam_offset)
+    enemy.draw(screen, cam_offset)
+    ox, oy = cam_offset
+    sw, sh = animator.width, animator.height
+    animator.draw(
+        screen, player.px - sw / 2 + ox, player.py - sh / 2 + oy,
+        player_state, player.facing_right, player.gravity_dir, debug_draw,
+    )
+
+
+def draw_debug_overlay(
+    screen: pygame.Surface,
+    font: pygame.font.Font,
+    player: Player,
+    cam_offset: tuple[float, float],
+    screen_height: int,
+) -> None:
+    """Draw physics collision rect and resource bars (debug mode only)."""
+    ox, oy = cam_offset
+    dr = pygame.Rect(
+        int(player.px - player.player_w / 2 + ox),
+        int(player.py - player.player_h / 2 + oy),
+        player.player_w, player.player_h,
+    )
+    pygame.draw.rect(screen, (255, 0, 0), dr, 2)
+    pygame.draw.circle(screen, (0, 255, 0), (int(player.px + ox), int(player.py + oy)), 4)
+    cr_pct = player.chrono_reserve / C.CHRONO_RESERVE_MAX
+    pygame.draw.rect(screen, (40, 40, 60), (10, screen_height - 30, 200, 14))
+    pygame.draw.rect(screen, (80, 180, 255), (10, screen_height - 30, int(200 * cr_pct), 14))
+    cr_surf = font.render(
+        f"CR {player.chrono_reserve:.0f}  [Q drain]", True, (160, 200, 255),
+    )
+    screen.blit(cr_surf, (220, screen_height - 40))
+    ai_surf = font.render(
+        f"AI {player.anchor_integrity}/{C.ANCHOR_INTEGRITY_MAX}", True, (255, 180, 80),
+    )
+    screen.blit(ai_surf, (10, screen_height - 60))
+
+
+def draw_flash_overlay(
+    screen: pygame.Surface,
+    flash_surf: pygame.Surface,
+    flash_timer: float,
+) -> None:
+    """Draw the rotation flash if the timer is still running."""
+    if flash_timer <= 0:
+        return
+    alpha = int(C.ROTATION_FLASH_MAX_ALPHA * (flash_timer / C.ROTATION_FLASH_DURATION))
+    flash_surf.fill((*C.ROTATION_FLASH_COLOR, alpha))
+    screen.blit(flash_surf, (0, 0))
+
+
+def draw_hud_labels(
+    screen: pygame.Surface,
+    font: pygame.font.Font,
+    player: Player,
+    dilation_timer: float,
+    screen_width: int,
+    screen_height: int,
+) -> None:
+    """Draw gravity label, goal text, and Time Dilation timer."""
+    label = font.render(
+        f"Gravity: {GRAVITY_LABELS[player.gravity_dir]}  |  R rotate  |  TAB next level",
+        True, _BLUE,
+    )
+    screen.blit(label, (10, 10))
+    if player.goal_reached:
+        gt = font.render("GOAL REACHED!", True, _GREEN)
+        screen.blit(gt, (screen_width // 2 - gt.get_width() // 2, screen_height // 2))
+    if dilation_timer > 0:
+        dil_surf = font.render(f"TIME DILATION  {dilation_timer:.1f}s", True, (80, 180, 255))
+        screen.blit(dil_surf, (screen_width // 2 - dil_surf.get_width() // 2, screen_height - 50))
+
+
+def draw_fold_tint(
+    screen: pygame.Surface,
+    fold_tint_surf: pygame.Surface,
+    fold_stability: float,
+) -> None:
+    """Draw a red environmental tint that deepens as fold_stability depletes."""
+    if fold_stability >= C.FOLD_TINT_THRESHOLD:
+        return
+    t = 1.0 - (fold_stability / C.FOLD_TINT_THRESHOLD)
+    alpha = int(C.FOLD_TINT_MAX_ALPHA * t)
+    fold_tint_surf.fill((180, 0, 0, alpha))
+    screen.blit(fold_tint_surf, (0, 0))
+
+
+def draw_start_screen(
+    screen: pygame.Surface,
+    font: pygame.font.Font,
+    screen_width: int,
+    screen_height: int,
+) -> None:
+    """Draw the pre-run start screen."""
+    screen.fill((0, 0, 0))
+    title = font.render("THE FOLD", True, (200, 220, 255))
+    prompt = font.render("Press ENTER to begin", True, (120, 140, 180))
+    cx = screen_width // 2
+    cy = screen_height // 2
+    screen.blit(title, (cx - title.get_width() // 2, cy - 40))
+    screen.blit(prompt, (cx - prompt.get_width() // 2, cy + 20))
+
+
+def draw_node_map(
+    screen: pygame.Surface,
+    font: pygame.font.Font,
+    run_state: object,
+    screen_width: int,
+    screen_height: int,
+) -> None:
+    """Draw the between-room node list showing run progress."""
+    screen.fill((0, 0, 0))
+    cx = screen_width // 2
+    title = font.render("NODE MAP", True, (200, 220, 255))
+    screen.blit(title, (cx - title.get_width() // 2, 80))
+
+    node_labels = {"combat": "COMBAT", "hole": "ANOMALY", "singularity": "SINGULARITY"}
+    y = 180
+    for i, node_type in enumerate(C.NODE_SEQUENCE):
+        if i < run_state.current_node_idx:
+            color = (60, 60, 60)
+            marker = "  "
+        elif i == run_state.current_node_idx:
+            color = (200, 220, 255)
+            marker = "> "
+        else:
+            color = (100, 100, 120)
+            marker = "  "
+        label = node_labels.get(node_type, node_type.upper())
+        surf = font.render(f"{marker}NODE {i + 1} — {label}", True, color)
+        screen.blit(surf, (cx - surf.get_width() // 2, y))
+        y += 50
+
+    prompt = font.render("Press ENTER to continue", True, (80, 100, 140))
+    screen.blit(prompt, (cx - prompt.get_width() // 2, screen_height - 60))
+
+
+def draw_hole_screen(
+    screen: pygame.Surface,
+    font: pygame.font.Font,
+    hole_timer: float,
+    is_white: bool,
+    screen_width: int,
+    screen_height: int,
+) -> None:
+    """Draw the hole encounter reveal screen — phase 1 is neutral, phase 2 shows outcome."""
+    screen.fill((0, 0, 0))
+    cx, cy = screen_width // 2, screen_height // 2
+
+    if hole_timer > C.HOLE_ENCOUNTER_PHASE2_DURATION:
+        line = font.render("ENTERING THE ANOMALY...", True, (120, 120, 140))
+        screen.blit(line, (cx - line.get_width() // 2, cy))
+    else:
+        if is_white:
+            color = (180, 220, 255)
+            lines = ["WHITE HOLE", "TEMPORAL ANCHOR RESTORED"]
+        else:
+            color = (220, 80, 80)
+            lines = ["BLACK HOLE", "ANCHOR DESTABILISED"]
+        for j, text in enumerate(lines):
+            surf = font.render(text, True, color)
+            screen.blit(surf, (cx - surf.get_width() // 2, cy - 20 + j * 50))
+
+
+def draw_death_screen(
+    screen: pygame.Surface,
+    font: pygame.font.Font,
+    run_state: object,
+    screen_width: int,
+    screen_height: int,
+) -> None:
+    """Draw the end-of-run death screen with stats."""
+    screen.fill((0, 0, 0))
+    cx, cy = screen_width // 2, screen_height // 2
+    title = font.render("RUN OVER", True, (220, 80, 80))
+    screen.blit(title, (cx - title.get_width() // 2, cy - 80))
+    stats = [
+        f"Nodes reached:   {run_state.current_node_idx} / {run_state.node_count}",
+        f"Deaths:          {run_state.deaths}",
+        f"Fold stability:  {run_state.fold_stability:.0f}",
+    ]
+    for j, line in enumerate(stats):
+        surf = font.render(line, True, (160, 160, 180))
+        screen.blit(surf, (cx - surf.get_width() // 2, cy + j * 40))
+    prompt = font.render("Press ENTER", True, (80, 100, 140))
+    screen.blit(prompt, (cx - prompt.get_width() // 2, cy + 160))
+
+
+def draw_win_screen(
+    screen: pygame.Surface,
+    font: pygame.font.Font,
+    run_state: object,
+    screen_width: int,
+    screen_height: int,
+) -> None:
+    """Draw the win screen shown when the singularity node is reached."""
+    screen.fill((0, 0, 0))
+    cx, cy = screen_width // 2, screen_height // 2
+    title = font.render("THE FOLD HOLDS", True, (200, 220, 100))
+    screen.blit(title, (cx - title.get_width() // 2, cy - 80))
+    stats = [
+        f"Nodes reached:   {run_state.current_node_idx} / {run_state.node_count}",
+        f"Deaths:          {run_state.deaths}",
+        f"Fold stability:  {run_state.fold_stability:.0f}",
+    ]
+    for j, line in enumerate(stats):
+        surf = font.render(line, True, (160, 160, 180))
+        screen.blit(surf, (cx - surf.get_width() // 2, cy + j * 40))
+    prompt = font.render("Press ENTER", True, (80, 100, 140))
+    screen.blit(prompt, (cx - prompt.get_width() // 2, cy + 160))

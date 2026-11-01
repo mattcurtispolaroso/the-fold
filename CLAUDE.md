@@ -232,7 +232,7 @@ Run through this before considering any task complete:
 - [ ] All tests pass
 - [ ] No magic numbers — everything is a named constant
 - [ ] No functions longer than 40 lines
-- [ ] No file longer than 300 lines — if approaching this, split it
+- [ ] No logic file longer than 300 lines — if approaching this, split it. Exception: `main.py` is an orchestrator and may run longer; the constraint for it is no business logic, not line count.
 - [ ] Type hints on all function signatures
 - [ ] Every new class has a docstring
 - [ ] Update and draw are separated

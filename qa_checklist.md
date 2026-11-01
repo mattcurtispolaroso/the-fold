@@ -68,7 +68,8 @@ Run through this after each coding session. Launch the game with `python main.py
 - [ ] Deleting level_01.json produces a clear error (not silent failure)
 - [ ] TAB cycles to level_02 — camera resets, player spawns at new start position, gravity resets to DOWN
 - [ ] TAB cycles to level_03 — same reset behaviour
-- [ ] TAB from level_03 wraps back to level_01
+- [ ] TAB cycles to level_04 — same reset behaviour, Chrono Reserve resets to full
+- [ ] TAB from level_04 wraps back to level_01
 
 ## Rotation-Required Levels
 
@@ -76,6 +77,21 @@ Run through this after each coding session. Launch the game with `python main.py
 - [ ] **level_03 "Side Step":** floor ends at x≈600 — player cannot reach goal (right wall, mid-height) by jumping. Rotating gravity to RIGHT and walking the right wall reaches it.
 - [ ] Player cannot accidentally trigger the goal in either level while gravity is DOWN
 - [ ] Camera scrolls correctly across the full 2400px width on levels 02 and 03
+
+## Time Dilation — level_04 "Frozen Gate"
+
+- [ ] Level loads without error — player spawns on start floor (left side, y≈720)
+- [ ] Gap between start floor and exit ledge is visually uncrossable by jumping (640px gap)
+- [ ] Moving platform oscillates horizontally at full speed before Time Dilation
+- [ ] Player cannot ride moving platform to exit: falls short before reaching ledge
+- [ ] Pressing E when Chrono Reserve ≥ 25 activates Time Dilation — "TIME DILATION" HUD appears
+- [ ] Moving platform freezes immediately on activation
+- [ ] Player can jump onto frozen platform and walk to its right edge
+- [ ] Jump from right edge of frozen platform reaches exit ledge (x≥900)
+- [ ] Goal reached when player steps into green goal rect on exit ledge
+- [ ] E key does nothing when Chrono Reserve < 25 (insufficient CR)
+- [ ] E key does nothing during cooldown period (2s after duration ends)
+- [ ] Chrono Reserve refills visibly when player moves (debug overlay shows bar filling)
 
 ## Level Architecture Edge Cases
 

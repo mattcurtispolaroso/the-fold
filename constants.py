@@ -140,6 +140,25 @@ MAX_PARTICLES: int = 500
 MAX_PROJECTILES: int = 50
 MAX_ACTIVE_ABILITIES: int = 10
 
+# --- Fold Stability (run survival resource) ---
+FOLD_STABILITY_MAX: float = 100.0
+FOLD_STABILITY_INTEGRITY_COST: float = 20.0  # lost per integrity-0 death (5 deaths end a run)
+FOLD_TINT_THRESHOLD: float = 80.0            # stability below this → red tint starts
+FOLD_TINT_MAX_ALPHA: int = 110               # tint alpha at stability = 0
+
+# --- Combat (M3) ---
+IFRAMES_DURATION: float = 0.8    # seconds invincible after taking a hit
+KNOCKBACK_FORCE: float = 6.0     # px/frame lateral velocity impulse on hit
+
+# --- Temporal Echo (M3 enemy placeholder) ---
+TEMPORAL_ECHO_W: int = 40
+TEMPORAL_ECHO_H: int = 60
+TEMPORAL_ECHO_SPEED: float = 2.0
+TEMPORAL_ECHO_COLOR: tuple = (80, 220, 220)  # cyan
+
+# --- Anchor Integrity (personal survival — 3-hit pool) ---
+ANCHOR_INTEGRITY_MAX: int = 3
+
 # --- Chrono Reserve (ability fuel resource) ---
 CHRONO_RESERVE_MAX: float = 100.0
 CHRONO_REGEN_MOVE: float = 15.0   # per second during active lateral movement
@@ -151,6 +170,15 @@ TIME_DILATION_COST: float = 25.0      # chrono_reserve spent on activation
 TIME_DILATION_DURATION: float = 3.0   # seconds platforms are frozen
 TIME_DILATION_COOLDOWN: float = 2.0   # seconds after duration before reuse
 TIME_DILATION_FACTOR: float = 0.0     # platform time scale while active (0 = frozen)
+
+# --- Node Map (M4b) ---
+NODE_SEQUENCE: tuple = ("combat", "hole", "combat", "hole", "singularity")
+
+# --- Hole Encounter (M4b) ---
+WHITE_HOLE_STABILITY_RESTORE: float = 5.0    # fold_stability restored on white hole
+BLACK_HOLE_STABILITY_COST: float = 15.0      # fold_stability lost on black hole
+HOLE_ENCOUNTER_PHASE1_DURATION: float = 1.5  # seconds showing "ENTERING THE ANOMALY..."
+HOLE_ENCOUNTER_PHASE2_DURATION: float = 2.0  # seconds showing the outcome
 
 # --- Font ---
 FONT_PATH: str = "assets/fonts/main_font.ttf"

@@ -12,33 +12,35 @@ from collections import deque
 import pygame
 
 from constants import (
-    CHRONO_DRAIN_TEST,
-    CHRONO_RESERVE_MAX,
+    ANCHOR_INTEGRITY_MAX,
+    BLACK_HOLE_STABILITY_COST,
     COYOTE_TIME,
+    CHRONO_DRAIN_TEST,
+    FOLD_STABILITY_INTEGRITY_COST,
+    FOLD_STABILITY_MAX,
+    HOLE_ENCOUNTER_PHASE1_DURATION,
+    HOLE_ENCOUNTER_PHASE2_DURATION,
+    TEMPORAL_ECHO_SPEED,
     TIME_DILATION_COOLDOWN,
     TIME_DILATION_COST,
     TIME_DILATION_DURATION,
     TIME_DILATION_FACTOR,
-    FONT_PATH,
-    FONT_SIZE,
     FPS,
     PHYSICS_DT,
-    JUMP_PEAK_THRESHOLD,
-    JUMP_RISING_THRESHOLD,
     PHYSICS_WATCHDOG_ENABLED,
     PHYSICS_WATCHDOG_THRESHOLD_MS,
     ROTATE_SHAKE_DURATION,
     ROTATE_SHAKE_INTENSITY,
-    ROTATION_FLASH_COLOR,
     ROTATION_FLASH_DURATION,
-    ROTATION_FLASH_MAX_ALPHA,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
+    WHITE_HOLE_STABILITY_RESTORE,
 )
+from src.data.run_state import RunState
+from src.entities.enemy import TemporalEcho
 from src.entities.player import Player
 from src.levels.level_renderer import LevelRenderer
 from src.physics import (
-    GRAVITY_LABELS,
     apply_gravity,
     apply_jump_cut,
     apply_jump_impulse,
@@ -46,56 +48,55 @@ from src.physics import (
     check_ground_adjacent,
     clamp_terminal_velocity,
     gravity_is_vertical,
-    gravity_speed,
     resolve_collisions,
     rotate_gravity_ccw,
 )
-from src.rendering.animation import PlayerAnimator, PlayerState
+from src.rendering.animation import PlayerAnimator, PlayerState, determine_player_state
 from src.rendering.camera import Camera
+from src.rendering.hud import (
+    draw_debug_overlay, draw_death_screen, draw_flash_overlay, draw_fold_tint,
+    draw_hole_screen, draw_hud_labels, draw_node_map, draw_start_screen,
+    draw_win_screen, draw_world,
+)
+from src.rendering.loader import load_background, load_font
+from src.systems.combat import check_hit, compute_knockback
 from src.systems.logging_manager import LoggingManager
 
-# Display
 WIDTH, HEIGHT = SCREEN_WIDTH, SCREEN_HEIGHT
-
-# Colors
-BLACK = (0, 0, 0)
-BLUE = (50, 80, 180)
-GREEN = (50, 220, 50)
-
-# Level file path
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LEVEL_DIR = os.path.join(BASE_DIR, "levels")
-LEVELS = [os.path.join(LEVEL_DIR, f"level_0{i}.json") for i in range(1, 4)]
+LEVELS = [os.path.join(LEVEL_DIR, f"level_0{i}.json") for i in range(1, 5)]
 
 
-def _load_font() -> pygame.font.Font:
-    """Load bundled font or fall back to system font."""
-    font_path = os.path.join(BASE_DIR, FONT_PATH)
-    if os.path.isfile(font_path):
-        return pygame.font.Font(font_path, FONT_SIZE)
-    return pygame.font.SysFont(None, FONT_SIZE)
+def _reset_level_state(
+    level: object, player: object, camera: object, animator: object, enemy: object,
+) -> None:
+    """Reset camera, player, and enemy to the current level's spawn. Does not reload the level."""
+    camera.set_bounds(level.level_width, level.level_height)
+    camera.x, camera.y = level.spawn
+    player.reset(level.spawn, tuple(level.gravity_start))
+    enemy.reset()
+    if player.gravity_dir == (0, 1):
+        animator.helmet.request_off()
+    else:
+        animator.helmet.request_on()
 
 
-def load_background() -> pygame.Surface | None:
-    """Load background.png scaled to screen size. Returns None if not found."""
-    path = os.path.join(BASE_DIR, "assets", "backgrounds", "background.png")
-    if not os.path.isfile(path):
-        return None
-    img = pygame.image.load(path).convert()
-    return pygame.transform.smoothscale(img, (WIDTH, HEIGHT))
-
-
-def _determine_player_state(
-    on_ground: bool, vx: float, vy: float,
-    gravity_dir: tuple[int, int], move_input: int,
-) -> PlayerState:
-    """Determine the current player animation state."""
-    if on_ground:
-        return PlayerState.WALK if move_input != 0 else PlayerState.IDLE
-    gv = gravity_speed(vx, vy, gravity_dir)
-    if gv < JUMP_RISING_THRESHOLD:
-        return PlayerState.JUMP_RISING
-    return PlayerState.JUMP_PEAK if abs(gv) <= JUMP_PEAK_THRESHOLD else PlayerState.JUMP_FALLING
+def _apply_hole_consequences(
+    run_state: object, player: object, is_white: bool,
+) -> None:
+    """Apply resource consequences when entering a hole encounter."""
+    if is_white:
+        player.anchor_integrity = ANCHOR_INTEGRITY_MAX
+        run_state.fold_stability = min(
+            FOLD_STABILITY_MAX, run_state.fold_stability + WHITE_HOLE_STABILITY_RESTORE,
+        )
+    else:
+        player.anchor_integrity = max(0, player.anchor_integrity - 1)
+        run_state.fold_stability = max(
+            0.0, run_state.fold_stability - BLACK_HOLE_STABILITY_COST,
+        )
+        run_state.deaths += 1
 
 
 def main() -> None:
@@ -106,32 +107,33 @@ def main() -> None:
     clock = pygame.time.Clock()
     logger = LoggingManager()
     logger.log_event("Game started")
-    font = _load_font()
+    font = load_font(BASE_DIR)
 
-    # Load level
     current_level_idx = 0
     level = LevelRenderer()
     level.load(LEVELS[current_level_idx])
 
-    # Camera
     camera = Camera(WIDTH, HEIGHT)
     camera.set_bounds(level.level_width, level.level_height)
     camera.x, camera.y = level.spawn
 
-    # Load assets
-    background = load_background()
+    background = load_background(BASE_DIR, WIDTH, HEIGHT)
     animator = PlayerAnimator()
     flash_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+    fold_tint_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
 
-    # Player and non-player loop state
     player = Player.from_spawn(level.spawn, tuple(level.gravity_start))
+    enemy = TemporalEcho(px=130.0, py=790.0, min_x=30.0, max_x=230.0, speed=TEMPORAL_ECHO_SPEED)
+    run_state = RunState(fold_stability=100.0, current_node_idx=0, run_seed=0, is_active=False)
+    game_state = "start"
     debug_draw = False
     physics_accumulator: float = 0.0
     flash_timer: float = 0.0
     dilation_timer: float = 0.0
     dilation_cooldown: float = 0.0
+    hole_timer: float = 0.0
+    hole_is_white: bool = False
 
-    # Physics frame history for crash reports
     physics_history: deque = deque(maxlen=50)
     watchdog_consecutive: int = 0
 
@@ -141,58 +143,74 @@ def main() -> None:
             frame_dt = min(clock.tick(FPS) / 1000.0, 0.05)
             physics_accumulator += frame_dt
 
-            # --- Events ---
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         running = False
-                    if event.key == pygame.K_TAB:
-                        current_level_idx = (current_level_idx + 1) % len(LEVELS)
-                        level.load(LEVELS[current_level_idx])
-                        camera.set_bounds(level.level_width, level.level_height)
-                        camera.x, camera.y = level.spawn
-                        player.reset(level.spawn, tuple(level.gravity_start))
-                        physics_accumulator = 0.0
-                        flash_timer = 0.0
-                        dilation_timer = 0.0
-                        dilation_cooldown = 0.0
-                        if player.gravity_dir == (0, 1):
-                            animator.helmet.request_off()
-                        else:
-                            animator.helmet.request_on()
-                    if event.key == pygame.K_BACKQUOTE:
-                        debug_draw = not debug_draw
-                    if event.key == pygame.K_r:
-                        player.set_gravity(rotate_gravity_ccw(player.gravity_dir))
-                        player.px = round(player.px)
-                        player.py = round(player.py)
-                        all_plats = level.all_platform_rects()
-                        player.on_ground = check_ground_adjacent(
-                            player.px, player.py, player.player_w, player.player_h,
-                            all_plats, player.gravity_dir,
-                        )
-                        if player.on_ground:
-                            player.coyote_timer = COYOTE_TIME
-                            player.jumping = False
-                        camera.on_gravity_rotate()
-                        camera.shake(ROTATE_SHAKE_INTENSITY, ROTATE_SHAKE_DURATION)
-                        flash_timer = ROTATION_FLASH_DURATION
-                        if player.gravity_dir == (0, 1):
-                            animator.helmet.request_off()
-                        else:
-                            animator.helmet.request_on()
-                    if event.key == pygame.K_e and dilation_cooldown <= 0 and player.chrono_reserve >= TIME_DILATION_COST:
-                        player.chrono_reserve -= TIME_DILATION_COST
-                        dilation_timer = TIME_DILATION_DURATION
-                        dilation_cooldown = TIME_DILATION_DURATION + TIME_DILATION_COOLDOWN
-                    if event.key in (pygame.K_SPACE, pygame.K_UP, pygame.K_w) and player.coyote_timer > 0:
-                        player.vx, player.vy = apply_jump_impulse(
-                            player.vx, player.vy, player.gravity_dir,
-                        )
-                        player.coyote_timer = 0.0
-                        player.jumping = True
+                    elif event.key == pygame.K_RETURN:
+                        if game_state == "start":
+                            run_state = RunState.new_run()
+                            game_state = "node_map"
+                            physics_accumulator = 0.0
+                        elif game_state == "node_map":
+                            node_type = run_state.current_node_type
+                            if node_type == "combat":
+                                current_level_idx = run_state.combat_level_for_current_node()
+                                level.load(LEVELS[current_level_idx])
+                                _reset_level_state(level, player, camera, animator, enemy)
+                                physics_accumulator = flash_timer = dilation_timer = dilation_cooldown = 0.0
+                                game_state = "playing"
+                            elif node_type == "hole":
+                                hole_is_white = run_state.current_hole_is_white()
+                                _apply_hole_consequences(run_state, player, hole_is_white)
+                                hole_timer = HOLE_ENCOUNTER_PHASE1_DURATION + HOLE_ENCOUNTER_PHASE2_DURATION
+                                game_state = "hole_encounter"
+                            elif node_type == "singularity":
+                                game_state = "win"
+                        elif game_state in ("dead", "win"):
+                            game_state = "start"
+                            run_state.is_active = False
+                            current_level_idx = 0
+                            level.load(LEVELS[current_level_idx])
+                    elif game_state == "playing":
+                        if event.key == pygame.K_TAB:
+                            current_level_idx = (current_level_idx + 1) % len(LEVELS)
+                            level.load(LEVELS[current_level_idx])
+                            _reset_level_state(level, player, camera, animator, enemy)
+                            physics_accumulator = flash_timer = dilation_timer = dilation_cooldown = 0.0
+                        if event.key == pygame.K_BACKQUOTE:
+                            debug_draw = not debug_draw
+                        if event.key == pygame.K_r:
+                            player.set_gravity(rotate_gravity_ccw(player.gravity_dir))
+                            player.px = round(player.px)
+                            player.py = round(player.py)
+                            all_plats = level.all_platform_rects()
+                            player.on_ground = check_ground_adjacent(
+                                player.px, player.py, player.player_w, player.player_h,
+                                all_plats, player.gravity_dir,
+                            )
+                            if player.on_ground:
+                                player.coyote_timer = COYOTE_TIME
+                                player.jumping = False
+                            camera.on_gravity_rotate()
+                            camera.shake(ROTATE_SHAKE_INTENSITY, ROTATE_SHAKE_DURATION)
+                            flash_timer = ROTATION_FLASH_DURATION
+                            if player.gravity_dir == (0, 1):
+                                animator.helmet.request_off()
+                            else:
+                                animator.helmet.request_on()
+                        if event.key == pygame.K_e and dilation_cooldown <= 0 and player.chrono_reserve >= TIME_DILATION_COST:
+                            player.chrono_reserve -= TIME_DILATION_COST
+                            dilation_timer = TIME_DILATION_DURATION
+                            dilation_cooldown = TIME_DILATION_DURATION + TIME_DILATION_COOLDOWN
+                        if event.key in (pygame.K_SPACE, pygame.K_UP, pygame.K_w) and player.coyote_timer > 0:
+                            player.vx, player.vy = apply_jump_impulse(
+                                player.vx, player.vy, player.gravity_dir,
+                            )
+                            player.coyote_timer = 0.0
+                            player.jumping = True
                 if event.type == pygame.KEYUP:
                     if event.key in (pygame.K_SPACE, pygame.K_UP, pygame.K_w) and player.jumping:
                         player.vx, player.vy = apply_jump_cut(
@@ -200,142 +218,151 @@ def main() -> None:
                         )
                         player.jumping = False
 
-            # Time dilation: compute scale first, then tick timers
-            time_scale = TIME_DILATION_FACTOR if dilation_timer > 0 else 1.0
-            dilation_timer = max(0.0, dilation_timer - frame_dt)
-            dilation_cooldown = max(0.0, dilation_cooldown - frame_dt)
+            if game_state == "hole_encounter":
+                hole_timer = max(0.0, hole_timer - frame_dt)
+                if hole_timer <= 0:
+                    run_state.advance_node()
+                    game_state = "dead" if run_state.fold_stability <= 0.0 else "node_map"
 
-            # --- Physics (fixed 60hz steps) ---
-            grav_vert = gravity_is_vertical(player.gravity_dir)
-            while physics_accumulator >= PHYSICS_DT:
-                physics_start = time.perf_counter()
+            if game_state == "playing":
+                time_scale = TIME_DILATION_FACTOR if dilation_timer > 0 else 1.0
+                dilation_timer = max(0.0, dilation_timer - frame_dt)
+                dilation_cooldown = max(0.0, dilation_cooldown - frame_dt)
+                if flash_timer > 0:
+                    flash_timer = max(0.0, flash_timer - frame_dt)
 
-                keys = pygame.key.get_pressed()
-                if grav_vert:
-                    player.move_input = 0
-                    if keys[pygame.K_LEFT] or keys[pygame.K_a]:
-                        player.move_input = -1
-                        player.facing_right = False
-                    elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-                        player.move_input = 1
-                        player.facing_right = True
-                else:
-                    player.move_input = 0
-                    if keys[pygame.K_UP] or keys[pygame.K_w]:
-                        player.move_input = -1
-                    elif keys[pygame.K_DOWN] or keys[pygame.K_s]:
-                        player.move_input = 1
+                grav_vert = gravity_is_vertical(player.gravity_dir)
+                while physics_accumulator >= PHYSICS_DT:
+                    physics_start = time.perf_counter()
 
-                if keys[pygame.K_q]:
-                    player.chrono_reserve = max(
-                        0.0, player.chrono_reserve - CHRONO_DRAIN_TEST * PHYSICS_DT,
+                    keys = pygame.key.get_pressed()
+                    if grav_vert:
+                        player.move_input = 0
+                        if keys[pygame.K_LEFT] or keys[pygame.K_a]:
+                            player.move_input = -1
+                            player.facing_right = False
+                        elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
+                            player.move_input = 1
+                            player.facing_right = True
+                    else:
+                        player.move_input = 0
+                        if keys[pygame.K_UP] or keys[pygame.K_w]:
+                            player.move_input = -1
+                        elif keys[pygame.K_DOWN] or keys[pygame.K_s]:
+                            player.move_input = 1
+
+                    if keys[pygame.K_q]:
+                        player.chrono_reserve = max(
+                            0.0, player.chrono_reserve - CHRONO_DRAIN_TEST * PHYSICS_DT,
+                        )
+
+                    player.tick_chrono_regen(PHYSICS_DT, player.move_input != 0)
+                    player.iframes_timer = max(0.0, player.iframes_timer - PHYSICS_DT)
+                    player.vx, player.vy = apply_lateral_movement(
+                        player.vx, player.vy, player.move_input, player.gravity_dir, player.on_ground,
+                    )
+                    if not player.on_ground:
+                        player.vx, player.vy = apply_gravity(
+                            player.vx, player.vy, player.gravity_dir, player.on_ground,
+                        )
+                        player.vx, player.vy = clamp_terminal_velocity(
+                            player.vx, player.vy, player.gravity_dir,
+                        )
+
+                    level.update(time_scale)
+                    enemy.update(time_scale)
+                    if player.on_ground:
+                        pvx, pvy = level.riding_velocity(
+                            player.px, player.py, player.player_w, player.player_h,
+                            player.gravity_dir, time_scale,
+                        )
+                        player.px += pvx
+                        player.py += pvy
+                    all_platforms = level.all_platform_rects() + level.boundary_rects()
+                    player.px, player.py, player.vx, player.vy, player.on_ground = resolve_collisions(
+                        player.px, player.py, player.vx, player.vy,
+                        player.player_w, player.player_h, all_platforms, player.gravity_dir,
                     )
 
-                player.tick_chrono_regen(PHYSICS_DT, player.move_input != 0)
-                player.vx, player.vy = apply_lateral_movement(
-                    player.vx, player.vy, player.move_input, player.gravity_dir, player.on_ground,
-                )
-                if not player.on_ground:
-                    player.vx, player.vy = apply_gravity(
-                        player.vx, player.vy, player.gravity_dir, player.on_ground,
+                    if player.on_ground:
+                        player.jumping = False
+                        player.coyote_timer = COYOTE_TIME
+                        if player.py < level.level_height - player.player_h:
+                            player.last_safe_px = player.px
+                            player.last_safe_py = player.py
+                    else:
+                        player.coyote_timer = max(0.0, player.coyote_timer - PHYSICS_DT)
+
+                    physics_ms = (time.perf_counter() - physics_start) * 1000
+                    if PHYSICS_WATCHDOG_ENABLED and physics_ms > PHYSICS_WATCHDOG_THRESHOLD_MS:
+                        watchdog_consecutive += 1
+                        level_str = "CRITICAL" if watchdog_consecutive >= 3 else "WARNING"
+                        logger.log_performance(
+                            f"{level_str}: Physics step slow",
+                            physics_ms, len(all_platforms),
+                        )
+                    else:
+                        watchdog_consecutive = 0
+
+                    physics_history.append(player.to_dict())
+                    physics_accumulator -= PHYSICS_DT
+
+                level_reset = False
+                if player.gravity_dir == (0, 1):
+                    fall_threshold = level.level_height - player.player_h / 2 - 10.0
+                    if player.py >= fall_threshold:
+                        level_reset = player.take_fall_damage()
+                if not level_reset and check_hit(player, enemy):
+                    kx, ky = compute_knockback(
+                        player.px, player.py, enemy.px, enemy.py, player.gravity_dir,
                     )
-                    player.vx, player.vy = clamp_terminal_velocity(
-                        player.vx, player.vy, player.gravity_dir,
+                    level_reset = player.take_hit(kx, ky)
+                if level_reset:
+                    run_state.deaths += 1
+                    run_state.fold_stability = max(
+                        0.0, run_state.fold_stability - FOLD_STABILITY_INTEGRITY_COST,
                     )
+                    if run_state.fold_stability <= 0.0:
+                        game_state = "dead"
+                        run_state.is_active = False
+                    else:
+                        _reset_level_state(level, player, camera, animator, enemy)
+                    physics_accumulator = flash_timer = dilation_timer = dilation_cooldown = 0.0
 
-                level.update(time_scale)
-                all_platforms = level.all_platform_rects() + level.boundary_rects()
-                player.px, player.py, player.vx, player.vy, player.on_ground = resolve_collisions(
-                    player.px, player.py, player.vx, player.vy,
-                    player.player_w, player.player_h, all_platforms, player.gravity_dir,
+                camera.update(player.px, player.py, frame_dt)
+                player_state = determine_player_state(
+                    player.on_ground, player.vx, player.vy, player.gravity_dir, player.move_input,
                 )
+                lateral_speed = player.vx if grav_vert else player.vy
+                animator.update(frame_dt, player_state, lateral_speed)
 
-                if player.on_ground:
-                    player.jumping = False
-                    player.coyote_timer = COYOTE_TIME
-                else:
-                    player.coyote_timer = max(0.0, player.coyote_timer - PHYSICS_DT)
+                if level.goal_rect.collidepoint(player.px, player.py):
+                    player.goal_reached = True
 
-                # Physics watchdog
-                physics_ms = (time.perf_counter() - physics_start) * 1000
-                if PHYSICS_WATCHDOG_ENABLED and physics_ms > PHYSICS_WATCHDOG_THRESHOLD_MS:
-                    watchdog_consecutive += 1
-                    level_str = "CRITICAL" if watchdog_consecutive >= 3 else "WARNING"
-                    logger.log_performance(
-                        f"{level_str}: Physics step slow",
-                        physics_ms, len(all_platforms),
-                    )
-                else:
-                    watchdog_consecutive = 0
+                if player.goal_reached:
+                    run_state.advance_node()
+                    game_state = "node_map"
+                    physics_accumulator = flash_timer = dilation_timer = dilation_cooldown = 0.0
 
-                physics_history.append(player.to_dict())
-                physics_accumulator -= PHYSICS_DT
-
-            # Camera + animation (once per render frame)
-            camera.update(player.px, player.py, frame_dt)
-            player_state = _determine_player_state(
-                player.on_ground, player.vx, player.vy, player.gravity_dir, player.move_input,
-            )
-            lateral_speed = player.vx if grav_vert else player.vy
-            animator.update(frame_dt, player_state, lateral_speed)
-
-            # Goal check
-            pr = pygame.Rect(
-                player.px - player.player_w / 2, player.py - player.player_h / 2,
-                player.player_w, player.player_h,
-            )
-            if pr.colliderect(level.goal_rect):
-                player.goal_reached = True
-
-            # --- Draw ---
-            screen.fill(BLACK)
-            if background:
-                screen.blit(background, (0, 0))
-
-            cam_offset = camera.offset
-            level.draw(screen, cam_offset)
-
-            ox, oy = cam_offset
-            sw, sh = animator.width, animator.height
-            animator.draw(
-                screen, player.px - sw / 2 + ox, player.py - sh / 2 + oy,
-                player_state, player.facing_right, player.gravity_dir, debug_draw,
-            )
-
-            if debug_draw:
-                dr = pygame.Rect(
-                    int(player.px - player.player_w / 2 + ox),
-                    int(player.py - player.player_h / 2 + oy),
-                    player.player_w, player.player_h,
-                )
-                pygame.draw.rect(screen, (255, 0, 0), dr, 2)
-                pygame.draw.circle(screen, (0, 255, 0), (int(player.px + ox), int(player.py + oy)), 4)
-                cr_pct = player.chrono_reserve / CHRONO_RESERVE_MAX
-                pygame.draw.rect(screen, (40, 40, 60), (10, HEIGHT - 30, 200, 14))
-                pygame.draw.rect(screen, (80, 180, 255), (10, HEIGHT - 30, int(200 * cr_pct), 14))
-                cr_surf = font.render(
-                    f"CR {player.chrono_reserve:.0f}  [Q drain]", True, (160, 200, 255),
-                )
-                screen.blit(cr_surf, (220, HEIGHT - 40))
-
-            if flash_timer > 0:
-                flash_timer = max(0.0, flash_timer - frame_dt)
-                alpha = int(ROTATION_FLASH_MAX_ALPHA * (flash_timer / ROTATION_FLASH_DURATION))
-                flash_surf.fill((*ROTATION_FLASH_COLOR, alpha))
-                screen.blit(flash_surf, (0, 0))
-
-            label = font.render(
-                f"Gravity: {GRAVITY_LABELS[player.gravity_dir]}  |  R rotate  |  TAB next level",
-                True, BLUE,
-            )
-            screen.blit(label, (10, 10))
-            if player.goal_reached:
-                gt = font.render("GOAL REACHED!", True, GREEN)
-                screen.blit(gt, (WIDTH // 2 - gt.get_width() // 2, HEIGHT // 2))
-            if dilation_timer > 0:
-                dil_surf = font.render(f"TIME DILATION  {dilation_timer:.1f}s", True, (80, 180, 255))
-                screen.blit(dil_surf, (WIDTH // 2 - dil_surf.get_width() // 2, HEIGHT - 50))
-
+            if game_state == "start":
+                draw_start_screen(screen, font, WIDTH, HEIGHT)
+            elif game_state == "node_map":
+                draw_node_map(screen, font, run_state, WIDTH, HEIGHT)
+            elif game_state == "hole_encounter":
+                draw_hole_screen(screen, font, hole_timer, hole_is_white, WIDTH, HEIGHT)
+            elif game_state == "dead":
+                draw_death_screen(screen, font, run_state, WIDTH, HEIGHT)
+            elif game_state == "win":
+                draw_win_screen(screen, font, run_state, WIDTH, HEIGHT)
+            else:  # "playing"
+                cam_offset = camera.offset
+                draw_world(screen, background, level, enemy, animator, player,
+                           player_state, cam_offset, debug_draw)
+                if debug_draw:
+                    draw_debug_overlay(screen, font, player, cam_offset, HEIGHT)
+                draw_fold_tint(screen, fold_tint_surf, run_state.fold_stability)
+                draw_flash_overlay(screen, flash_surf, flash_timer)
+                draw_hud_labels(screen, font, player, dilation_timer, WIDTH, HEIGHT)
             pygame.display.flip()
 
     except Exception as e:

@@ -25,7 +25,7 @@ A retrofuturistic 1962 roguelite platformer where you bend gravity and time, and
 Stop building by layer. Build **thin vertical slices**, each ending in something playable, and put a go/no-go "is the loop fun?" gate after the first full run (M4). Content breadth (items, enemies, procgen, polish) comes only after that gate.
 
 ## Current milestone
-**M2: First Toy** (in progress)
+**M4: First Run** (next)
 
 ## Milestones
 
@@ -41,27 +41,37 @@ Stop building by layer. Build **thin vertical slices**, each ending in something
 - TAB level cycling ✅
 - QA checklist updated and ticked ✅
 
-**M2. First Toy** (in progress)
+**M2. First Toy** ✅ Done 2026-11-01
 - Player dataclass refactor, serialisable to dict ✅
 - `chrono_reserve` resource with movement-driven regen (15/s moving, 0/s idle) ✅
 - Time Dilation ability — E key, 3s platform freeze, 25 CR cost, 2s cooldown ✅
 - Amber glow overlay driven by `chrono_reserve` — deferred to art update (needs `EXOSKELETON_GLOW_PATH`)
-- level_04: level that cannot be solved without Time Dilation
-Done when: a level exists that cannot be solved without dilating something.
+- level_04 "Frozen Gate": 640px gap + speed-10 moving platform — unsolvable without Time Dilation ✅
+Done when: a level exists that cannot be solved without dilating something. ✅
 
-**M3. First Fight** (6-8 sessions)
-- Minimal Entity system (physics/render/health components)
-- Enemy: Temporal Echo only, reacts to time dilation
-- Combat: hit detection, knockback, i-frames
-- `anchor_integrity`, Anchored death state, respawn, fall-off-screen cost
-Done when: an arena room is winnable and losable, and dilation changes how you fight.
+**M3. First Fight** ✅ Done 2026-11-01
+- Temporal Echo patrol placeholder ✅
+- `anchor_integrity` 3-hit pool, fall damage ✅
+- Hit detection, knockback, i-frames (`src/systems/combat.py`) ✅
+- Integrity 0 → level resets (winnable + losable) ✅
+- Time Dilation freezes enemy ✅
+Done when: an arena room is winnable and losable, and dilation changes how you fight. ✅
 
 **M4. First Run** (8-12 sessions): the make-or-break slice
-- Run state manager (serialisable)
-- 5-node run on a simple node screen, rooms from hand-authored templates (no procgen yet)
-- Hole encounter: black/white, identical outside, with the resource consequences from the design bible
-- `fold_stability` shown via environment tint/distortion
-- Start screen, death/win screen
+- M4a — fold_stability resource + RunState + start screen (in progress)
+  - [x] `RunState` dataclass (fold_stability, node, seed, is_active) ✅
+  - [x] `fold_stability` depletes 20/death; run ends at 0 ✅
+  - [x] Fold tint: red overlay, alpha scales 0→110 as stability drops below 80 ✅
+  - [x] Start screen ("THE FOLD / Press ENTER to begin") ✅
+  - [x] `game_state` machine: "start" / "playing" ✅
+- M4b — node map, hole encounters, death/win screens
+  - [x] 5-node run: combat → hole → combat → hole → singularity ✅
+  - [x] Node map screen (text list, current node highlighted) ✅
+  - [x] Hole encounter resolve screen (phase 1 neutral, phase 2 reveals black/white) ✅
+  - [x] White hole: +5 fold_stability, restore anchor_integrity ✅
+  - [x] Black hole: -15 fold_stability, -1 anchor_integrity ✅
+  - [x] Death screen with nodes/deaths/stability stats ✅
+  - [x] Win screen (singularity reached) ✅
 Done when: a ~10 min run from start to singularity or death is completable. **Gate:** external playtest. Is it fun? Go / redesign / cut.
 
 **M5. Content Alpha** (post-gate)
@@ -73,15 +83,17 @@ VFX (pooled particles), juice, full rotation cinematic, singularity difficulty c
 **M7. Ship**
 Save/meta-progression, second character, Mac/Windows PyInstaller builds, Steam integration.
 
+## Current milestone
+**M4 — First Run** ✅ Done 2026-11-01
+
 ## This sprint (max 3 tasks)
-- [ ] level_04 "Frozen Gate": level requiring Time Dilation to solve | done when: gap is uncrossable without freezing the platform, level added to TAB cycle, 289+ tests pass
-- [ ] `anchor_integrity` on Player (3-hit pool, visual TBD) | done when: field exists, serialisable, resets on spawn, falls off screen costs 1 hit
-- [ ] First enemy placeholder — Temporal Echo patrol rect | done when: enemy rect spawns in level, moves back and forth, stops when Time Dilation is active
+- [x] Node map + hole encounters (M4b) ✅
+- [x] Death screen + win screen (M4b) ✅
+- [x] External playtest — loop confirmed fun. Go. ✅
 
 ## Known bugs / open items
 - Up/W doubles as move and jump in horizontal gravity | annoying, may cause unintended jumps | deliberately left as is for now (see Decisions log)
 - Helmet sprite files referenced in constants.py do not exist | cosmetic (placeholder renders)
-- `main.py` slightly over 300 lines | process/cosmetic — extract draw helpers if it grows further
 - Amber glow overlay not implemented | deferred — needs `EXOSKELETON_GLOW_PATH` art asset (glow reference image showing exoskeleton path on black background)
 
 ## Risks
@@ -106,9 +118,12 @@ Cult enemies (Witness, Ordained, Architect); Archivist and Diplomat characters; 
 - 2026-10-31: art through M4 is placeholders (colored shapes) for enemies, platforms, holes and UI; real art only for the player and the existing background.
 - 2026-10-31: controls unchanged for now (Space/Up/W jump in every orientation). Option on the table if revisited: Space always jumps plus an orientation-aware arrow jump (Down gravity: Up/W; Up: Down/S; Right: Left/A; Left: Right/D), built as a switchable constant and A/B tested.
 - 2026-11-01: amber glow overlay deferred — requires `EXOSKELETON_GLOW_PATH` (a reference image showing the exoskeleton lit against black, used to define glow coordinates). Will be implemented in a dedicated art-update session once the asset exists.
+- 2026-11-01: fold_stability cost per integrity-0 death = 20 (5 deaths end a run). Leaves budget for hole encounters and node timers in M4b.
+- 2026-11-01: fold tint starts at stability 80, max alpha 110 at stability 0. Red overlay only — shader distortion deferred to M6.
+- 2026-11-01: M3 anchored state simplified — integrity 0 = immediate level reset. No anchored timer. Fold stability cost paid on reset.
 
 ## Last session
 Date: 2026-11-01
-Did: M2 sprint complete — Player dataclass refactor (11 new tests), chrono_reserve resource with movement-driven regen (7 new tests), Time Dilation ability E-key (5 new tests). Amber glow deferred to art update.
-State of tests: 289 passing
-Next up: level_04 "Frozen Gate" — first required-dilation level
+Did: Fixed rotation rendering bug — goal detection now uses player center point (collidepoint) instead of physics rect, preventing accidental goal triggers when gravity rotation resizes the rect. Removed gravity_rotated_this_frame workaround. Added TestLevelGoalValidity test suite. M4 playtest gate passed — loop confirmed fun.
+State of tests: 352 passing
+Next up: M5 Content Alpha.

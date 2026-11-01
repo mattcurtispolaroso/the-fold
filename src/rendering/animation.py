@@ -12,6 +12,7 @@ from enum import Enum, auto
 import pygame
 
 import constants as C
+from src.physics import gravity_speed
 from src.rendering.helmet import HelmetOverlay, _apply_gravity_rotation, _load_sprite
 from src.rendering.sprite_sheet import load_sheet
 
@@ -216,3 +217,19 @@ class PlayerAnimator:
     def has_sprite(self, state: PlayerState) -> bool:
         """Return True if a sprite is loaded for this state."""
         return state in self._sprites
+
+
+def determine_player_state(
+    on_ground: bool,
+    vx: float,
+    vy: float,
+    gravity_dir: tuple[int, int],
+    move_input: int,
+) -> PlayerState:
+    """Map current physics state to the correct animation state."""
+    if on_ground:
+        return PlayerState.WALK if move_input != 0 else PlayerState.IDLE
+    gv = gravity_speed(vx, vy, gravity_dir)
+    if gv < C.JUMP_RISING_THRESHOLD:
+        return PlayerState.JUMP_RISING
+    return PlayerState.JUMP_PEAK if abs(gv) <= C.JUMP_PEAK_THRESHOLD else PlayerState.JUMP_FALLING

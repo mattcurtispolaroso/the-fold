@@ -894,5 +894,489 @@ class TestChronoRegen(unittest.TestCase):
         self.assertAlmostEqual(p.chrono_reserve, C.CHRONO_REGEN_MOVE, places=4)
 
 
+class TestLevel04(unittest.TestCase):
+    """Level 04 geometry guarantees that Time Dilation is required to complete it."""
+
+    LEVEL_PATH = os.path.join(os.path.dirname(__file__), "..", "levels", "level_04.json")
+
+    def _load(self):
+        with open(self.LEVEL_PATH) as f:
+            return json.load(f)
+
+    def test_level_file_exists(self) -> None:
+        self.assertTrue(os.path.isfile(self.LEVEL_PATH))
+
+    def test_gap_exceeds_max_jump_distance(self) -> None:
+        """Gap between start floor and exit ledge must be wider than max jump distance."""
+        data = self._load()
+        start_floor = next(p for p in data["static_platforms"] if p["x"] == 0 and p["y"] == 820)
+        exit_ledge = next(p for p in data["static_platforms"] if p["x"] == 900 and p["y"] == 620)
+        gap = exit_ledge["x"] - (start_floor["x"] + start_floor["w"])
+        max_jump_distance = 2 * C.JUMP_SPEED / C.GRAVITY_STRENGTH * C.MAX_MOVE_SPEED
+        self.assertGreater(gap, max_jump_distance,
+            f"Gap {gap:.1f}px must exceed max jump distance {max_jump_distance:.1f}px")
+
+    def test_platform_speed_exceeds_player_speed(self) -> None:
+        """Moving platform travels faster than the player so a rider falls short."""
+        data = self._load()
+        mp = data["moving_platforms"][0]
+        self.assertGreater(mp["speed"], C.MAX_MOVE_SPEED,
+            f"Platform speed {mp['speed']} must exceed player max speed {C.MAX_MOVE_SPEED}")
+
+    def test_boundary_floor_jump_blocked(self) -> None:
+        """Jump from boundary floor (y=level_height) cannot reach exit ledge."""
+        data = self._load()
+        level_height = data["level_height"]
+        exit_ledge_y = next(
+            p["y"] for p in data["static_platforms"] if p["x"] == 900 and p["y"] == 620
+        )
+        jump_needed = level_height - exit_ledge_y
+        max_jump_height = C.JUMP_SPEED ** 2 / (2 * C.GRAVITY_STRENGTH)
+        self.assertGreater(jump_needed, max_jump_height,
+            f"Boundary workaround must be blocked: needs {jump_needed:.1f}px, max is {max_jump_height:.1f}px")
+
+    def test_moving_platform_range_covers_gap(self) -> None:
+        """Frozen platform at max_val must put its right edge past the exit ledge x."""
+        data = self._load()
+        mp = data["moving_platforms"][0]
+        exit_ledge_x = next(p["x"] for p in data["static_platforms"] if p["x"] == 900)
+        frozen_right_edge = mp["max_val"] + mp["w"]
+        self.assertGreaterEqual(frozen_right_edge, exit_ledge_x,
+            f"Frozen platform right edge {frozen_right_edge} must reach exit at {exit_ledge_x}")
+
+
+class TestCombat(unittest.TestCase):
+    """Hit detection, knockback, and i-frames via combat.py helpers."""
+
+    def _make_player(self, px: float = 100.0, py: float = 100.0) -> Player:
+        return Player.from_spawn((px, py))
+
+    def _make_enemy(self, px: float = 100.0, py: float = 100.0):
+        from src.entities.enemy import TemporalEcho
+        return TemporalEcho(px=px, py=py, min_x=50.0, max_x=200.0, speed=C.TEMPORAL_ECHO_SPEED)
+
+    def test_take_hit_decrements_integrity(self) -> None:
+        p = self._make_player()
+        p.take_hit(0.0, 0.0)
+        self.assertEqual(p.anchor_integrity, C.ANCHOR_INTEGRITY_MAX - 1)
+
+    def test_take_hit_starts_iframes(self) -> None:
+        p = self._make_player()
+        p.take_hit(0.0, 0.0)
+        self.assertGreater(p.iframes_timer, 0.0)
+
+    def test_take_hit_sets_knockback_velocity(self) -> None:
+        p = self._make_player()
+        p.take_hit(6.0, 0.0)
+        self.assertAlmostEqual(p.vx, 6.0)
+
+    def test_take_hit_returns_false_when_integrity_remains(self) -> None:
+        p = self._make_player()
+        result = p.take_hit(0.0, 0.0)
+        self.assertFalse(result)
+
+    def test_take_hit_returns_true_when_integrity_zero(self) -> None:
+        p = self._make_player()
+        p.anchor_integrity = 1
+        result = p.take_hit(0.0, 0.0)
+        self.assertTrue(result)
+
+    def test_check_hit_false_during_iframes(self) -> None:
+        from src.systems.combat import check_hit
+        p = self._make_player(px=100.0, py=100.0)
+        e = self._make_enemy(px=100.0, py=100.0)
+        p.iframes_timer = 0.5
+        self.assertFalse(check_hit(p, e))
+
+    def test_check_hit_false_when_not_overlapping(self) -> None:
+        from src.systems.combat import check_hit
+        p = self._make_player(px=0.0, py=0.0)
+        e = self._make_enemy(px=800.0, py=800.0)
+        self.assertFalse(check_hit(p, e))
+
+    def test_check_hit_true_when_overlapping(self) -> None:
+        from src.systems.combat import check_hit
+        p = self._make_player(px=100.0, py=100.0)
+        e = self._make_enemy(px=100.0, py=100.0)
+        self.assertTrue(check_hit(p, e))
+
+    def test_compute_knockback_pushes_right(self) -> None:
+        from src.systems.combat import compute_knockback
+        vx, vy = compute_knockback(150.0, 100.0, 100.0, 100.0, (0, 1))
+        self.assertGreater(vx, 0.0)
+        self.assertAlmostEqual(vy, 0.0)
+
+    def test_compute_knockback_pushes_left(self) -> None:
+        from src.systems.combat import compute_knockback
+        vx, vy = compute_knockback(50.0, 100.0, 100.0, 100.0, (0, 1))
+        self.assertLess(vx, 0.0)
+        self.assertAlmostEqual(vy, 0.0)
+
+    def test_compute_knockback_horizontal_gravity_uses_y(self) -> None:
+        from src.systems.combat import compute_knockback
+        vx, vy = compute_knockback(100.0, 150.0, 100.0, 100.0, (1, 0))
+        self.assertAlmostEqual(vx, 0.0)
+        self.assertGreater(vy, 0.0)
+
+    def test_take_fall_damage_returns_false_above_zero(self) -> None:
+        p = self._make_player()
+        result = p.take_fall_damage()
+        self.assertFalse(result)
+
+    def test_take_fall_damage_returns_true_at_zero(self) -> None:
+        p = self._make_player()
+        p.anchor_integrity = 1
+        result = p.take_fall_damage()
+        self.assertTrue(result)
+
+
+class TestTemporalEcho(unittest.TestCase):
+    """TemporalEcho patrols horizontally, freezes on time_scale=0."""
+
+    def _make(self) -> object:
+        from src.entities.enemy import TemporalEcho
+        return TemporalEcho(px=100.0, py=50.0, min_x=50.0, max_x=200.0, speed=C.TEMPORAL_ECHO_SPEED)
+
+    def test_moves_right_by_speed(self) -> None:
+        e = self._make()
+        e.update(1.0)
+        self.assertAlmostEqual(e.px, 100.0 + C.TEMPORAL_ECHO_SPEED)
+
+    def test_reverses_at_max_x(self) -> None:
+        e = self._make()
+        e.px = 200.0
+        e.update(1.0)
+        self.assertEqual(e.direction, -1)
+        self.assertLessEqual(e.px, 200.0)
+
+    def test_reverses_at_min_x(self) -> None:
+        e = self._make()
+        e.direction = -1
+        e.px = 50.0
+        e.update(1.0)
+        self.assertEqual(e.direction, 1)
+        self.assertGreaterEqual(e.px, 50.0)
+
+    def test_time_scale_zero_freezes(self) -> None:
+        e = self._make()
+        before = e.px
+        e.update(0.0)
+        self.assertAlmostEqual(e.px, before)
+
+    def test_time_scale_half_slows(self) -> None:
+        e = self._make()
+        e.update(0.5)
+        self.assertAlmostEqual(e.px, 100.0 + C.TEMPORAL_ECHO_SPEED * 0.5)
+
+    def test_reset_restores_position(self) -> None:
+        e = self._make()
+        e.px = 190.0
+        e.direction = -1
+        e.reset()
+        self.assertAlmostEqual(e.px, 100.0)
+        self.assertEqual(e.direction, 1)
+
+    def test_rect_covers_centre(self) -> None:
+        e = self._make()
+        r = e.rect
+        self.assertEqual(r.centerx, int(e.px))
+        self.assertEqual(r.centery, int(e.py))
+        self.assertEqual(r.width, C.TEMPORAL_ECHO_W)
+        self.assertEqual(r.height, C.TEMPORAL_ECHO_H)
+
+
+class TestAnchorIntegrity(unittest.TestCase):
+    """anchor_integrity is a 3-hit pool: serialisable, resets on spawn, fall costs 1 hit."""
+
+    def test_default_is_max(self) -> None:
+        p = Player.from_spawn((0.0, 0.0))
+        self.assertEqual(p.anchor_integrity, C.ANCHOR_INTEGRITY_MAX)
+
+    def test_resets_on_spawn(self) -> None:
+        p = Player.from_spawn((0.0, 0.0))
+        p.anchor_integrity = 1
+        p.reset((0.0, 0.0), (0, 1))
+        self.assertEqual(p.anchor_integrity, C.ANCHOR_INTEGRITY_MAX)
+
+    def test_serialisable(self) -> None:
+        p = Player.from_spawn((0.0, 0.0))
+        d = p.to_dict()
+        self.assertIn("anchor_integrity", d)
+        self.assertEqual(d["anchor_integrity"], C.ANCHOR_INTEGRITY_MAX)
+
+    def test_last_safe_initialised_to_spawn(self) -> None:
+        p = Player.from_spawn((123.0, 456.0))
+        self.assertAlmostEqual(p.last_safe_px, 123.0)
+        self.assertAlmostEqual(p.last_safe_py, 456.0)
+
+    def test_last_safe_resets_on_spawn(self) -> None:
+        p = Player.from_spawn((10.0, 20.0))
+        p.last_safe_px, p.last_safe_py = 999.0, 999.0
+        p.reset((50.0, 80.0), (0, 1))
+        self.assertAlmostEqual(p.last_safe_px, 50.0)
+        self.assertAlmostEqual(p.last_safe_py, 80.0)
+
+    def test_take_fall_damage_decrements(self) -> None:
+        p = Player.from_spawn((100.0, 200.0))
+        p.anchor_integrity = 3
+        p.take_fall_damage()
+        self.assertEqual(p.anchor_integrity, 2)
+
+    def test_take_fall_damage_clamps_at_zero(self) -> None:
+        p = Player.from_spawn((100.0, 200.0))
+        p.anchor_integrity = 0
+        p.take_fall_damage()
+        self.assertEqual(p.anchor_integrity, 0)
+
+    def test_take_fall_damage_respawns_at_last_safe(self) -> None:
+        p = Player.from_spawn((100.0, 200.0))
+        p.last_safe_px, p.last_safe_py = 50.0, 150.0
+        p.px, p.py = 400.0, 900.0
+        p.take_fall_damage()
+        self.assertAlmostEqual(p.px, 50.0)
+        self.assertAlmostEqual(p.py, 150.0)
+
+    def test_take_fall_damage_zeroes_velocity(self) -> None:
+        p = Player.from_spawn((100.0, 200.0))
+        p.vx, p.vy = 5.0, 10.0
+        p.take_fall_damage()
+        self.assertAlmostEqual(p.vx, 0.0)
+        self.assertAlmostEqual(p.vy, 0.0)
+
+    def test_last_safe_in_to_dict(self) -> None:
+        p = Player.from_spawn((75.0, 300.0))
+        d = p.to_dict()
+        self.assertIn("last_safe_px", d)
+        self.assertIn("last_safe_py", d)
+
+
+class TestRunState(unittest.TestCase):
+    """RunState dataclass — fold_stability, seed, serialisation."""
+
+    def test_new_run_is_active(self):
+        from src.data.run_state import RunState
+        rs = RunState.new_run()
+        self.assertTrue(rs.is_active)
+
+    def test_new_run_fold_stability_is_max(self):
+        from src.data.run_state import RunState
+        from constants import FOLD_STABILITY_MAX
+        rs = RunState.new_run()
+        self.assertEqual(rs.fold_stability, FOLD_STABILITY_MAX)
+
+    def test_new_run_current_node_zero(self):
+        from src.data.run_state import RunState
+        rs = RunState.new_run()
+        self.assertEqual(rs.current_node_idx, 0)
+
+    def test_new_run_generates_nonzero_seed(self):
+        from src.data.run_state import RunState
+        seeds = {RunState.new_run().run_seed for _ in range(10)}
+        self.assertGreater(len(seeds), 1)
+
+    def test_to_dict_is_serialisable(self):
+        import json
+        from src.data.run_state import RunState
+        rs = RunState.new_run()
+        d = rs.to_dict()
+        json.dumps(d)  # raises if not serialisable
+
+    def test_fold_stability_can_deplete(self):
+        from src.data.run_state import RunState
+        from constants import FOLD_STABILITY_INTEGRITY_COST
+        rs = RunState.new_run()
+        rs.fold_stability -= FOLD_STABILITY_INTEGRITY_COST
+        self.assertLess(rs.fold_stability, 100.0)
+
+    def test_fold_stability_depleted_to_zero_ends_run(self):
+        from src.data.run_state import RunState
+        rs = RunState.new_run()
+        rs.fold_stability = 0.0
+        self.assertLessEqual(rs.fold_stability, 0.0)
+
+    def test_inactive_run_has_false_is_active(self):
+        from src.data.run_state import RunState
+        rs = RunState(fold_stability=100.0, current_node_idx=0, run_seed=0, is_active=False)
+        self.assertFalse(rs.is_active)
+
+
+class TestRunStateM4b(unittest.TestCase):
+    """RunState M4b additions — node sequence, hole outcomes, combat levels."""
+
+    def test_new_run_has_two_combat_levels(self):
+        from src.data.run_state import RunState
+        rs = RunState.new_run()
+        self.assertEqual(len(rs.combat_levels), 2)
+
+    def test_new_run_combat_levels_in_valid_range(self):
+        from src.data.run_state import RunState
+        rs = RunState.new_run()
+        self.assertIn(rs.combat_levels[0], (0, 1))
+        self.assertIn(rs.combat_levels[1], (2, 3))
+
+    def test_new_run_has_two_hole_outcomes(self):
+        from src.data.run_state import RunState
+        rs = RunState.new_run()
+        self.assertEqual(len(rs.hole_outcomes), 2)
+
+    def test_current_node_type_at_start(self):
+        from src.data.run_state import RunState
+        rs = RunState.new_run()
+        self.assertEqual(rs.current_node_type, "combat")
+
+    def test_advance_node_increments_idx(self):
+        from src.data.run_state import RunState
+        rs = RunState.new_run()
+        rs.advance_node()
+        self.assertEqual(rs.current_node_idx, 1)
+        self.assertEqual(rs.current_node_type, "hole")
+
+    def test_node_count_is_five(self):
+        from src.data.run_state import RunState
+        rs = RunState.new_run()
+        self.assertEqual(rs.node_count, 5)
+
+    def test_combat_level_for_first_node(self):
+        from src.data.run_state import RunState
+        rs = RunState.new_run()
+        idx = rs.combat_level_for_current_node()
+        self.assertIn(idx, (0, 1))
+
+    def test_combat_level_for_second_combat_node(self):
+        from src.data.run_state import RunState
+        rs = RunState.new_run()
+        rs.advance_node()  # hole
+        rs.advance_node()  # combat node 2
+        idx = rs.combat_level_for_current_node()
+        self.assertIn(idx, (2, 3))
+
+    def test_hole_outcome_for_first_hole(self):
+        from src.data.run_state import RunState
+        rs = RunState.new_run()
+        rs.advance_node()  # now at first hole (idx 1)
+        result = rs.current_hole_is_white()
+        self.assertIsInstance(result, bool)
+
+    def test_singularity_is_last_node(self):
+        from src.data.run_state import RunState
+        rs = RunState.new_run()
+        for _ in range(4):
+            rs.advance_node()
+        self.assertEqual(rs.current_node_type, "singularity")
+
+    def test_deaths_starts_at_zero(self):
+        from src.data.run_state import RunState
+        rs = RunState.new_run()
+        self.assertEqual(rs.deaths, 0)
+
+    def test_to_dict_includes_new_fields(self):
+        from src.data.run_state import RunState
+        rs = RunState.new_run()
+        d = rs.to_dict()
+        self.assertIn("combat_levels", d)
+        self.assertIn("hole_outcomes", d)
+        self.assertIn("deaths", d)
+
+
+class TestHoleEncounter(unittest.TestCase):
+    """Hole encounter constants and consequence logic."""
+
+    def test_white_hole_restores_integrity(self):
+        from main import _apply_hole_consequences
+        from src.data.run_state import RunState
+        from src.entities.player import Player
+        from constants import ANCHOR_INTEGRITY_MAX
+        rs = RunState.new_run()
+        p = Player(px=0.0, py=0.0)
+        p.anchor_integrity = 1
+        _apply_hole_consequences(rs, p, is_white=True)
+        self.assertEqual(p.anchor_integrity, ANCHOR_INTEGRITY_MAX)
+
+    def test_white_hole_restores_fold_stability(self):
+        from main import _apply_hole_consequences
+        from src.data.run_state import RunState
+        from src.entities.player import Player
+        from constants import WHITE_HOLE_STABILITY_RESTORE
+        rs = RunState.new_run()
+        rs.fold_stability = 50.0
+        p = Player(px=0.0, py=0.0)
+        _apply_hole_consequences(rs, p, is_white=True)
+        self.assertAlmostEqual(rs.fold_stability, 50.0 + WHITE_HOLE_STABILITY_RESTORE)
+
+    def test_white_hole_capped_at_max(self):
+        from main import _apply_hole_consequences
+        from src.data.run_state import RunState
+        from src.entities.player import Player
+        from constants import FOLD_STABILITY_MAX
+        rs = RunState.new_run()
+        rs.fold_stability = FOLD_STABILITY_MAX
+        p = Player(px=0.0, py=0.0)
+        _apply_hole_consequences(rs, p, is_white=True)
+        self.assertEqual(rs.fold_stability, FOLD_STABILITY_MAX)
+
+    def test_black_hole_reduces_integrity(self):
+        from main import _apply_hole_consequences
+        from src.data.run_state import RunState
+        from src.entities.player import Player
+        from constants import ANCHOR_INTEGRITY_MAX
+        rs = RunState.new_run()
+        p = Player(px=0.0, py=0.0)
+        _apply_hole_consequences(rs, p, is_white=False)
+        self.assertEqual(p.anchor_integrity, ANCHOR_INTEGRITY_MAX - 1)
+
+    def test_black_hole_reduces_fold_stability(self):
+        from main import _apply_hole_consequences
+        from src.data.run_state import RunState
+        from src.entities.player import Player
+        from constants import BLACK_HOLE_STABILITY_COST
+        rs = RunState.new_run()
+        initial = rs.fold_stability
+        p = Player(px=0.0, py=0.0)
+        _apply_hole_consequences(rs, p, is_white=False)
+        self.assertAlmostEqual(rs.fold_stability, initial - BLACK_HOLE_STABILITY_COST)
+
+    def test_black_hole_increments_deaths(self):
+        from main import _apply_hole_consequences
+        from src.data.run_state import RunState
+        from src.entities.player import Player
+        rs = RunState.new_run()
+        p = Player(px=0.0, py=0.0)
+        _apply_hole_consequences(rs, p, is_white=False)
+        self.assertEqual(rs.deaths, 1)
+
+    def test_hole_phase_durations_are_positive(self):
+        from constants import HOLE_ENCOUNTER_PHASE1_DURATION, HOLE_ENCOUNTER_PHASE2_DURATION
+        self.assertGreater(HOLE_ENCOUNTER_PHASE1_DURATION, 0)
+        self.assertGreater(HOLE_ENCOUNTER_PHASE2_DURATION, 0)
+
+
+class TestLevelGoalValidity(unittest.TestCase):
+    """Goal rect must not contain the spawn point in any gravity orientation.
+
+    Prevents the class of bug where rotating gravity changes the physics rect
+    size and accidentally overlaps the goal at or near spawn.
+    """
+
+    LEVEL_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "levels")
+
+    def _level_files(self):
+        import glob
+        return sorted(glob.glob(os.path.join(self.LEVEL_DIR, "level_*.json")))
+
+    def test_spawn_not_inside_goal_for_all_levels(self):
+        import pygame
+        pygame.init()
+        from src.levels.level_data import LevelData
+        for path in self._level_files():
+            with self.subTest(level=os.path.basename(path)):
+                data = LevelData.load(path)
+                goal = pygame.Rect(data.goal.x, data.goal.y, data.goal.w, data.goal.h)
+                sx, sy = data.spawn
+                self.assertFalse(
+                    goal.collidepoint(sx, sy),
+                    f"{os.path.basename(path)}: spawn {data.spawn} is inside goal rect {goal}",
+                )
+
+
 if __name__ == "__main__":
     unittest.main()
