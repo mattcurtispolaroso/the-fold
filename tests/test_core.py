@@ -804,9 +804,53 @@ class TestPlayer(unittest.TestCase):
         self.assertAlmostEqual(d["px"], 42.0)
         self.assertAlmostEqual(d["py"], 84.0)
 
+    def test_from_spawn_chrono_reserve_is_max(self) -> None:
+        p = Player.from_spawn((0.0, 0.0))
+        self.assertAlmostEqual(p.chrono_reserve, C.CHRONO_RESERVE_MAX)
+
+    def test_reset_restores_chrono_reserve(self) -> None:
+        p = Player.from_spawn((0.0, 0.0))
+        p.chrono_reserve = 10.0
+        p.reset((0.0, 0.0), GRAVITY_DOWN)
+        self.assertAlmostEqual(p.chrono_reserve, C.CHRONO_RESERVE_MAX)
+
+    def test_to_dict_contains_chrono_reserve(self) -> None:
+        p = Player.from_spawn((0.0, 0.0))
+        self.assertIn("chrono_reserve", p.to_dict())
+
     def test_to_dict_is_json_serialisable(self) -> None:
         p = Player.from_spawn((0.0, 0.0))
         json.dumps(p.to_dict())  # must not raise
+
+
+class TestChronoRegen(unittest.TestCase):
+    """tick_chrono_regen fills during movement, idles earns nothing, caps at max."""
+
+    def test_regen_increases_during_movement(self) -> None:
+        p = Player.from_spawn((0.0, 0.0))
+        p.chrono_reserve = 0.0
+        p.tick_chrono_regen(1.0, is_moving=True)
+        self.assertAlmostEqual(p.chrono_reserve, C.CHRONO_REGEN_MOVE)
+
+    def test_no_regen_while_idle(self) -> None:
+        p = Player.from_spawn((0.0, 0.0))
+        p.chrono_reserve = 0.0
+        p.tick_chrono_regen(1.0, is_moving=False)
+        self.assertAlmostEqual(p.chrono_reserve, C.CHRONO_REGEN_IDLE)
+
+    def test_regen_does_not_exceed_max(self) -> None:
+        p = Player.from_spawn((0.0, 0.0))
+        p.chrono_reserve = C.CHRONO_RESERVE_MAX - 1.0
+        p.tick_chrono_regen(10.0, is_moving=True)
+        self.assertAlmostEqual(p.chrono_reserve, C.CHRONO_RESERVE_MAX)
+
+    def test_regen_rate_over_one_second(self) -> None:
+        """60 steps of PHYSICS_DT should equal one second of regen at move rate."""
+        p = Player.from_spawn((0.0, 0.0))
+        p.chrono_reserve = 0.0
+        for _ in range(C.FPS):
+            p.tick_chrono_regen(C.PHYSICS_DT, is_moving=True)
+        self.assertAlmostEqual(p.chrono_reserve, C.CHRONO_REGEN_MOVE, places=4)
 
 
 if __name__ == "__main__":

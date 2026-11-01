@@ -140,6 +140,12 @@ MAX_PARTICLES: int = 500
 MAX_PROJECTILES: int = 50
 MAX_ACTIVE_ABILITIES: int = 10
 
+# --- Chrono Reserve (ability fuel resource) ---
+CHRONO_RESERVE_MAX: float = 100.0
+CHRONO_REGEN_MOVE: float = 15.0   # per second during active lateral movement
+CHRONO_REGEN_IDLE: float = 0.0    # per second while idle (passive play earns nothing)
+CHRONO_DRAIN_TEST: float = 30.0   # per second drain via Q key (placeholder until abilities land)
+
 # --- Font ---
 FONT_PATH: str = "assets/fonts/main_font.ttf"
 FONT_SIZE: int = 28

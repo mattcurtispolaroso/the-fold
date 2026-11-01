@@ -9,7 +9,13 @@ from __future__ import annotations
 import dataclasses
 from dataclasses import dataclass
 
-from constants import PLAYER_PHYSICS_WIDTH_NORMAL, PLAYER_PHYSICS_HEIGHT_NORMAL
+from constants import (
+    CHRONO_RESERVE_MAX,
+    CHRONO_REGEN_IDLE,
+    CHRONO_REGEN_MOVE,
+    PLAYER_PHYSICS_HEIGHT_NORMAL,
+    PLAYER_PHYSICS_WIDTH_NORMAL,
+)
 from src.physics.gravity import GravityDir, get_player_physics_size
 
 
@@ -30,6 +36,7 @@ class Player:
     facing_right: bool = True
     move_input: int = 0
     goal_reached: bool = False
+    chrono_reserve: float = CHRONO_RESERVE_MAX
 
     @classmethod
     def from_spawn(
@@ -52,11 +59,20 @@ class Player:
         self.facing_right = True
         self.move_input = 0
         self.goal_reached = False
+        self.chrono_reserve = CHRONO_RESERVE_MAX
 
     def set_gravity(self, new_dir: GravityDir) -> None:
         """Update gravity direction and keep physics dimensions in sync."""
         self.gravity_dir = new_dir
         self.player_w, self.player_h = get_player_physics_size(new_dir)
+
+    def tick_chrono_regen(self, dt: float, is_moving: bool) -> None:
+        """Advance Chrono Reserve regen for one physics step.
+
+        Moving earns regen; idling earns nothing (CHRONO_REGEN_IDLE = 0).
+        """
+        regen = CHRONO_REGEN_MOVE if is_moving else CHRONO_REGEN_IDLE
+        self.chrono_reserve = min(CHRONO_RESERVE_MAX, self.chrono_reserve + regen * dt)
 
     def to_dict(self) -> dict:
         """Serialise player state for crash logging and save files."""

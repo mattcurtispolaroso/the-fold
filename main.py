@@ -12,6 +12,8 @@ from collections import deque
 import pygame
 
 from constants import (
+    CHRONO_DRAIN_TEST,
+    CHRONO_RESERVE_MAX,
     COYOTE_TIME,
     FONT_PATH,
     FONT_SIZE,
@@ -207,6 +209,12 @@ def main() -> None:
                     elif keys[pygame.K_DOWN] or keys[pygame.K_s]:
                         player.move_input = 1
 
+                if keys[pygame.K_q]:
+                    player.chrono_reserve = max(
+                        0.0, player.chrono_reserve - CHRONO_DRAIN_TEST * PHYSICS_DT,
+                    )
+
+                player.tick_chrono_regen(PHYSICS_DT, player.move_input != 0)
                 player.vx, player.vy = apply_lateral_movement(
                     player.vx, player.vy, player.move_input, player.gravity_dir, player.on_ground,
                 )
@@ -285,6 +293,13 @@ def main() -> None:
                 )
                 pygame.draw.rect(screen, (255, 0, 0), dr, 2)
                 pygame.draw.circle(screen, (0, 255, 0), (int(player.px + ox), int(player.py + oy)), 4)
+                cr_pct = player.chrono_reserve / CHRONO_RESERVE_MAX
+                pygame.draw.rect(screen, (40, 40, 60), (10, HEIGHT - 30, 200, 14))
+                pygame.draw.rect(screen, (80, 180, 255), (10, HEIGHT - 30, int(200 * cr_pct), 14))
+                cr_surf = font.render(
+                    f"CR {player.chrono_reserve:.0f}  [Q drain]", True, (160, 200, 255),
+                )
+                screen.blit(cr_surf, (220, HEIGHT - 40))
 
             if flash_timer > 0:
                 flash_timer = max(0.0, flash_timer - frame_dt)
