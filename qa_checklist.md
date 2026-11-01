@@ -28,6 +28,7 @@ Run through this after each coding session. Launch the game with `python main.py
 - [ ] Floor visually appears on the correct edge for each orientation
 - [ ] White dot on the player points away from gravity (toward "up")
 - [ ] All 4 orientations reachable by pressing R four times, returning to the start
+- [ ] Pressing R triggers a brief white screen flash — gravity change reads as an event, not a silent shift
 
 ## Movement Under Each Orientation
 
@@ -54,11 +55,9 @@ Run through this after each coding session. Launch the game with `python main.py
 
 ## Known Issues to Watch For
 
-- Rotating while pressed against a screen edge can briefly clip the player into the boundary before clamping corrects it
-- Movement keys overlap with jump keys in horizontal gravity orientations (Up/W is both "move up" and "jump") — may cause unintended jumps when moving
-- No platforms yet — testing is limited to the single floor per orientation
+- Movement keys overlap with jump keys in horizontal gravity orientations (Up/W is both "move up" and "jump") — may cause unintended jumps when moving. Deliberate for now — revisit after M1 playtests.
 
-## Level Loading
+## Level Loading and Cycling
 
 - [ ] Game loads level_01.json on startup without errors
 - [ ] All 7 static platforms render in correct positions
@@ -67,6 +66,16 @@ Run through this after each coding session. Launch the game with `python main.py
 - [ ] Goal rect renders as green rectangle in upper-left area
 - [ ] "GOAL REACHED!" text appears when player touches goal area
 - [ ] Deleting level_01.json produces a clear error (not silent failure)
+- [ ] TAB cycles to level_02 — camera resets, player spawns at new start position, gravity resets to DOWN
+- [ ] TAB cycles to level_03 — same reset behaviour
+- [ ] TAB from level_03 wraps back to level_01
+
+## Rotation-Required Levels
+
+- [ ] **level_02 "Flip Up":** floor ends at x≈600 — player cannot reach goal (ceiling, right side) by jumping. Rotating gravity to UP and walking the ceiling reaches it.
+- [ ] **level_03 "Side Step":** floor ends at x≈600 — player cannot reach goal (right wall, mid-height) by jumping. Rotating gravity to RIGHT and walking the right wall reaches it.
+- [ ] Player cannot accidentally trigger the goal in either level while gravity is DOWN
+- [ ] Camera scrolls correctly across the full 2400px width on levels 02 and 03
 
 ## Level Architecture Edge Cases
 
@@ -74,6 +83,7 @@ Run through this after each coding session. Launch the game with `python main.py
 - [ ] Gravity rotation works correctly with multi-platform level (not just single floor)
 - [ ] Player doesn't clip through thin platforms (ceiling platforms are 20px)
 - [ ] Moving platform at ceiling gap is reachable with gravity=up
+- [ ] Player cannot escape level bounds in any gravity orientation (boundary platform system)
 
 ## Camera System
 
