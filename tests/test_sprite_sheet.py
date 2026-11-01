@@ -8,12 +8,8 @@ import pygame
 
 import constants as C
 from src.rendering.sprite_sheet import load_sheet
-from src.rendering.animation import (
-    HelmetOverlay,
-    HelmetState,
-    PlayerAnimator,
-    PlayerState,
-)
+from src.rendering.helmet import HelmetOverlay, HelmetState
+from src.rendering.animation import PlayerAnimator, PlayerState
 
 
 class TestLoadSheet(unittest.TestCase):
