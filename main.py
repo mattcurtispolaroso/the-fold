@@ -6,6 +6,7 @@ All rendering logic in src/rendering/. This file only orchestrates.
 from __future__ import annotations
 
 import os
+import sys
 import time
 from collections import deque
 
@@ -76,7 +77,17 @@ from src.systems.spacetime import make_time_dilation
 from src.systems.level_generator import pick_anomaly_room
 
 WIDTH, HEIGHT = SCREEN_WIDTH, SCREEN_HEIGHT
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# When frozen by PyInstaller, _MEIPASS holds bundled read-only data (assets,
+# levels, item JSONs). Writable files (save, logs) go next to the executable
+# so they persist across relaunches and aren't lost when the temp dir clears.
+if getattr(sys, "frozen", False):
+    BASE_DIR: str = sys._MEIPASS                          # type: ignore[attr-defined]
+    WRITABLE_DIR: str = os.path.dirname(sys.executable)
+else:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    WRITABLE_DIR = BASE_DIR
+
 LEVEL_DIR = os.path.join(BASE_DIR, "levels")
 LEVELS = [os.path.join(LEVEL_DIR, f"level_0{i}.json") for i in range(1, 5)]
 
@@ -164,11 +175,11 @@ def main() -> None:
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption("The Fold")
     clock = pygame.time.Clock()
-    logger = LoggingManager()
+    logger = LoggingManager(log_dir=os.path.join(WRITABLE_DIR, "logs"))
     logger.log_event("Game started")
     font = load_font(BASE_DIR)
 
-    save_manager = SaveManager(os.path.join(BASE_DIR, "save.json"))
+    save_manager = SaveManager(os.path.join(WRITABLE_DIR, "save.json"))
     meta = save_manager.load()
 
     current_level_idx = 0

@@ -4,6 +4,7 @@ __pycache__/
 venv/
 *.egg-info/
 dist/
-build/
+build/_pyinstaller_work/
+*.spec.bak
 .DS_Store
 logs/
