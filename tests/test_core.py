@@ -2674,6 +2674,96 @@ class TestHudConstants(unittest.TestCase):
                 self.assertLessEqual(component, 255)
 
 
+class TestGravityRotationEject(unittest.TestCase):
+    """Regression tests for the post-rotation rect-expansion disappear bug.
+
+    When gravity rotates, the physics rect swaps dimensions (64×96 ↔ 96×64).
+    The player can overlap a boundary wall they weren't touching before.
+    The gravity resolvers must use minimum-penetration when velocity is zero
+    so the player is ejected INTO the level, not outside it.
+    """
+
+    def _left_boundary(self, level_width=1200, level_height=900, T=100):
+        return pygame.Rect(-T, -T, T, level_height + 2 * T)
+
+    def _right_boundary(self, level_width=1200, level_height=900, T=100):
+        return pygame.Rect(level_width, -T, T, level_height + 2 * T)
+
+    def _top_boundary(self, level_width=1200, level_height=900, T=100):
+        return pygame.Rect(-T, -T, level_width + 2 * T, T)
+
+    def _bottom_boundary(self, level_width=1200, level_height=900, T=100):
+        return pygame.Rect(-T, level_height, level_width + 2 * T, T)
+
+    def test_right_gravity_near_left_wall_stays_inside(self):
+        """Player hugging left wall in DOWN gravity, rotates to RIGHT — must not be ejected left."""
+        from src.physics.collision import resolve_collisions
+        # In DOWN gravity, player min px is 32 (64px wide, left boundary right edge at 0)
+        # After rotating to RIGHT gravity, width becomes 96 — rect extends 16px into left boundary
+        px, py = 32.0, 500.0
+        vx, vy = 0.0, 0.0
+        w, h = 96, 64   # RIGHT gravity dimensions
+        platforms = [self._left_boundary(), self._right_boundary(),
+                     self._top_boundary(), self._bottom_boundary()]
+        new_px, new_py, new_vx, new_vy, _ = resolve_collisions(
+            px, py, vx, vy, w, h, platforms, (1, 0),  # RIGHT gravity
+        )
+        self.assertGreater(new_px, 0, "Player was ejected outside left boundary")
+        self.assertLessEqual(new_px, 1200, "Player ended up past right boundary")
+
+    def test_left_gravity_near_right_wall_stays_inside(self):
+        """Player hugging right wall in DOWN gravity, rotates to LEFT — must not be ejected right."""
+        from src.physics.collision import resolve_collisions
+        # In DOWN gravity, player max px near right boundary ≈ 1168 (1200-32)
+        # After rotating to LEFT gravity, width becomes 96 — rect extends 16px into right boundary
+        px, py = 1168.0, 500.0
+        vx, vy = 0.0, 0.0
+        w, h = 96, 64
+        platforms = [self._left_boundary(), self._right_boundary(),
+                     self._top_boundary(), self._bottom_boundary()]
+        new_px, new_py, new_vx, new_vy, _ = resolve_collisions(
+            px, py, vx, vy, w, h, platforms, (-1, 0),  # LEFT gravity
+        )
+        self.assertLess(new_px, 1200, "Player was ejected outside right boundary")
+        self.assertGreaterEqual(new_px, 0, "Player ended up past left boundary")
+
+    def test_down_gravity_near_top_wall_stays_inside(self):
+        """Player near top boundary in RIGHT gravity, rotates to DOWN — must not be ejected above."""
+        from src.physics.collision import resolve_collisions
+        # In RIGHT gravity (h=64, half=32), player min py near top ≈ 32
+        # After rotating to DOWN gravity, height becomes 96 — rect extends 16px into top boundary
+        px, py = 400.0, 32.0
+        vx, vy = 0.0, 0.0
+        w, h = 64, 96   # DOWN gravity dimensions
+        platforms = [self._left_boundary(), self._right_boundary(),
+                     self._top_boundary(), self._bottom_boundary()]
+        new_px, new_py, new_vx, new_vy, _ = resolve_collisions(
+            px, py, vx, vy, w, h, platforms, (0, 1),  # DOWN gravity
+        )
+        self.assertGreater(new_py, 0, "Player was ejected above top boundary")
+        self.assertLess(new_py, 900, "Player ended up below bottom boundary")
+
+    def test_repeated_rotation_near_left_wall_stays_inside(self):
+        """Repeated DOWN↔RIGHT rotations near left wall must never send player outside level."""
+        from src.physics.collision import resolve_collisions
+        from src.physics.gravity import rotate_gravity_ccw, get_player_physics_size
+        px, py = 34.0, 500.0
+        vx, vy = 0.0, 0.0
+        gravity = (0, 1)  # DOWN
+        platforms = [self._left_boundary(), self._right_boundary(),
+                     self._top_boundary(), self._bottom_boundary()]
+        for _ in range(8):  # 4 full rotations
+            gravity = rotate_gravity_ccw(gravity)
+            w, h = get_player_physics_size(gravity)
+            px, py, vx, vy, _ = resolve_collisions(
+                px, py, vx, vy, w, h, platforms, gravity,
+            )
+            self.assertGreater(px, -200, f"px={px} fell outside level after rotation to {gravity}")
+            self.assertLess(px, 1400, f"px={px} fell outside level after rotation to {gravity}")
+            self.assertGreater(py, -200, f"py={py} fell outside level after rotation to {gravity}")
+            self.assertLess(py, 1100, f"py={py} fell outside level after rotation to {gravity}")
+
+
 class TestTheAnchored(unittest.TestCase):
     """Tests for TheAnchored enemy — broken-timeline wander/stutter AI."""
 

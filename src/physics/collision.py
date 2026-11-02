@@ -64,14 +64,27 @@ def _resolve_gravity_y(
     pr = pygame.Rect(px - player_w / 2, py - player_h / 2, player_w, player_h)
     for plat in platforms:
         if pr.colliderect(plat):
-            if vy > 0 or (vy == 0 and gravity_dir[1] > 0):
+            if vy > 0:
                 py = plat.top - player_h / 2
                 if gravity_dir[1] > 0:
                     on_ground = True
-            else:
+            elif vy < 0:
                 py = plat.bottom + player_h / 2
                 if gravity_dir[1] < 0:
                     on_ground = True
+            else:
+                # vy == 0: use minimum penetration to avoid ejecting the wrong way.
+                # This fires after a gravity rotation resizes the rect into a boundary.
+                depth_from_above = pr.bottom - plat.top
+                depth_from_below = plat.bottom - pr.top
+                if depth_from_above <= depth_from_below:
+                    py = plat.top - player_h / 2
+                    if gravity_dir[1] > 0:
+                        on_ground = True
+                else:
+                    py = plat.bottom + player_h / 2
+                    if gravity_dir[1] < 0:
+                        on_ground = True
             vy = 0.0
             py = round(py)
             pr = pygame.Rect(px - player_w / 2, py - player_h / 2, player_w, player_h)
@@ -90,14 +103,27 @@ def _resolve_gravity_x(
     pr = pygame.Rect(px - player_w / 2, py - player_h / 2, player_w, player_h)
     for plat in platforms:
         if pr.colliderect(plat):
-            if vx > 0 or (vx == 0 and gravity_dir[0] > 0):
+            if vx > 0:
                 px = plat.left - player_w / 2
                 if gravity_dir[0] > 0:
                     on_ground = True
-            else:
+            elif vx < 0:
                 px = plat.right + player_w / 2
                 if gravity_dir[0] < 0:
                     on_ground = True
+            else:
+                # vx == 0: use minimum penetration to avoid ejecting the wrong way.
+                # This fires after a gravity rotation resizes the rect into a boundary.
+                depth_from_left = pr.right - plat.left
+                depth_from_right = plat.right - pr.left
+                if depth_from_left <= depth_from_right:
+                    px = plat.left - player_w / 2
+                    if gravity_dir[0] > 0:
+                        on_ground = True
+                else:
+                    px = plat.right + player_w / 2
+                    if gravity_dir[0] < 0:
+                        on_ground = True
             vx = 0.0
             px = round(px)
             pr = pygame.Rect(px - player_w / 2, py - player_h / 2, player_w, player_h)
