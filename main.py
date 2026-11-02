@@ -200,6 +200,7 @@ def main() -> None:
     pending_node_advance: bool = False
     anomaly_pending: bool = False
 
+    active_zone_indices: set[int] = set()
     physics_history: deque = deque(maxlen=50)
     watchdog_consecutive: int = 0
 
@@ -229,6 +230,7 @@ def main() -> None:
                                 level.load(LEVELS[current_level_idx])
                                 _reset_level_state(level, player, camera, animator, enemies)
                                 physics_accumulator = flash_timer = 0.0
+                                active_zone_indices = set()
                                 time_dilation.reset()
                                 game_state = "playing"
                                 bus.emit(GameEvent.ROOM_ENTERED)
@@ -239,6 +241,7 @@ def main() -> None:
                                 level.load(anomaly_path)
                                 _reset_level_state(level, player, camera, animator, enemies)
                                 physics_accumulator = flash_timer = 0.0
+                                active_zone_indices = set()
                                 time_dilation.reset()
                                 anomaly_pending = True
                                 game_state = "playing"
@@ -277,6 +280,7 @@ def main() -> None:
                             level.load(LEVELS[current_level_idx])
                             _reset_level_state(level, player, camera, animator, enemies)
                             physics_accumulator = flash_timer = 0.0
+                            active_zone_indices = set()
                             time_dilation.reset()
                             bus.emit(GameEvent.ROOM_ENTERED)
                         if event.key == pygame.K_BACKQUOTE:
@@ -341,7 +345,52 @@ def main() -> None:
                 time_scale = time_dilation.time_scale()
                 pressure = run_state.singularity_pressure
                 regen_mult = 1.0 - pressure * (1.0 - SINGULARITY_CHRONO_REGEN_MIN_MULT)
-                gravity_mult = level.gravity_multiplier * (
+
+                # Gravity zone detection — strength accumulation and direction snaps
+                player_rect = pygame.Rect(
+                    int(player.px - player.player_w / 2),
+                    int(player.py - player.player_h / 2),
+                    player.player_w, player.player_h,
+                )
+                new_zone_indices: set[int] = set()
+                zone_strength_mult = 1.0
+                for _zi, _zone in enumerate(level.gravity_zones):
+                    if pygame.Rect(_zone.x, _zone.y, _zone.w, _zone.h).colliderect(player_rect):
+                        new_zone_indices.add(_zi)
+                        if _zone.strength_mult is not None:
+                            zone_strength_mult *= _zone.strength_mult
+                for _zi in new_zone_indices - active_zone_indices:
+                    _zone = level.gravity_zones[_zi]
+                    if _zone.gravity_dir is not None and tuple(_zone.gravity_dir) != player.gravity_dir:
+                        bus.emit(GameEvent.GRAVITY_ROTATED, gravity_dir=player.gravity_dir)
+                        player.set_gravity(tuple(_zone.gravity_dir))
+                        player.px, player.py = round(player.px), round(player.py)
+                        _zplats = level.all_platform_rects() + level.boundary_rects()
+                        player.px, player.py, player.vx, player.vy, player.on_ground = (
+                            resolve_collisions(
+                                player.px, player.py, player.vx, player.vy,
+                                player.player_w, player.player_h, _zplats, player.gravity_dir,
+                            )
+                        )
+                        player.on_ground = check_ground_adjacent(
+                            player.px, player.py, player.player_w, player.player_h,
+                            _zplats, player.gravity_dir,
+                        )
+                        if player.on_ground:
+                            player.coyote_timer = COYOTE_TIME
+                            player.jumping = False
+                        camera.on_gravity_rotate()
+                        camera.shake(ROTATE_SHAKE_INTENSITY, ROTATE_SHAKE_DURATION)
+                        flash_timer = ROTATION_FLASH_DURATION
+                        for e in enemies:
+                            e.on_gravity_rotate()
+                        if player.gravity_dir == (0, 1):
+                            animator.helmet.request_off()
+                        else:
+                            animator.helmet.request_on()
+                active_zone_indices = new_zone_indices
+
+                gravity_mult = level.gravity_multiplier * zone_strength_mult * (
                     1.0 + pressure * (SINGULARITY_GRAVITY_MAX_MULT - 1.0)
                 )
                 time_dilation.cost = TIME_DILATION_COST * (
@@ -458,6 +507,7 @@ def main() -> None:
                     else:
                         _reset_level_state(level, player, camera, animator, enemies)
                     physics_accumulator = flash_timer = 0.0
+                    active_zone_indices = set()
                     time_dilation.reset()
 
                 camera.update(player.px, player.py, frame_dt)
@@ -490,6 +540,7 @@ def main() -> None:
                         pending_node_advance = True
                         game_state = "reward"
                     physics_accumulator = flash_timer = 0.0
+                    active_zone_indices = set()
                     time_dilation.reset()
 
             if game_state == "start":

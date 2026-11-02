@@ -88,6 +88,47 @@ class GoalDef:
 
 
 @dataclass
+class GravityZoneDef:
+    """A rectangular area that locally modifies gravity.
+
+    gravity_dir: snaps player gravity to this direction on entry (one-shot per entry).
+    strength_mult: scales gravity strength while player overlaps this zone.
+    Either or both fields may be set.
+    """
+
+    x: int
+    y: int
+    w: int
+    h: int
+    gravity_dir: tuple[int, int] | None = None
+    strength_mult: float | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialise to JSON-compatible dict."""
+        d: dict[str, Any] = {"x": self.x, "y": self.y, "w": self.w, "h": self.h}
+        if self.gravity_dir is not None:
+            d["gravity_dir"] = list(self.gravity_dir)
+        if self.strength_mult is not None:
+            d["strength_mult"] = self.strength_mult
+        return d
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> GravityZoneDef:
+        """Deserialise from dict."""
+        gravity_dir: tuple[int, int] | None = (
+            tuple(d["gravity_dir"]) if "gravity_dir" in d else None  # type: ignore[assignment]
+        )
+        strength_mult: float | None = (
+            float(d["strength_mult"]) if "strength_mult" in d else None
+        )
+        return cls(
+            x=int(d["x"]), y=int(d["y"]), w=int(d["w"]), h=int(d["h"]),
+            gravity_dir=gravity_dir,
+            strength_mult=strength_mult,
+        )
+
+
+@dataclass
 class LevelData:
     """Complete level definition loaded from a JSON file."""
 
@@ -97,6 +138,7 @@ class LevelData:
     goal: GoalDef
     static_platforms: list[PlatformDef] = field(default_factory=list)
     moving_platforms: list[MovingPlatformDef] = field(default_factory=list)
+    gravity_zones: list[GravityZoneDef] = field(default_factory=list)
     tile_size: int = 40
     level_width: int = 800
     level_height: int = 600
@@ -115,6 +157,7 @@ class LevelData:
             "gravity_multiplier": self.gravity_multiplier,
             "static_platforms": [p.to_dict() for p in self.static_platforms],
             "moving_platforms": [p.to_dict() for p in self.moving_platforms],
+            "gravity_zones": [z.to_dict() for z in self.gravity_zones],
         }
 
     @classmethod
@@ -135,6 +178,9 @@ class LevelData:
             moving_platforms=[
                 MovingPlatformDef.from_dict(p)
                 for p in d.get("moving_platforms", [])
+            ],
+            gravity_zones=[
+                GravityZoneDef.from_dict(z) for z in d.get("gravity_zones", [])
             ],
         )
 

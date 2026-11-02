@@ -23,7 +23,7 @@ from src.physics import (
 )
 from src.physics import get_player_physics_size
 from src.levels.level_renderer import LevelRenderer, MovingPlatform
-from src.levels.level_data import LevelData, PlatformDef, MovingPlatformDef, GoalDef
+from src.levels.level_data import LevelData, PlatformDef, MovingPlatformDef, GoalDef, GravityZoneDef
 
 # Load level_01 once for level geometry tests
 _level = LevelRenderer()
@@ -3093,6 +3093,90 @@ class TestLevelGenerator(unittest.TestCase):
             for idx in range(5):
                 path = pick_anomaly_room(seed, idx)
                 self.assertTrue(os.path.exists(path), f"Missing: {path}")
+
+
+class TestGravityZones(unittest.TestCase):
+    """Tests for gravity zone data structures and in-level loading."""
+
+    def test_zone_def_from_dict_direction_only(self) -> None:
+        zone = GravityZoneDef.from_dict({"x": 100, "y": 200, "w": 300, "h": 400, "gravity_dir": [1, 0]})
+        self.assertEqual(zone.x, 100)
+        self.assertEqual(zone.gravity_dir, (1, 0))
+        self.assertIsNone(zone.strength_mult)
+
+    def test_zone_def_from_dict_strength_only(self) -> None:
+        zone = GravityZoneDef.from_dict({"x": 0, "y": 0, "w": 200, "h": 200, "strength_mult": 0.5})
+        self.assertIsNone(zone.gravity_dir)
+        self.assertAlmostEqual(zone.strength_mult, 0.5)
+
+    def test_zone_def_from_dict_both_fields(self) -> None:
+        zone = GravityZoneDef.from_dict({"x": 0, "y": 0, "w": 200, "h": 200, "gravity_dir": [0, -1], "strength_mult": 2.0})
+        self.assertEqual(zone.gravity_dir, (0, -1))
+        self.assertAlmostEqual(zone.strength_mult, 2.0)
+
+    def test_zone_def_from_dict_neither_field(self) -> None:
+        zone = GravityZoneDef.from_dict({"x": 0, "y": 0, "w": 100, "h": 100})
+        self.assertIsNone(zone.gravity_dir)
+        self.assertIsNone(zone.strength_mult)
+
+    def test_zone_def_to_dict_roundtrip(self) -> None:
+        zone = GravityZoneDef(x=50, y=100, w=200, h=300, gravity_dir=(0, -1), strength_mult=0.5)
+        restored = GravityZoneDef.from_dict(zone.to_dict())
+        self.assertEqual(restored.x, 50)
+        self.assertEqual(restored.y, 100)
+        self.assertEqual(restored.gravity_dir, (0, -1))
+        self.assertAlmostEqual(restored.strength_mult, 0.5)
+
+    def test_zone_def_to_dict_omits_none_fields(self) -> None:
+        d = GravityZoneDef(x=0, y=0, w=100, h=100).to_dict()
+        self.assertNotIn("gravity_dir", d)
+        self.assertNotIn("strength_mult", d)
+
+    def test_level_data_loads_gravity_zones(self) -> None:
+        data = LevelData.from_dict({
+            "name": "test", "gravity_start": [0, 1], "spawn": [100.0, 200.0],
+            "goal": {"x": 700, "y": 300, "w": 40, "h": 40},
+            "gravity_zones": [{"x": 100, "y": 0, "w": 400, "h": 600, "strength_mult": 0.4}],
+        })
+        self.assertEqual(len(data.gravity_zones), 1)
+        self.assertAlmostEqual(data.gravity_zones[0].strength_mult, 0.4)
+
+    def test_level_data_empty_zones_default(self) -> None:
+        data = LevelData.from_dict({
+            "name": "test", "gravity_start": [0, 1], "spawn": [100.0, 200.0],
+            "goal": {"x": 700, "y": 300, "w": 40, "h": 40},
+        })
+        self.assertEqual(data.gravity_zones, [])
+
+    def test_level_03_has_zones(self) -> None:
+        renderer = LevelRenderer()
+        renderer.load(main.LEVELS[2])
+        self.assertGreater(len(renderer.gravity_zones), 0)
+
+    def test_level_03_has_low_gravity_zone(self) -> None:
+        renderer = LevelRenderer()
+        renderer.load(main.LEVELS[2])
+        strength_zones = [z for z in renderer.gravity_zones if z.strength_mult is not None]
+        self.assertTrue(any(z.strength_mult < 1.0 for z in strength_zones))
+
+    def test_level_03_has_direction_zone(self) -> None:
+        renderer = LevelRenderer()
+        renderer.load(main.LEVELS[2])
+        dir_zones = [z for z in renderer.gravity_zones if z.gravity_dir is not None]
+        self.assertGreater(len(dir_zones), 0)
+
+    def test_zone_strength_multiplies_per_zone(self) -> None:
+        """Two overlapping strength zones multiply together."""
+        # Simulate what main.py does: zone_strength_mult *= zone.strength_mult
+        zones = [
+            GravityZoneDef(x=0, y=0, w=100, h=100, strength_mult=0.5),
+            GravityZoneDef(x=0, y=0, w=100, h=100, strength_mult=0.8),
+        ]
+        mult = 1.0
+        for z in zones:
+            if z.strength_mult is not None:
+                mult *= z.strength_mult
+        self.assertAlmostEqual(mult, 0.4)
 
 
 if __name__ == "__main__":

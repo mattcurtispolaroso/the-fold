@@ -11,6 +11,7 @@ import pygame
 
 from src.levels.level_data import (
     GoalDef,
+    GravityZoneDef,
     LevelData,
     MovingPlatformDef,
     PlatformDef,
@@ -75,6 +76,7 @@ class LevelRenderer:
         self.spawn: tuple[float, float] = (0.0, 0.0)
         self.gravity_start: tuple[int, int] = (0, 1)
         self.gravity_multiplier: float = 1.0
+        self.gravity_zones: list[GravityZoneDef] = []
         self.level_width: int = 800
         self.level_height: int = 600
         self._boundary: list[pygame.Rect] = []
@@ -105,6 +107,7 @@ class LevelRenderer:
         self.spawn = data.spawn
         self.gravity_start = data.gravity_start
         self.gravity_multiplier = data.gravity_multiplier
+        self.gravity_zones = data.gravity_zones
         self.level_width = data.level_width
         self.level_height = data.level_height
         W, H, T = self.level_width, self.level_height, _BOUNDARY_THICKNESS
@@ -167,6 +170,15 @@ class LevelRenderer:
     def draw(self, surface: pygame.Surface, offset: tuple[float, float] = (0.0, 0.0)) -> None:
         """Draw all level geometry to the surface, offset by camera."""
         ox, oy = offset
+        for zone in self.gravity_zones:
+            zone_rect = pygame.Rect(zone.x, zone.y, zone.w, zone.h).move(ox, oy)
+            if zone.gravity_dir is not None:
+                color = (220, 160, 50)   # amber — direction snap
+            elif zone.strength_mult is not None and zone.strength_mult < 1.0:
+                color = (80, 140, 220)   # blue — low gravity
+            else:
+                color = (220, 80, 50)    # red-orange — high gravity
+            pygame.draw.rect(surface, color, zone_rect, 2)
         for plat in self.static_platforms:
             pygame.draw.rect(surface, PLATFORM_COLOR, plat.move(ox, oy))
         for mp in self.moving_platforms:
