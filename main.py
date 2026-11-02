@@ -32,6 +32,7 @@ from constants import (
     SCREEN_WIDTH,
     SINGULARITY_ABILITY_COST_MAX_MULT,
     SINGULARITY_CHRONO_REGEN_MIN_MULT,
+    SINGULARITY_GRAVITY_MAX_MULT,
     TIME_DILATION_COST,
     WHITE_HOLE_STABILITY_RESTORE,
 )
@@ -340,6 +341,9 @@ def main() -> None:
                 time_scale = time_dilation.time_scale()
                 pressure = run_state.singularity_pressure
                 regen_mult = 1.0 - pressure * (1.0 - SINGULARITY_CHRONO_REGEN_MIN_MULT)
+                gravity_mult = level.gravity_multiplier * (
+                    1.0 + pressure * (SINGULARITY_GRAVITY_MAX_MULT - 1.0)
+                )
                 time_dilation.cost = TIME_DILATION_COST * (
                     1.0 + pressure * (SINGULARITY_ABILITY_COST_MAX_MULT - 1.0)
                 )
@@ -373,10 +377,11 @@ def main() -> None:
                     )
                     if not player.on_ground:
                         player.vx, player.vy = apply_gravity(
-                            player.vx, player.vy, player.gravity_dir, player.on_ground,
+                            player.vx, player.vy, player.gravity_dir,
+                            player.on_ground, gravity_mult,
                         )
                         player.vx, player.vy = clamp_terminal_velocity(
-                            player.vx, player.vy, player.gravity_dir,
+                            player.vx, player.vy, player.gravity_dir, gravity_mult,
                         )
 
                     level.update(time_scale)

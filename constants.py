@@ -203,6 +203,7 @@ GRAVITY_ROTATION_COST: float = 10.0  # chrono spent per rotation; blocks rotatio
 # --- Singularity Pressure ---
 SINGULARITY_CHRONO_REGEN_MIN_MULT: float = 0.33  # regen fraction at max pressure
 SINGULARITY_ABILITY_COST_MAX_MULT: float = 2.0   # ability cost multiplier at max pressure
+SINGULARITY_GRAVITY_MAX_MULT: float = 1.5        # gravity strength multiplier at max pressure
 
 # --- Time Dilation (M2 ability, E key) ---
 TIME_DILATION_COST: float = 25.0      # chrono_reserve spent on activation

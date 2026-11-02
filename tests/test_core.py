@@ -969,6 +969,54 @@ class TestSingularityPressure(unittest.TestCase):
         mult = 1.0 + pressure * (C.SINGULARITY_ABILITY_COST_MAX_MULT - 1.0)
         self.assertAlmostEqual(mult, C.SINGULARITY_ABILITY_COST_MAX_MULT)
 
+    def test_gravity_mult_is_one_at_zero_pressure(self) -> None:
+        pressure = 0.0
+        mult = 1.0 + pressure * (C.SINGULARITY_GRAVITY_MAX_MULT - 1.0)
+        self.assertAlmostEqual(mult, 1.0)
+
+    def test_gravity_mult_is_max_at_max_pressure(self) -> None:
+        pressure = 1.0
+        mult = 1.0 + pressure * (C.SINGULARITY_GRAVITY_MAX_MULT - 1.0)
+        self.assertAlmostEqual(mult, C.SINGULARITY_GRAVITY_MAX_MULT)
+
+
+class TestVariableGravity(unittest.TestCase):
+    """apply_gravity and clamp_terminal_velocity respect strength_mult."""
+
+    def test_apply_gravity_double_strength_doubles_acceleration(self) -> None:
+        # vy=5.0 is above PEAK_SPEED_THRESHOLD so peak multiplier is inactive
+        _, vy1 = apply_gravity(0.0, 5.0, (0, 1), on_ground=False, strength_mult=1.0)
+        _, vy2 = apply_gravity(0.0, 5.0, (0, 1), on_ground=False, strength_mult=2.0)
+        self.assertAlmostEqual(vy2 - 5.0, (vy1 - 5.0) * 2.0)
+
+    def test_apply_gravity_half_strength_halves_acceleration(self) -> None:
+        _, vy1 = apply_gravity(0.0, 5.0, (0, 1), on_ground=False, strength_mult=1.0)
+        _, vy2 = apply_gravity(0.0, 5.0, (0, 1), on_ground=False, strength_mult=0.5)
+        self.assertAlmostEqual(vy2 - 5.0, (vy1 - 5.0) * 0.5)
+
+    def test_clamp_terminal_velocity_scales_cap(self) -> None:
+        high_vy = C.TERMINAL_VELOCITY * 3.0
+        _, vy = clamp_terminal_velocity(0.0, high_vy, (0, 1), strength_mult=2.0)
+        self.assertAlmostEqual(vy, C.TERMINAL_VELOCITY * 2.0)
+
+    def test_level_data_default_gravity_multiplier(self) -> None:
+        data = LevelData.load(main.LEVELS[0])
+        self.assertAlmostEqual(data.gravity_multiplier, 1.0)
+
+    def test_level_data_gravity_multiplier_roundtrip(self) -> None:
+        from src.levels.level_data import GoalDef
+        data = LevelData(
+            name="test", gravity_start=(0, 1), spawn=(0.0, 0.0),
+            goal=GoalDef(0, 0, 10, 10), gravity_multiplier=0.5,
+        )
+        data2 = LevelData.from_json(data.to_json())
+        self.assertAlmostEqual(data2.gravity_multiplier, 0.5)
+
+    def test_level_renderer_exposes_gravity_multiplier(self) -> None:
+        renderer = LevelRenderer()
+        renderer.load(main.LEVELS[0])
+        self.assertAlmostEqual(renderer.gravity_multiplier, 1.0)
+
 
 class TestLevel04(unittest.TestCase):
     """Level 04 geometry guarantees that Time Dilation is required to complete it."""

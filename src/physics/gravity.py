@@ -59,24 +59,34 @@ def apply_gravity(
     vx: float, vy: float,
     gravity_dir: GravityDir,
     on_ground: bool,
+    strength_mult: float = 1.0,
 ) -> tuple[float, float]:
-    """Apply gravity to velocity with peak multiplier for weighty jumps."""
+    """Apply gravity to velocity with peak multiplier for weighty jumps.
+
+    strength_mult scales the base gravity — used for level gravity_multiplier
+    and singularity pressure scaling.
+    """
     grav_vel = gravity_speed(vx, vy, gravity_dir)
     at_peak = not on_ground and abs(grav_vel) < PEAK_SPEED_THRESHOLD
     mult = PEAK_GRAVITY_MULT if at_peak else 1.0
-    vx += gravity_dir[0] * GRAVITY_STRENGTH * mult
-    vy += gravity_dir[1] * GRAVITY_STRENGTH * mult
+    vx += gravity_dir[0] * GRAVITY_STRENGTH * mult * strength_mult
+    vy += gravity_dir[1] * GRAVITY_STRENGTH * mult * strength_mult
     return vx, vy
 
 
 def clamp_terminal_velocity(
     vx: float, vy: float,
     gravity_dir: GravityDir,
+    strength_mult: float = 1.0,
 ) -> tuple[float, float]:
-    """Clamp gravity-axis velocity to terminal velocity, preserving lateral."""
+    """Clamp gravity-axis velocity to terminal velocity, preserving lateral.
+
+    strength_mult scales the cap proportionally with gravity strength.
+    """
+    effective_tv = TERMINAL_VELOCITY * strength_mult
     grav_component = gravity_speed(vx, vy, gravity_dir)
-    if abs(grav_component) > TERMINAL_VELOCITY:
-        clamped = max(-TERMINAL_VELOCITY, min(TERMINAL_VELOCITY, grav_component))
+    if abs(grav_component) > effective_tv:
+        clamped = max(-effective_tv, min(effective_tv, grav_component))
         diff = clamped - grav_component
         vx += diff * gravity_dir[0]
         vy += diff * gravity_dir[1]

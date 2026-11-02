@@ -74,6 +74,7 @@ class LevelRenderer:
         self.goal_rect: pygame.Rect = pygame.Rect(0, 0, 0, 0)
         self.spawn: tuple[float, float] = (0.0, 0.0)
         self.gravity_start: tuple[int, int] = (0, 1)
+        self.gravity_multiplier: float = 1.0
         self.level_width: int = 800
         self.level_height: int = 600
         self._boundary: list[pygame.Rect] = []
@@ -103,6 +104,7 @@ class LevelRenderer:
         )
         self.spawn = data.spawn
         self.gravity_start = data.gravity_start
+        self.gravity_multiplier = data.gravity_multiplier
         self.level_width = data.level_width
         self.level_height = data.level_height
         W, H, T = self.level_width, self.level_height, _BOUNDARY_THICKNESS

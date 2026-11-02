@@ -100,6 +100,7 @@ class LevelData:
     tile_size: int = 40
     level_width: int = 800
     level_height: int = 600
+    gravity_multiplier: float = 1.0
 
     def to_dict(self) -> dict[str, Any]:
         """Serialise to JSON-compatible dict."""
@@ -111,6 +112,7 @@ class LevelData:
             "goal": self.goal.to_dict(),
             "level_width": self.level_width,
             "level_height": self.level_height,
+            "gravity_multiplier": self.gravity_multiplier,
             "static_platforms": [p.to_dict() for p in self.static_platforms],
             "moving_platforms": [p.to_dict() for p in self.moving_platforms],
         }
@@ -125,6 +127,7 @@ class LevelData:
             tile_size=int(d.get("tile_size", 40)),
             level_width=int(d.get("level_width", 800)),
             level_height=int(d.get("level_height", 600)),
+            gravity_multiplier=float(d.get("gravity_multiplier", 1.0)),
             goal=GoalDef.from_dict(d["goal"]),
             static_platforms=[
                 PlatformDef.from_dict(p) for p in d.get("static_platforms", [])
