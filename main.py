@@ -50,7 +50,7 @@ from src.rendering.animation import PlayerAnimator, PlayerState, determine_playe
 from src.rendering.camera import Camera
 from src.rendering.hud import (
     draw_debug_overlay, draw_death_screen, draw_flash_overlay, draw_fold_tint,
-    draw_hole_screen, draw_hud_labels, draw_node_map, draw_reward_screen,
+    draw_hole_screen, draw_hud, draw_node_map, draw_reward_screen,
     draw_start_screen, draw_win_screen, draw_world,
 )
 from src.rendering.loader import load_background, load_font
@@ -469,7 +469,8 @@ def main() -> None:
                     draw_debug_overlay(screen, font, player, cam_offset, HEIGHT)
                 draw_fold_tint(screen, fold_tint_surf, run_state.fold_stability)
                 draw_flash_overlay(screen, flash_surf, flash_timer)
-                draw_hud_labels(screen, font, player, time_dilation.active_timer, WIDTH, HEIGHT)
+                draw_hud(screen, font, player, time_dilation.active_timer,
+                         time_dilation.cooldown_timer, WIDTH, HEIGHT)
             pygame.display.flip()
 
     except Exception as e:

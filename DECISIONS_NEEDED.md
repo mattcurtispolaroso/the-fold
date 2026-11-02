@@ -296,6 +296,53 @@ Both `take_hit()` and `take_fall_damage()` return `True` when integrity hits 0. 
 
 ---
 
+## M5d — HUD ✅ APPROVED 2026-11-01
+
+**Touches 4 files.**
+
+### What this delivers
+
+Always-visible resource readouts so the player can read integrity, chrono, and dilation state without the debug overlay. The exoskeleton glow design (CLAUDE.md) is deferred pending art — these are geometric placeholders with the same information.
+
+### Layout
+
+```
+[top-left]                                        [top-right]
+■ ■ ■   ← integrity pips (3 squares, amber/dark)
+
+[game world]
+
+[bottom-left]
+━━━━━━░░░░  CHRONO   ← 10-segment bar
+◀ TIME DILATION 2.1s ▶  ← only shown when active or cooling
+```
+
+Fold Stability: tint only (already done). Gravity label removed from production HUD (stays in debug overlay).
+
+### Integrity pips
+- 3 squares, 16×16px, 5px gap, top-left at (14, 14).
+- Intact: amber `(210, 160, 50)`. Lost: dark `(40, 30, 15)`. All zero: pips go dark red `(150, 30, 30)`.
+
+### Chrono bar
+- 10 segments × 16px wide × 8px tall, 2px gap, bottom-left.
+- Filled segments: amber when >50%, fading to dim orange below. Empty: near-black.
+- Label "CHRONO" rendered in dim text to the right.
+
+### Dilation status
+- Active: `"◀ TIME DILATION X.Xs ▶"` in bright cyan, centred bottom.
+- Cooling down (not active, timer > 0): dim version with remaining time.
+- Ready and idle: nothing shown.
+
+### Files
+| File | Change |
+|---|---|
+| `constants.py` | HUD layout + colour constants |
+| `src/rendering/hud.py` | rename `draw_hud_labels` → `draw_hud`; rewrite body |
+| `main.py` | update import + call site |
+| `tests/test_core.py` | smoke tests: no crash at boundaries (0 integrity, 100 chrono, active dilation) |
+
+---
+
 ## M5b — Fold Predator Enemy ✅ APPROVED 2026-11-01
 
 **Touches 4 files (1 new).**

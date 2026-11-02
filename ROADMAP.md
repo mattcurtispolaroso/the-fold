@@ -83,7 +83,8 @@ Done when: a ~10 min run from start to singularity or death is completable. **Ga
   - [x] Session 4 tuning pass ✅ — white hole no longer gives reward screen (resource restore is the reward); PARADOX_OFFER_CHANCE 25% → 15%
 - M5b — Fold Predator enemy ✅ Done 2026-11-01
 - M5c — Anomaly rooms (procedural room generation, valid in 2+ gravity orientations)
-- M5d — HUD + audio v1
+- M5d — HUD ✅ Done 2026-11-01 — integrity pips + chrono bar + dilation status; gravity label removed from production HUD
+- Audio v1 — deferred
 
 **M6. Polish Beta**
 VFX (pooled particles), juice, full rotation cinematic, singularity difficulty curve tuning, art pass.

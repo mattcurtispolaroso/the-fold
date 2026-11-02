@@ -86,26 +86,75 @@ def draw_flash_overlay(
     screen.blit(flash_surf, (0, 0))
 
 
-def draw_hud_labels(
+def draw_hud(
     screen: pygame.Surface,
     font: pygame.font.Font,
     player: Player,
     dilation_timer: float,
+    dilation_cooldown_timer: float,
     screen_width: int,
     screen_height: int,
 ) -> None:
-    """Draw gravity label, goal text, and Time Dilation timer."""
-    label = font.render(
-        f"Gravity: {GRAVITY_LABELS[player.gravity_dir]}  |  R rotate  |  TAB next level",
-        True, _BLUE,
-    )
-    screen.blit(label, (10, 10))
+    """Draw always-visible resource HUD: integrity pips, chrono bar, dilation status."""
+    _draw_integrity_pips(screen, player.anchor_integrity)
+    _draw_chrono_bar(screen, font, player.chrono_reserve, screen_height)
+    _draw_dilation_status(screen, font, dilation_timer, dilation_cooldown_timer,
+                          screen_width, screen_height)
     if player.goal_reached:
         gt = font.render("GOAL REACHED!", True, _GREEN)
         screen.blit(gt, (screen_width // 2 - gt.get_width() // 2, screen_height // 2))
-    if dilation_timer > 0:
-        dil_surf = font.render(f"TIME DILATION  {dilation_timer:.1f}s", True, (80, 180, 255))
-        screen.blit(dil_surf, (screen_width // 2 - dil_surf.get_width() // 2, screen_height - 50))
+
+
+def _draw_integrity_pips(screen: pygame.Surface, anchor_integrity: int) -> None:
+    """Draw 3 integrity pips top-left. Amber = intact, dark = lost, red = all gone."""
+    x = C.HUD_PIP_X
+    for i in range(C.ANCHOR_INTEGRITY_MAX):
+        if anchor_integrity <= 0:
+            color = C.HUD_COLOR_PIP_ZERO
+        elif i < anchor_integrity:
+            color = C.HUD_COLOR_PIP_FULL
+        else:
+            color = C.HUD_COLOR_PIP_LOST
+        pygame.draw.rect(screen, color, (x, C.HUD_PIP_Y, C.HUD_PIP_SIZE, C.HUD_PIP_SIZE))
+        x += C.HUD_PIP_SIZE + C.HUD_PIP_GAP
+
+
+def _draw_chrono_bar(
+    screen: pygame.Surface, font: pygame.font.Font,
+    chrono_reserve: float, screen_height: int,
+) -> None:
+    """Draw segmented chrono bar bottom-left."""
+    ratio = max(0.0, min(1.0, chrono_reserve / C.CHRONO_RESERVE_MAX))
+    filled = round(ratio * C.HUD_CHRONO_SEG_COUNT)
+    y = screen_height - C.HUD_CHRONO_BOTTOM_OFFSET
+    x = C.HUD_CHRONO_X
+    for i in range(C.HUD_CHRONO_SEG_COUNT):
+        if i < filled:
+            color = C.HUD_COLOR_CHRONO_HI if ratio > 0.5 else C.HUD_COLOR_CHRONO_LO
+        else:
+            color = C.HUD_COLOR_CHRONO_EMPTY
+        pygame.draw.rect(screen, color, (x, y, C.HUD_CHRONO_SEG_W, C.HUD_CHRONO_SEG_H))
+        x += C.HUD_CHRONO_SEG_W + C.HUD_CHRONO_SEG_GAP
+    label = font.render("CHRONO", True, (80, 60, 20))
+    screen.blit(label, (x + 4, y - 2))
+
+
+def _draw_dilation_status(
+    screen: pygame.Surface, font: pygame.font.Font,
+    active_timer: float, cooldown_timer: float,
+    screen_width: int, screen_height: int,
+) -> None:
+    """Draw Time Dilation status centred at the bottom. Hidden when ready and idle."""
+    if active_timer > 0:
+        text = f"◄ TIME DILATION  {active_timer:.1f}s ►"
+        color = C.HUD_COLOR_DILATION_ACTIVE
+    elif cooldown_timer > 0:
+        text = f"DILATION  {cooldown_timer:.1f}s"
+        color = C.HUD_COLOR_DILATION_COOLDOWN
+    else:
+        return
+    surf = font.render(text, True, color)
+    screen.blit(surf, (screen_width // 2 - surf.get_width() // 2, screen_height - 52))
 
 
 def draw_fold_tint(

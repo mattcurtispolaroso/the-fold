@@ -201,6 +201,26 @@ BLACK_HOLE_STABILITY_COST: float = 15.0      # fold_stability lost on black hole
 HOLE_ENCOUNTER_PHASE1_DURATION: float = 1.5  # seconds showing "ENTERING THE ANOMALY..."
 HOLE_ENCOUNTER_PHASE2_DURATION: float = 2.0  # seconds showing the outcome
 
+# --- HUD Layout ---
+HUD_PIP_SIZE: int = 16               # integrity pip square size (px)
+HUD_PIP_GAP: int = 5                 # gap between pips
+HUD_PIP_X: int = 14                  # pip row left edge
+HUD_PIP_Y: int = 14                  # pip row top edge
+HUD_CHRONO_SEG_W: int = 16           # chrono segment width
+HUD_CHRONO_SEG_H: int = 8            # chrono segment height
+HUD_CHRONO_SEG_GAP: int = 2          # gap between segments
+HUD_CHRONO_SEG_COUNT: int = 10       # total segments
+HUD_CHRONO_X: int = 14               # chrono bar left edge
+HUD_CHRONO_BOTTOM_OFFSET: int = 36   # pixels from screen bottom
+HUD_COLOR_PIP_FULL: tuple = (210, 160, 50)    # amber
+HUD_COLOR_PIP_LOST: tuple = (45, 33, 14)      # dark amber
+HUD_COLOR_PIP_ZERO: tuple = (140, 28, 28)     # danger red
+HUD_COLOR_CHRONO_HI: tuple = (210, 160, 50)   # amber (>50%)
+HUD_COLOR_CHRONO_LO: tuple = (120, 85, 20)    # dim orange (<50%)
+HUD_COLOR_CHRONO_EMPTY: tuple = (30, 22, 8)   # near-black
+HUD_COLOR_DILATION_ACTIVE: tuple = (80, 180, 255)    # cyan-blue
+HUD_COLOR_DILATION_COOLDOWN: tuple = (35, 75, 115)   # dim cyan
+
 # --- Font ---
 FONT_PATH: str = "assets/fonts/main_font.ttf"
 FONT_SIZE: int = 28
