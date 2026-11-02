@@ -18,6 +18,7 @@ from constants import (
     DEBUG_ITEMS,
     FOLD_STABILITY_INTEGRITY_COST,
     FOLD_STABILITY_MAX,
+    GRAVITY_ROTATION_COST,
     HOLE_ENCOUNTER_PHASE1_DURATION,
     HOLE_ENCOUNTER_PHASE2_DURATION,
     FPS,
@@ -281,7 +282,8 @@ def main() -> None:
                             debug_draw = not debug_draw
                         if DEBUG_ITEMS and event.key == pygame.K_f:
                             _grant_debug_items(run_state, item_manager, item_registry)
-                        if event.key == pygame.K_r:
+                        if event.key == pygame.K_r and player.chrono_reserve >= GRAVITY_ROTATION_COST:
+                            player.chrono_reserve -= GRAVITY_ROTATION_COST
                             bus.emit(GameEvent.GRAVITY_ROTATED, gravity_dir=player.gravity_dir)
                             player.set_gravity(rotate_gravity_ccw(player.gravity_dir))
                             player.px = round(player.px)

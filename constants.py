@@ -197,6 +197,9 @@ CHRONO_RESERVE_MAX: float = 100.0
 CHRONO_REGEN_MOVE: float = 15.0   # per second during active lateral movement
 CHRONO_REGEN_IDLE: float = 0.0    # per second while idle (passive play earns nothing)
 
+# --- Gravity Rotation Cost ---
+GRAVITY_ROTATION_COST: float = 10.0  # chrono spent per rotation; blocks rotation if insufficient
+
 # --- Singularity Pressure ---
 SINGULARITY_CHRONO_REGEN_MIN_MULT: float = 0.33  # regen fraction at max pressure
 SINGULARITY_ABILITY_COST_MAX_MULT: float = 2.0   # ability cost multiplier at max pressure
