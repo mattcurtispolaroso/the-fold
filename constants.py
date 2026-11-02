@@ -172,6 +172,17 @@ FOLD_PREDATOR_COLOR: tuple = (180, 60, 220)       # purple
 FOLD_PREDATOR_STUN_COLOR: tuple = (220, 220, 255)  # pale blue-white
 FOLD_PREDATOR_PHASE_COLOR: tuple = (230, 120, 255) # bright purple
 
+# --- The Anchored (M5e enemy) ---
+ANCHORED_W: int = 44
+ANCHORED_H: int = 64
+ANCHORED_SPEED: float = 1.2
+ANCHORED_WANDER_CHANGE_INTERVAL: float = 2.0   # seconds between random direction changes
+ANCHORED_STUTTER_INTERVAL: float = 5.0          # seconds between stutter bursts
+ANCHORED_STUTTER_DURATION: float = 0.4          # seconds the burst lasts
+ANCHORED_STUTTER_SPEED_MULT: float = 4.0        # speed multiplier during stutter
+ANCHORED_COLOR: tuple = (140, 210, 60)           # sickly yellow-green
+ANCHORED_STUTTER_COLOR: tuple = (255, 240, 100)  # bright yellow during stutter
+
 # --- Temporal Echo (M3 enemy placeholder) ---
 TEMPORAL_ECHO_W: int = 40
 TEMPORAL_ECHO_H: int = 60

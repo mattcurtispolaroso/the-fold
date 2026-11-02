@@ -8,7 +8,8 @@ from __future__ import annotations
 import pygame
 
 import constants as C
-from src.entities.enemy import TemporalEcho
+from src.entities.anchored import TheAnchored
+from src.entities.fold_predator import FoldPredator
 from src.entities.player import Player
 from src.levels.level_renderer import LevelRenderer
 from src.physics import GRAVITY_LABELS
@@ -23,19 +24,20 @@ def draw_world(
     screen: pygame.Surface,
     background: pygame.Surface | None,
     level: LevelRenderer,
-    enemy: TemporalEcho,
+    enemies: list,
     animator: PlayerAnimator,
     player: Player,
     player_state: PlayerState,
     cam_offset: tuple[float, float],
     debug_draw: bool,
 ) -> None:
-    """Draw background, level geometry, enemy, and player sprite."""
+    """Draw background, level geometry, all enemies, and player sprite."""
     screen.fill(_BLACK)
     if background:
         screen.blit(background, (0, 0))
     level.draw(screen, cam_offset)
-    enemy.draw(screen, cam_offset)
+    for enemy in enemies:
+        enemy.draw(screen, cam_offset)
     ox, oy = cam_offset
     sw, sh = animator.width, animator.height
     animator.draw(

@@ -2674,5 +2674,135 @@ class TestHudConstants(unittest.TestCase):
                 self.assertLessEqual(component, 255)
 
 
+class TestTheAnchored(unittest.TestCase):
+    """Tests for TheAnchored enemy — broken-timeline wander/stutter AI."""
+
+    def _make(self, px=200.0, py=400.0, seed=42):
+        from src.entities.anchored import TheAnchored
+        return TheAnchored(px=px, py=py, level_min=0.0, level_max=800.0, seed=seed)
+
+    def test_initial_state_is_wander(self):
+        a = self._make()
+        self.assertFalse(a.is_stuttering)
+
+    def test_rect_centred_on_position(self):
+        from src.entities.anchored import TheAnchored
+        a = self._make(px=200.0, py=400.0)
+        r = a.rect
+        self.assertEqual(r.centerx, 200)
+        self.assertEqual(r.centery, 400)
+        self.assertEqual(r.width, a.w)
+        self.assertEqual(r.height, a.h)
+
+    def test_moves_laterally_each_tick(self):
+        a = self._make()
+        px_before = a.px
+        a.update(time_scale=1.0, dt=0.1, gravity_dir=(0, 1))
+        # Should have moved (either direction)
+        self.assertNotEqual(a.px, px_before)
+
+    def test_time_dilation_freezes_movement(self):
+        a = self._make()
+        px_before = a.px
+        a.update(time_scale=0.0, dt=0.1, gravity_dir=(0, 1))
+        self.assertAlmostEqual(a.px, px_before, places=5)
+
+    def test_time_dilation_freezes_stutter_timer(self):
+        from src.entities.anchored import TheAnchored
+        a = TheAnchored(px=200.0, py=400.0, level_min=0.0, level_max=800.0, seed=0)
+        # Advance close to stutter
+        a._stutter_cooldown = 0.05
+        before = a._stutter_cooldown
+        a.update(time_scale=0.0, dt=0.1, gravity_dir=(0, 1))
+        self.assertAlmostEqual(a._stutter_cooldown, before, places=5)
+
+    def test_stutter_triggers_after_interval(self):
+        from src.entities.anchored import TheAnchored
+        a = TheAnchored(px=400.0, py=400.0, level_min=0.0, level_max=800.0, seed=0)
+        a._stutter_cooldown = 0.0
+        a._wander_timer = 999.0
+        a.update(time_scale=1.0, dt=0.001, gravity_dir=(0, 1))
+        self.assertTrue(a.is_stuttering)
+
+    def test_stutter_ends_after_duration(self):
+        from src.entities.anchored import TheAnchored
+        a = TheAnchored(px=400.0, py=400.0, level_min=0.0, level_max=800.0, seed=0)
+        a._stutter_cooldown = 0.0
+        # Trigger stutter
+        a.update(time_scale=1.0, dt=0.001, gravity_dir=(0, 1))
+        self.assertTrue(a.is_stuttering)
+        # Run out the stutter timer
+        a._stutter_timer = 0.001
+        a.update(time_scale=1.0, dt=0.1, gravity_dir=(0, 1))
+        self.assertFalse(a.is_stuttering)
+
+    def test_clamped_to_level_bounds(self):
+        from src.entities.anchored import TheAnchored
+        a = TheAnchored(px=5.0, py=400.0, level_min=0.0, level_max=800.0, seed=0)
+        a._direction = -1  # heading toward min
+        for _ in range(200):
+            a.update(time_scale=1.0, dt=0.1, gravity_dir=(0, 1))
+        self.assertGreaterEqual(a.px, 0.0)
+        self.assertLessEqual(a.px, 800.0)
+
+    def test_gravity_rotate_is_noop(self):
+        a = self._make()
+        px_before = a.px
+        py_before = a.py
+        a.on_gravity_rotate()
+        self.assertEqual(a.px, px_before)
+        self.assertEqual(a.py, py_before)
+
+    def test_reset_returns_to_spawn(self):
+        a = self._make(px=200.0, py=400.0)
+        a.update(time_scale=1.0, dt=1.0, gravity_dir=(0, 1))
+        a.reset()
+        self.assertAlmostEqual(a.px, 200.0, places=5)
+        self.assertAlmostEqual(a.py, 400.0, places=5)
+        self.assertFalse(a.is_stuttering)
+
+    def test_frozen_timer_blocks_movement(self):
+        a = self._make()
+        a.frozen_timer = 2.0
+        px_before = a.px
+        a.update(time_scale=1.0, dt=0.1, gravity_dir=(0, 1))
+        self.assertAlmostEqual(a.px, px_before, places=5)
+        self.assertAlmostEqual(a.frozen_timer, 1.9, places=5)
+
+    def test_frozen_timer_decrements_and_resumes(self):
+        a = self._make()
+        a.frozen_timer = 0.05
+        px_before = a.px
+        # First tick consumes the frozen timer
+        a.update(time_scale=1.0, dt=0.1, gravity_dir=(0, 1))
+        self.assertEqual(a.frozen_timer, 0.0)
+        # Second tick should move
+        a.update(time_scale=1.0, dt=0.1, gravity_dir=(0, 1))
+        self.assertNotEqual(a.px, px_before)
+
+    def test_horizontal_gravity_moves_y(self):
+        from src.entities.anchored import TheAnchored
+        a = TheAnchored(px=400.0, py=400.0, level_min=0.0, level_max=800.0, seed=0)
+        py_before = a.py
+        a.update(time_scale=1.0, dt=0.1, gravity_dir=(1, 0))
+        self.assertNotEqual(a.py, py_before)
+
+    def test_draw_does_not_crash(self):
+        import pygame
+        surface = pygame.Surface((800, 600))
+        a = self._make()
+        a.draw(surface, (0.0, 0.0))
+
+    def test_stutter_draw_color_differs(self):
+        from src.entities.anchored import TheAnchored
+        import constants as C
+        a = TheAnchored(px=400.0, py=400.0, level_min=0.0, level_max=800.0, seed=0)
+        a._stutter_cooldown = 0.0
+        a.update(time_scale=1.0, dt=0.001, gravity_dir=(0, 1))
+        self.assertTrue(a.is_stuttering)
+        # Just verify the stutter color constant is different from wander color
+        self.assertNotEqual(C.ANCHORED_COLOR, C.ANCHORED_STUTTER_COLOR)
+
+
 if __name__ == "__main__":
     unittest.main()

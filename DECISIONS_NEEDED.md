@@ -296,6 +296,51 @@ Both `take_hit()` and `take_fall_damage()` return `True` when integrity hits 0. 
 
 ---
 
+## M5e — The Anchored Enemy ✅ APPROVED 2026-11-01
+
+**Touches 5 files (1 new). Includes architecture change: single enemy → enemy list.**
+
+### What this delivers
+
+The third enemy type. Distinct from the Fold Predator: no chase, unpredictable stutter, countered by Time Dilation rather than gravity rotation. Both enemies in the same room forces the "rotate (free, stops Predator) vs dilate (costs chrono, stops Anchored)" decision the item system was built to make interesting.
+
+### Behaviour
+
+| State | Description |
+|---|---|
+| WANDER | Slow random lateral movement; direction changes every `ANCHORED_WANDER_CHANGE_INTERVAL` seconds |
+| STUTTER | Every `ANCHORED_STUTTER_INTERVAL` s: burst at `ANCHORED_STUTTER_SPEED_MULT`× in a random lateral direction for `ANCHORED_STUTTER_DURATION` s — the broken-timeline moment |
+
+No CHASE state — The Anchored doesn't track the player. Unpredictability is the threat.
+All movement scaled by `time_scale`, so Time Dilation (`time_scale=0`) freezes it completely.
+`on_gravity_rotate()` is a no-op — gravity rotation has no special effect.
+
+### Architecture change: single enemy → list
+
+`enemy` in `main.py` becomes `enemies: list[FoldPredator | TheAnchored]`.  
+All 8 use-sites updated: reset, update, rotation, combat check, draw.  
+`_reset_level_state` and `draw_world` signatures updated.  
+`ItemManager` already accepts a list — no change there.
+
+### Files
+| File | Change |
+|---|---|
+| `constants.py` | 9 ANCHORED_* constants |
+| `src/entities/anchored.py` | new — TheAnchored class |
+| `src/rendering/hud.py` | `draw_world` takes `enemies: list` |
+| `main.py` | `enemy` → `enemies`; all 8 use-sites; `_reset_level_state` signature |
+| `tests/test_core.py` | TestAnchored: wander, stutter fires + returns, time_scale freezes, rotation no-op, frozen_timer compat |
+
+### Accept criteria
+- Wander changes direction randomly without leaving level bounds.
+- Stutter fires after interval, speed is higher, returns to WANDER after duration.
+- Movement stops completely when `time_scale=0`.
+- `on_gravity_rotate()` does not stun or change state.
+- `frozen_timer` works identically to other enemies.
+- Both enemies present and hittable in combat simultaneously.
+
+---
+
 ## M5d — HUD ✅ APPROVED 2026-11-01
 
 **Touches 4 files.**

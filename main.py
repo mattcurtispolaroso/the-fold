@@ -32,6 +32,7 @@ from constants import (
     WHITE_HOLE_STABILITY_RESTORE,
 )
 from src.data.run_state import RunState
+from src.entities.anchored import TheAnchored
 from src.entities.fold_predator import FoldPredator
 from src.entities.player import Player
 from src.levels.level_renderer import LevelRenderer
@@ -70,13 +71,14 @@ LEVELS = [os.path.join(LEVEL_DIR, f"level_0{i}.json") for i in range(1, 5)]
 
 
 def _reset_level_state(
-    level: object, player: object, camera: object, animator: object, enemy: object,
+    level: object, player: object, camera: object, animator: object, enemies: list,
 ) -> None:
-    """Reset camera, player, and enemy to the current level's spawn. Does not reload the level."""
+    """Reset camera, player, and all enemies to the current level's spawn. Does not reload the level."""
     camera.set_bounds(level.level_width, level.level_height)
     camera.x, camera.y = level.spawn
     player.reset(level.spawn, tuple(level.gravity_start))
-    enemy.reset()
+    for e in enemies:
+        e.reset()
     if player.gravity_dir == (0, 1):
         animator.helmet.request_off()
     else:
@@ -169,13 +171,16 @@ def main() -> None:
     fold_tint_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
 
     player = Player.from_spawn(level.spawn, tuple(level.gravity_start))
-    enemy = FoldPredator(px=400.0, py=790.0, level_min=30.0, level_max=1170.0)
+    enemies = [
+        FoldPredator(px=400.0, py=790.0, level_min=30.0, level_max=1170.0),
+        TheAnchored(px=800.0, py=790.0, level_min=30.0, level_max=1170.0),
+    ]
     run_state = RunState(fold_stability=100.0, current_node_idx=0, run_seed=0, is_active=False)
     bus = EventBus()
     time_dilation = make_time_dilation()
     item_registry = load_item_registry(BASE_DIR, logger)
     item_manager = ItemManager(
-        registry=item_registry, bus=bus, player=player, enemies=[enemy],
+        registry=item_registry, bus=bus, player=player, enemies=enemies,
         run_state=run_state, ability_slot=time_dilation, rng_seed=0,
     )
     item_manager.sync_owned([])
@@ -215,7 +220,7 @@ def main() -> None:
                             if node_type == "combat":
                                 current_level_idx = run_state.combat_level_for_current_node()
                                 level.load(LEVELS[current_level_idx])
-                                _reset_level_state(level, player, camera, animator, enemy)
+                                _reset_level_state(level, player, camera, animator, enemies)
                                 physics_accumulator = flash_timer = 0.0
                                 time_dilation.reset()
                                 game_state = "playing"
@@ -258,7 +263,7 @@ def main() -> None:
                         if event.key == pygame.K_TAB:
                             current_level_idx = (current_level_idx + 1) % len(LEVELS)
                             level.load(LEVELS[current_level_idx])
-                            _reset_level_state(level, player, camera, animator, enemy)
+                            _reset_level_state(level, player, camera, animator, enemies)
                             physics_accumulator = flash_timer = 0.0
                             time_dilation.reset()
                             bus.emit(GameEvent.ROOM_ENTERED)
@@ -282,7 +287,8 @@ def main() -> None:
                             camera.on_gravity_rotate()
                             camera.shake(ROTATE_SHAKE_INTENSITY, ROTATE_SHAKE_DURATION)
                             flash_timer = ROTATION_FLASH_DURATION
-                            enemy.on_gravity_rotate()
+                            for e in enemies:
+                                e.on_gravity_rotate()
                             if player.gravity_dir == (0, 1):
                                 animator.helmet.request_off()
                             else:
@@ -350,11 +356,12 @@ def main() -> None:
                         )
 
                     level.update(time_scale)
-                    enemy.update(
-                        time_scale, dt=PHYSICS_DT,
-                        player_px=player.px, player_py=player.py,
-                        gravity_dir=player.gravity_dir,
-                    )
+                    for e in enemies:
+                        e.update(
+                            time_scale, dt=PHYSICS_DT,
+                            player_px=player.px, player_py=player.py,
+                            gravity_dir=player.gravity_dir,
+                        )
                     if player.on_ground:
                         pvx, pvy = level.riding_velocity(
                             player.px, player.py, player.player_w, player.player_h,
@@ -398,15 +405,18 @@ def main() -> None:
                         if player.take_fall_damage():
                             result = bus.emit(GameEvent.INTEGRITY_ZERO)
                             level_reset = not result.cancelled
-                if not level_reset and check_hit(player, enemy):
-                    hit_result = bus.emit(GameEvent.PLAYER_HIT)
-                    if not hit_result.cancelled:
-                        kx, ky = compute_knockback(
-                            player.px, player.py, enemy.px, enemy.py, player.gravity_dir,
-                        )
-                        if player.take_hit(kx, ky):
-                            result = bus.emit(GameEvent.INTEGRITY_ZERO)
-                            level_reset = not result.cancelled
+                if not level_reset:
+                    for e in enemies:
+                        if check_hit(player, e):
+                            hit_result = bus.emit(GameEvent.PLAYER_HIT)
+                            if not hit_result.cancelled:
+                                kx, ky = compute_knockback(
+                                    player.px, player.py, e.px, e.py, player.gravity_dir,
+                                )
+                                if player.take_hit(kx, ky):
+                                    result = bus.emit(GameEvent.INTEGRITY_ZERO)
+                                    level_reset = not result.cancelled
+                            break
                 if level_reset:
                     run_state.deaths += 1
                     run_state.fold_stability = max(
@@ -416,7 +426,7 @@ def main() -> None:
                         game_state = "dead"
                         run_state.is_active = False
                     else:
-                        _reset_level_state(level, player, camera, animator, enemy)
+                        _reset_level_state(level, player, camera, animator, enemies)
                     physics_accumulator = flash_timer = 0.0
                     time_dilation.reset()
 
@@ -463,7 +473,7 @@ def main() -> None:
                 draw_win_screen(screen, font, run_state, WIDTH, HEIGHT)
             else:  # "playing"
                 cam_offset = camera.offset
-                draw_world(screen, background, level, enemy, animator, player,
+                draw_world(screen, background, level, enemies, animator, player,
                            player_state, cam_offset, debug_draw)
                 if debug_draw:
                     draw_debug_overlay(screen, font, player, cam_offset, HEIGHT)
