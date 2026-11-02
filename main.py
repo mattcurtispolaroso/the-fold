@@ -20,7 +20,6 @@ from constants import (
     FOLD_STABILITY_MAX,
     HOLE_ENCOUNTER_PHASE1_DURATION,
     HOLE_ENCOUNTER_PHASE2_DURATION,
-    TEMPORAL_ECHO_SPEED,
     FPS,
     PHYSICS_DT,
     PHYSICS_WATCHDOG_ENABLED,
@@ -33,7 +32,7 @@ from constants import (
     WHITE_HOLE_STABILITY_RESTORE,
 )
 from src.data.run_state import RunState
-from src.entities.enemy import TemporalEcho
+from src.entities.fold_predator import FoldPredator
 from src.entities.player import Player
 from src.levels.level_renderer import LevelRenderer
 from src.physics import (
@@ -170,7 +169,7 @@ def main() -> None:
     fold_tint_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
 
     player = Player.from_spawn(level.spawn, tuple(level.gravity_start))
-    enemy = TemporalEcho(px=130.0, py=790.0, min_x=30.0, max_x=230.0, speed=TEMPORAL_ECHO_SPEED)
+    enemy = FoldPredator(px=400.0, py=790.0, level_min=30.0, level_max=1170.0)
     run_state = RunState(fold_stability=100.0, current_node_idx=0, run_seed=0, is_active=False)
     bus = EventBus()
     time_dilation = make_time_dilation()
@@ -283,6 +282,7 @@ def main() -> None:
                             camera.on_gravity_rotate()
                             camera.shake(ROTATE_SHAKE_INTENSITY, ROTATE_SHAKE_DURATION)
                             flash_timer = ROTATION_FLASH_DURATION
+                            enemy.on_gravity_rotate()
                             if player.gravity_dir == (0, 1):
                                 animator.helmet.request_off()
                             else:
@@ -350,7 +350,11 @@ def main() -> None:
                         )
 
                     level.update(time_scale)
-                    enemy.update(time_scale, dt=PHYSICS_DT)
+                    enemy.update(
+                        time_scale, dt=PHYSICS_DT,
+                        player_px=player.px, player_py=player.py,
+                        gravity_dir=player.gravity_dir,
+                    )
                     if player.on_ground:
                         pvx, pvy = level.riding_velocity(
                             player.px, player.py, player.player_w, player.player_h,

@@ -296,6 +296,55 @@ Both `take_hit()` and `take_fall_damage()` return `True` when integrity hits 0. 
 
 ---
 
+## M5b — Fold Predator Enemy ✅ APPROVED 2026-11-01
+
+**Touches 4 files (1 new).**
+
+### What this delivers
+
+A second enemy that makes gravity rotation tactically meaningful in combat. Replaces the TemporalEcho placeholder in the active enemy slot. TemporalEcho class stays (available for future use).
+
+### States
+
+| State | Behaviour |
+|---|---|
+| PATROL | Oscillates laterally within level bounds |
+| CHASE | Player within `FOLD_PREDATOR_CHASE_RANGE` px laterally — moves toward player |
+| PHASE | Every `FOLD_PREDATOR_PHASE_INTERVAL`s during chase: burst at `FOLD_PREDATOR_PHASE_SPEED_MULT`× speed for `FOLD_PREDATOR_PHASE_DURATION`s |
+| STUNNED | Any gravity rotation stuns for `FOLD_PREDATOR_STUN_DURATION`s; resumes previous state after |
+
+### Decisions locked
+- Stun triggers on **any** gravity rotation, regardless of distance to player.
+- Movement is gravity-aware: lateral axis = X for vertical gravity, Y for horizontal.
+- STUNNED color = pale blue-white (temporal disruption visual). PHASE color = brighter purple.
+
+### Interface (matches TemporalEcho so main.py surgery is minimal)
+- `update(time_scale, dt)` — same signature
+- `reset()` — same
+- `rect` property — same
+- `draw(surface, offset)` — same
+- `frozen_timer` field — same (Hawking Emitter compatible)
+- `on_gravity_rotate()` — new; called from R-key handler in main.py
+
+### Files
+| File | Change |
+|---|---|
+| `constants.py` | 9 FOLD_PREDATOR_* constants |
+| `src/entities/fold_predator.py` | new — FoldPredator class |
+| `main.py` | swap TemporalEcho → FoldPredator; call `enemy.on_gravity_rotate()` from R key |
+| `tests/test_core.py` | TestFoldPredator: patrol, chase entry/exit, phase burst, stun, gravity-aware movement, frozen_timer compat |
+
+### Accept criteria
+- Patrol oscillates and turns at bounds.
+- CHASE entered when player within range, exited when player leaves range.
+- PHASE burst fires after interval, speed doubles, returns to CHASE after duration.
+- STUN freezes movement for full duration on any gravity rotation.
+- After stun expires, resumes previous state.
+- Gravity-aware: moves on Y axis when gravity is horizontal.
+- frozen_timer field works (Hawking Emitter test passes unchanged).
+
+---
+
 ## M5a Session 3 — Reward Flow ✅ APPROVED 2026-11-01
 
 **Touches 5 files (1 new).**

@@ -81,7 +81,7 @@ Done when: a ~10 min run from start to singularity or death is completable. **Ga
   - [x] ItemManager — subscribes owned items to event bus, internal cooldowns, resonance detection ✅
   - [x] Reward flow — pick-1-of-3 after combat rooms and white holes, seeded offers, Paradox artifacts ✅
   - [x] Session 4 tuning pass ✅ — white hole no longer gives reward screen (resource restore is the reward); PARADOX_OFFER_CHANCE 25% → 15%
-- M5b — Fold Predator enemy (next)
+- M5b — Fold Predator enemy ✅ Done 2026-11-01
 - M5c — Anomaly rooms (procedural room generation, valid in 2+ gravity orientations)
 - M5d — HUD + audio v1
 

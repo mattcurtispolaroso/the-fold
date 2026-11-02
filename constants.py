@@ -159,6 +159,19 @@ FOLD_TINT_MAX_ALPHA: int = 110               # tint alpha at stability = 0
 IFRAMES_DURATION: float = 0.8    # seconds invincible after taking a hit
 KNOCKBACK_FORCE: float = 6.0     # px/frame lateral velocity impulse on hit
 
+# --- Fold Predator (M5b enemy) ---
+FOLD_PREDATOR_W: int = 40
+FOLD_PREDATOR_H: int = 60
+FOLD_PREDATOR_SPEED: float = 2.5
+FOLD_PREDATOR_CHASE_RANGE: float = 350.0
+FOLD_PREDATOR_STUN_DURATION: float = 2.0
+FOLD_PREDATOR_PHASE_INTERVAL: float = 4.0
+FOLD_PREDATOR_PHASE_DURATION: float = 0.5
+FOLD_PREDATOR_PHASE_SPEED_MULT: float = 2.5
+FOLD_PREDATOR_COLOR: tuple = (180, 60, 220)       # purple
+FOLD_PREDATOR_STUN_COLOR: tuple = (220, 220, 255)  # pale blue-white
+FOLD_PREDATOR_PHASE_COLOR: tuple = (230, 120, 255) # bright purple
+
 # --- Temporal Echo (M3 enemy placeholder) ---
 TEMPORAL_ECHO_W: int = 40
 TEMPORAL_ECHO_H: int = 60
