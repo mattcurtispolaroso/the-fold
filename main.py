@@ -63,6 +63,7 @@ from src.systems.items.offers import generate_offers
 from src.data.items import OwnedItem
 from src.systems.logging_manager import LoggingManager
 from src.systems.spacetime import make_time_dilation
+from src.systems.level_generator import pick_anomaly_room
 
 WIDTH, HEIGHT = SCREEN_WIDTH, SCREEN_HEIGHT
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -192,6 +193,7 @@ def main() -> None:
     hole_is_white: bool = False
     reward_offers: list = []
     pending_node_advance: bool = False
+    anomaly_pending: bool = False
 
     physics_history: deque = deque(maxlen=50)
     watchdog_consecutive: int = 0
@@ -226,11 +228,16 @@ def main() -> None:
                                 game_state = "playing"
                                 bus.emit(GameEvent.ROOM_ENTERED)
                             elif node_type == "hole":
-                                hole_is_white = run_state.current_hole_is_white()
-                                _apply_hole_consequences(run_state, player, hole_is_white)
-                                bus.emit(GameEvent.HOLE_RESOLVED, is_white=hole_is_white)
-                                hole_timer = HOLE_ENCOUNTER_PHASE1_DURATION + HOLE_ENCOUNTER_PHASE2_DURATION
-                                game_state = "hole_encounter"
+                                anomaly_path = pick_anomaly_room(
+                                    run_state.run_seed, run_state.current_node_idx,
+                                )
+                                level.load(anomaly_path)
+                                _reset_level_state(level, player, camera, animator, enemies)
+                                physics_accumulator = flash_timer = 0.0
+                                time_dilation.reset()
+                                anomaly_pending = True
+                                game_state = "playing"
+                                bus.emit(GameEvent.ROOM_ENTERED)
                             elif node_type == "singularity":
                                 game_state = "win"
                         elif game_state in ("dead", "win"):
@@ -442,13 +449,23 @@ def main() -> None:
 
                 if player.goal_reached:
                     bus.emit(GameEvent.ROOM_CLEARED)
-                    reward_offers = generate_offers(
-                        item_registry, _owned_item_list(run_state),
-                        run_state.run_seed, run_state.current_node_idx,
-                        getattr(run_state, "extra_reward_options", 0),
-                    )
-                    pending_node_advance = True
-                    game_state = "reward"
+                    if anomaly_pending:
+                        hole_is_white = run_state.current_hole_is_white()
+                        _apply_hole_consequences(run_state, player, hole_is_white)
+                        bus.emit(GameEvent.HOLE_RESOLVED, is_white=hole_is_white)
+                        hole_timer = (
+                            HOLE_ENCOUNTER_PHASE1_DURATION + HOLE_ENCOUNTER_PHASE2_DURATION
+                        )
+                        anomaly_pending = False
+                        game_state = "hole_encounter"
+                    else:
+                        reward_offers = generate_offers(
+                            item_registry, _owned_item_list(run_state),
+                            run_state.run_seed, run_state.current_node_idx,
+                            getattr(run_state, "extra_reward_options", 0),
+                        )
+                        pending_node_advance = True
+                        game_state = "reward"
                     physics_accumulator = flash_timer = 0.0
                     time_dilation.reset()
 

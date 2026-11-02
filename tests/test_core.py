@@ -2894,5 +2894,82 @@ class TestTheAnchored(unittest.TestCase):
         self.assertNotEqual(C.ANCHORED_COLOR, C.ANCHORED_STUTTER_COLOR)
 
 
+class TestLevelGenerator(unittest.TestCase):
+    """Tests for the anomaly room picker and anomaly level JSON validity."""
+
+    def test_pick_returns_json_path(self):
+        from src.systems.level_generator import pick_anomaly_room
+        result = pick_anomaly_room(42, 1)
+        self.assertIsInstance(result, str)
+        self.assertTrue(result.endswith(".json"))
+
+    def test_pick_is_deterministic(self):
+        from src.systems.level_generator import pick_anomaly_room
+        self.assertEqual(pick_anomaly_room(12345, 2), pick_anomaly_room(12345, 2))
+
+    def test_different_seeds_vary(self):
+        from src.systems.level_generator import pick_anomaly_room, ANOMALY_LEVELS
+        if len(ANOMALY_LEVELS) < 2:
+            self.skipTest("Need at least 2 anomaly levels")
+        results = {pick_anomaly_room(seed, 1) for seed in range(100)}
+        self.assertGreater(len(results), 1)
+
+    def test_different_node_idx_vary(self):
+        from src.systems.level_generator import pick_anomaly_room, ANOMALY_LEVELS
+        if len(ANOMALY_LEVELS) < 2:
+            self.skipTest("Need at least 2 anomaly levels")
+        results = {pick_anomaly_room(0, idx) for idx in range(20)}
+        self.assertGreater(len(results), 1)
+
+    def test_all_anomaly_rooms_loadable(self):
+        from src.systems.level_generator import ANOMALY_LEVELS
+        from src.levels.level_data import LevelData
+        valid_dirs = {(0, 1), (0, -1), (1, 0), (-1, 0)}
+        for path in ANOMALY_LEVELS:
+            with self.subTest(path=path):
+                data = LevelData.load(path)
+                self.assertIsNotNone(data)
+                self.assertIn(tuple(data.gravity_start), valid_dirs)
+                self.assertGreater(len(data.static_platforms), 0)
+                self.assertGreater(data.level_width, 0)
+                self.assertGreater(data.level_height, 0)
+
+    def test_anomaly_01_crawlway_physics_gate(self):
+        """84px opening: DOWN player (96px tall) is blocked, RIGHT player (64px tall) fits."""
+        from src.systems.level_generator import ANOMALY_LEVELS
+        from src.levels.level_data import LevelData
+        data = LevelData.load(ANOMALY_LEVELS[0])
+        self.assertEqual(tuple(data.gravity_start), (0, 1))
+        self.assertEqual(data.name, "Maintenance Crawlway")
+        # Find the crawlway block (the only non-floor platform)
+        blocks = [p for p in data.static_platforms if p.y == 0]
+        self.assertEqual(len(blocks), 1)
+        block = blocks[0]
+        floor = next(p for p in data.static_platforms if p.y > 0)
+        clearance = floor.y - (block.y + block.h)
+        self.assertGreater(clearance, 64)   # RIGHT/LEFT player (64px) fits
+        self.assertLess(clearance, 96)      # DOWN/UP player (96px) is blocked
+
+    def test_anomaly_02_starts_right_gravity(self):
+        from src.systems.level_generator import ANOMALY_LEVELS
+        from src.levels.level_data import LevelData
+        data = LevelData.load(ANOMALY_LEVELS[1])
+        self.assertEqual(tuple(data.gravity_start), (1, 0))
+
+    def test_anomaly_03_starts_up_gravity(self):
+        from src.systems.level_generator import ANOMALY_LEVELS
+        from src.levels.level_data import LevelData
+        data = LevelData.load(ANOMALY_LEVELS[2])
+        self.assertEqual(tuple(data.gravity_start), (0, -1))
+
+    def test_pick_always_returns_existing_path(self):
+        import os
+        from src.systems.level_generator import pick_anomaly_room
+        for seed in range(10):
+            for idx in range(5):
+                path = pick_anomaly_room(seed, idx)
+                self.assertTrue(os.path.exists(path), f"Missing: {path}")
+
+
 if __name__ == "__main__":
     unittest.main()

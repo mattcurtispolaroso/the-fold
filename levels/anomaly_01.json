@@ -1,0 +1,14 @@
+{
+  "name": "Maintenance Crawlway",
+  "gravity_start": [0, 1],
+  "spawn": [100.0, 392.0],
+  "tile_size": 40,
+  "level_width": 800,
+  "level_height": 600,
+  "goal": {"x": 640, "y": 360, "w": 120, "h": 80},
+  "static_platforms": [
+    {"x": 0, "y": 440, "w": 800, "h": 160},
+    {"x": 200, "y": 0, "w": 400, "h": 356}
+  ],
+  "moving_platforms": []
+}
