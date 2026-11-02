@@ -31,7 +31,7 @@ ROTATION_FLASH_MAX_ALPHA: int = 90             # peak opacity (0-255)
 ROTATION_ZOOM_PEAK: float = 1.08    # zoom factor at cinematic peak
 ROTATION_ZOOM_IN_DUR: float = 0.07  # seconds to zoom in (ease-out)
 ROTATION_ZOOM_HOLD_DUR: float = 0.03  # seconds held at peak
-ROTATION_ZOOM_OUT_DUR: float = 0.12  # seconds to zoom out (ease-in)
+ROTATION_ZOOM_OUT_DUR: float = 0.08  # seconds to zoom out (ease-in)
 
 # --- Physics Scale ---
 PPM: int = 50                                             # pixels per meter
