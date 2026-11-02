@@ -82,7 +82,7 @@ Done when: a ~10 min run from start to singularity or death is completable. **Ga
   - [x] Reward flow — pick-1-of-3 after combat rooms and white holes, seeded offers, Paradox artifacts ✅
   - [x] Session 4 tuning pass ✅ — white hole no longer gives reward screen (resource restore is the reward); PARADOX_OFFER_CHANCE 25% → 15%
 - M5b — Fold Predator enemy ✅ Done 2026-11-01
-- M5c — Anomaly rooms (procedural room generation, valid in 2+ gravity orientations)
+- M5c — Anomaly rooms ✅ Done 2026-11-02 — 3 hand-authored rooms (physics gate, RIGHT-gravity navigation, UP-gravity overhead), seeded picker, wired into hole node flow
 - M5d — HUD ✅ Done 2026-11-01 — integrity pips + chrono bar + dilation status; gravity label removed from production HUD
 - M5e — The Anchored enemy ✅ Done 2026-11-01 — wander/stutter AI, frozen by Time Dilation, no-op on gravity rotate
 - Audio v1 — deferred
@@ -94,13 +94,12 @@ VFX (pooled particles), juice, full rotation cinematic, singularity difficulty c
 Save/meta-progression, second character, Mac/Windows PyInstaller builds, Steam integration.
 
 ## Current milestone
-**M5 — Content Alpha** (in progress)
+**M6 — Polish Beta**
 
 ## This sprint (max 3 tasks)
-- [x] M5b — Fold Predator enemy ✅
-- [x] M5d — HUD (always-visible resources) ✅
-- [x] M5e — The Anchored enemy ✅
-- [ ] M5c — Anomaly rooms (hand-authored templates, valid in 2+ gravity orientations)
+- [ ] M6: Rotation cinematic (zoom in → rotate → zoom out)
+- [ ] M6: VFX pass (particle bursts on rotate, hit sparks, landing dust)
+- [ ] M6: Singularity difficulty curve (regen/power scale by node position)
 
 ## Known bugs / open items
 - Up/W doubles as move and jump in horizontal gravity | annoying, may cause unintended jumps | deliberately left as is for now (see Decisions log)
@@ -134,7 +133,7 @@ Cult enemies (Witness, Ordained, Architect); Archivist and Diplomat characters; 
 - 2026-11-01: M3 anchored state simplified — integrity 0 = immediate level reset. No anchored timer. Fold stability cost paid on reset.
 
 ## Last session
-Date: 2026-11-01
-Did: M5b (Fold Predator), M5d (HUD), M5e (The Anchored). Room now has both enemies — Fold Predator stunned by any gravity rotation, The Anchored frozen by Time Dilation. Always-visible HUD: 3 integrity pips, segmented chrono bar, dilation status. Single-enemy architecture expanded to enemies list.
-State of tests: 483 passing
-Next up: M5c — Anomaly rooms (hand-authored templates, valid in 2+ gravity orientations).
+Date: 2026-11-02
+Did: M5c (anomaly rooms) + bug fixes. 3 anomaly room JSONs with distinct gravity theses; seeded room picker; wired into hole node flow. Fixed rapid-rotation disappear (immediate resolve_collisions in K_r handler instead of cooldown). Fixed level_04 enemies falling into void (added floor sections under spawn points). Improved hole outcome screen (shows resource numbers). Redesigned level_01 as physics gate puzzle. Enemies suppressed during anomaly rooms.
+State of tests: 497 passing
+Next up: M6 — rotation cinematic, VFX pass, or singularity difficulty curve.
