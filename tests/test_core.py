@@ -3179,5 +3179,75 @@ class TestGravityZones(unittest.TestCase):
         self.assertAlmostEqual(mult, 0.4)
 
 
+class TestGravityOffDefaultDrain(unittest.TestCase):
+    """Chrono drains while in non-default gravity; snaps back at 0."""
+
+    def test_drain_constant_exists(self) -> None:
+        self.assertGreater(C.GRAVITY_OFFDEFAULT_DRAIN, 0.0)
+
+    def test_drain_less_than_move_regen_early_game(self) -> None:
+        """Early game: moving regen (15/s) > drain (10/s) → net positive while moving."""
+        self.assertGreater(C.CHRONO_REGEN_MOVE, C.GRAVITY_OFFDEFAULT_DRAIN)
+
+    def test_drain_exceeds_move_regen_at_max_pressure(self) -> None:
+        """Near singularity: regen throttled to 33% → net negative even while moving."""
+        throttled_regen = C.CHRONO_REGEN_MOVE * C.SINGULARITY_CHRONO_REGEN_MIN_MULT
+        self.assertLess(throttled_regen, C.GRAVITY_OFFDEFAULT_DRAIN)
+
+    def test_drain_per_tick(self) -> None:
+        """Simulated drain over one physics tick reduces chrono correctly."""
+        chrono = 100.0
+        drain_per_tick = C.GRAVITY_OFFDEFAULT_DRAIN * C.PHYSICS_DT
+        chrono = max(0.0, chrono - drain_per_tick)
+        expected = 100.0 - C.GRAVITY_OFFDEFAULT_DRAIN / C.FPS
+        self.assertAlmostEqual(chrono, expected)
+
+    def test_drain_floors_at_zero(self) -> None:
+        """Drain does not go below zero."""
+        chrono = 0.001  # nearly empty
+        drain_per_tick = C.GRAVITY_OFFDEFAULT_DRAIN * C.PHYSICS_DT
+        chrono = max(0.0, chrono - drain_per_tick)
+        self.assertEqual(chrono, 0.0)
+
+    def test_full_bar_duration_off_default(self) -> None:
+        """Full chrono bar sustains off-default gravity for at least 8 seconds idle."""
+        seconds_available = C.CHRONO_RESERVE_MAX / C.GRAVITY_OFFDEFAULT_DRAIN
+        self.assertGreater(seconds_available, 8.0)
+
+
+class TestHardLandingVelocity(unittest.TestCase):
+    """Fall/impact damage threshold tests."""
+
+    def test_threshold_constant_exists(self) -> None:
+        self.assertGreater(C.HARD_LAND_VELOCITY, 0.0)
+
+    def test_threshold_below_terminal_velocity(self) -> None:
+        self.assertLess(C.HARD_LAND_VELOCITY, C.TERMINAL_VELOCITY)
+
+    def test_normal_jump_velocity_below_threshold(self) -> None:
+        """A direct jump and land should not exceed the damage threshold."""
+        self.assertLess(C.JUMP_SPEED, C.HARD_LAND_VELOCITY)
+
+    def test_gravity_speed_detects_downward_impact(self) -> None:
+        """gravity_speed returns positive value for downward fall in down-gravity."""
+        vel = gravity_speed(0.0, C.HARD_LAND_VELOCITY + 1.0, GRAVITY_DOWN)
+        self.assertGreater(vel, C.HARD_LAND_VELOCITY)
+
+    def test_gravity_speed_detects_rightward_impact(self) -> None:
+        """gravity_speed returns positive value for rightward fall in right-gravity."""
+        vel = gravity_speed(C.HARD_LAND_VELOCITY + 1.0, 0.0, GRAVITY_RIGHT)
+        self.assertGreater(vel, C.HARD_LAND_VELOCITY)
+
+    def test_gravity_speed_detects_upward_impact(self) -> None:
+        """gravity_speed returns positive for upward fall in up-gravity."""
+        vel = gravity_speed(0.0, -(C.HARD_LAND_VELOCITY + 1.0), GRAVITY_UP)
+        self.assertGreater(vel, C.HARD_LAND_VELOCITY)
+
+    def test_gravity_speed_detects_leftward_impact(self) -> None:
+        """gravity_speed returns positive for leftward fall in left-gravity."""
+        vel = gravity_speed(-(C.HARD_LAND_VELOCITY + 1.0), 0.0, GRAVITY_LEFT)
+        self.assertGreater(vel, C.HARD_LAND_VELOCITY)
+
+
 if __name__ == "__main__":
     unittest.main()

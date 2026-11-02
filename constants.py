@@ -200,6 +200,16 @@ CHRONO_REGEN_IDLE: float = 0.0    # per second while idle (passive play earns no
 # --- Gravity Rotation Cost ---
 GRAVITY_ROTATION_COST: float = 10.0  # chrono spent per rotation; blocks rotation if insufficient
 
+# --- Gravity Off-Default Drain ---
+# Chrono drains while in non-default gravity; when chrono hits 0, gravity snaps back.
+# Net movement regen (15/s) exceeds drain early game (+5/s), but near singularity
+# regen throttles to ~5/s so even moving can't offset the drain — gravity becomes
+# unsustainable late game by design.
+GRAVITY_OFFDEFAULT_DRAIN: float = 10.0  # chrono per second
+
+# --- Fall / Impact Damage ---
+HARD_LAND_VELOCITY: float = 13.0  # px/physics-frame — impact above this deals 1 integrity hit
+
 # --- Singularity Pressure ---
 SINGULARITY_CHRONO_REGEN_MIN_MULT: float = 0.33  # regen fraction at max pressure
 SINGULARITY_ABILITY_COST_MAX_MULT: float = 2.0   # ability cost multiplier at max pressure

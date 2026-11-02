@@ -18,7 +18,9 @@ from constants import (
     DEBUG_ITEMS,
     FOLD_STABILITY_INTEGRITY_COST,
     FOLD_STABILITY_MAX,
+    GRAVITY_OFFDEFAULT_DRAIN,
     GRAVITY_ROTATION_COST,
+    HARD_LAND_VELOCITY,
     HOLE_ENCOUNTER_PHASE1_DURATION,
     HOLE_ENCOUNTER_PHASE2_DURATION,
     FPS,
@@ -49,6 +51,7 @@ from src.physics import (
     check_ground_adjacent,
     clamp_terminal_velocity,
     gravity_is_vertical,
+    gravity_speed,
     resolve_collisions,
     rotate_gravity_ccw,
 )
@@ -400,6 +403,8 @@ def main() -> None:
                     flash_timer = max(0.0, flash_timer - frame_dt)
 
                 grav_vert = gravity_is_vertical(player.gravity_dir)
+                _gravity_expired = False
+                _hard_landing_occurred = False
                 while physics_accumulator >= PHYSICS_DT:
                     physics_start = time.perf_counter()
 
@@ -420,6 +425,12 @@ def main() -> None:
                             player.move_input = 1
 
                     player.tick_chrono_regen(PHYSICS_DT, player.move_input != 0, regen_mult)
+                    if player.gravity_dir != level.gravity_start:
+                        player.chrono_reserve = max(
+                            0.0, player.chrono_reserve - GRAVITY_OFFDEFAULT_DRAIN * PHYSICS_DT,
+                        )
+                        if player.chrono_reserve <= 0.0:
+                            _gravity_expired = True
                     player.iframes_timer = max(0.0, player.iframes_timer - PHYSICS_DT)
                     player.vx, player.vy = apply_lateral_movement(
                         player.vx, player.vy, player.move_input, player.gravity_dir, player.on_ground,
@@ -441,6 +452,8 @@ def main() -> None:
                                 player_px=player.px, player_py=player.py,
                                 gravity_dir=player.gravity_dir,
                             )
+                    _pre_land_grav_vel = gravity_speed(player.vx, player.vy, player.gravity_dir)
+                    _was_grounded = player.on_ground
                     if player.on_ground:
                         pvx, pvy = level.riding_velocity(
                             player.px, player.py, player.player_w, player.player_h,
@@ -453,6 +466,8 @@ def main() -> None:
                         player.px, player.py, player.vx, player.vy,
                         player.player_w, player.player_h, all_platforms, player.gravity_dir,
                     )
+                    if not _was_grounded and player.on_ground and _pre_land_grav_vel >= HARD_LAND_VELOCITY:
+                        _hard_landing_occurred = True
 
                     if player.on_ground:
                         player.jumping = False
@@ -477,8 +492,40 @@ def main() -> None:
                     physics_history.append(player.to_dict())
                     physics_accumulator -= PHYSICS_DT
 
+                # Gravity snap-back when chrono exhausted while off default orientation
+                if _gravity_expired and player.gravity_dir != level.gravity_start:
+                    bus.emit(GameEvent.GRAVITY_ROTATED, gravity_dir=player.gravity_dir)
+                    player.set_gravity(level.gravity_start)
+                    player.px, player.py = round(player.px), round(player.py)
+                    _snap_plats = level.all_platform_rects() + level.boundary_rects()
+                    player.px, player.py, player.vx, player.vy, player.on_ground = resolve_collisions(
+                        player.px, player.py, player.vx, player.vy,
+                        player.player_w, player.player_h, _snap_plats, player.gravity_dir,
+                    )
+                    player.on_ground = check_ground_adjacent(
+                        player.px, player.py, player.player_w, player.player_h,
+                        _snap_plats, player.gravity_dir,
+                    )
+                    if player.on_ground:
+                        player.coyote_timer = COYOTE_TIME
+                        player.jumping = False
+                    camera.on_gravity_rotate()
+                    camera.shake(ROTATE_SHAKE_INTENSITY, ROTATE_SHAKE_DURATION)
+                    flash_timer = ROTATION_FLASH_DURATION
+                    grav_vert = gravity_is_vertical(player.gravity_dir)
+                    for e in enemies:
+                        e.on_gravity_rotate()
+                    if player.gravity_dir == (0, 1):
+                        animator.helmet.request_off()
+                    else:
+                        animator.helmet.request_on()
+
                 level_reset = False
-                if player.gravity_dir == (0, 1):
+                if _hard_landing_occurred:
+                    if player.take_hit(0.0, 0.0):
+                        result = bus.emit(GameEvent.INTEGRITY_ZERO)
+                        level_reset = not result.cancelled
+                if not level_reset and player.gravity_dir == (0, 1):
                     fall_threshold = level.level_height - player.player_h / 2 - 10.0
                     if player.py >= fall_threshold:
                         if player.take_fall_damage():
