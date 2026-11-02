@@ -115,6 +115,10 @@ Save/meta-progression, second character, Mac/Windows PyInstaller builds, Steam i
 ## Backlog (parked, not commitments)
 Cult enemies (Witness, Ordained, Architect); Archivist and Diplomat characters; Closed Loop rewind ultimate; spatial audio; controller rumble; Steam cloud and trading cards; Codex; amber glow overlay (needs `EXOSKELETON_GLOW_PATH` art asset).
 
+### Design ideas parking lot (unscoped, not committed)
+- **Chrono degradation across levels** — cumulative chrono use degrades the reserve cap or regen rate across subsequent levels, making runs harder as the player burns more resource. Creates a "spend now vs. protect for later" arc across the run, not just within a level.
+- **Environmental black holes / disrupted pixels** — levels seeded with small black holes that visually corrupt nearby pixels and geometry, creating additional hazard layers. Thematically grounded (singularity proximity warps space). Could be cosmetic-only at first, then gain gameplay consequences (disrupted platforms, suppressed abilities in radius).
+
 ## Decisions needed from Matt
 1. ~~Re-order to vertical slices?~~ Decided: yes.
 2. ~~Launch scope.~~ Decided: lean v1.0.

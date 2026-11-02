@@ -63,6 +63,7 @@ from src.rendering.hud import (
     draw_start_screen, draw_win_screen, draw_world,
 )
 from src.rendering.loader import load_background, load_font
+from src.rendering.vfx import ParticlePool
 from src.systems.combat import check_hit, compute_knockback
 from src.systems.events import EventBus, GameEvent
 from src.systems.items import ItemManager, load_item_registry
@@ -178,6 +179,7 @@ def main() -> None:
     animator = PlayerAnimator()
     flash_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
     fold_tint_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+    particles = ParticlePool()
 
     player = Player.from_spawn(level.spawn, tuple(level.gravity_start))
     enemies = [
@@ -314,6 +316,7 @@ def main() -> None:
                             camera.on_gravity_rotate()
                             camera.shake(ROTATE_SHAKE_INTENSITY, ROTATE_SHAKE_DURATION)
                             flash_timer = ROTATION_FLASH_DURATION
+                            particles.emit_rotation_burst(player.px, player.py)
                             for e in enemies:
                                 e.on_gravity_rotate()
                             if player.gravity_dir == (0, 1):
@@ -345,6 +348,7 @@ def main() -> None:
             if game_state == "playing":
                 time_dilation.tick(frame_dt, bus)
                 item_manager.tick(frame_dt)
+                particles.update(frame_dt)
                 time_scale = time_dilation.time_scale()
                 pressure = run_state.singularity_pressure
                 regen_mult = 1.0 - pressure * (1.0 - SINGULARITY_CHRONO_REGEN_MIN_MULT)
@@ -385,6 +389,7 @@ def main() -> None:
                         camera.on_gravity_rotate()
                         camera.shake(ROTATE_SHAKE_INTENSITY, ROTATE_SHAKE_DURATION)
                         flash_timer = ROTATION_FLASH_DURATION
+                        particles.emit_rotation_burst(player.px, player.py)
                         for e in enemies:
                             e.on_gravity_rotate()
                         if player.gravity_dir == (0, 1):
@@ -405,6 +410,7 @@ def main() -> None:
                 grav_vert = gravity_is_vertical(player.gravity_dir)
                 _gravity_expired = False
                 _hard_landing_occurred = False
+                _landing_occurred = False
                 while physics_accumulator >= PHYSICS_DT:
                     physics_start = time.perf_counter()
 
@@ -466,8 +472,11 @@ def main() -> None:
                         player.px, player.py, player.vx, player.vy,
                         player.player_w, player.player_h, all_platforms, player.gravity_dir,
                     )
-                    if not _was_grounded and player.on_ground and _pre_land_grav_vel >= HARD_LAND_VELOCITY:
-                        _hard_landing_occurred = True
+                    if not _was_grounded and player.on_ground:
+                        if _pre_land_grav_vel >= HARD_LAND_VELOCITY:
+                            _hard_landing_occurred = True
+                        else:
+                            _landing_occurred = True
 
                     if player.on_ground:
                         player.jumping = False
@@ -492,6 +501,17 @@ def main() -> None:
                     physics_history.append(player.to_dict())
                     physics_accumulator -= PHYSICS_DT
 
+                # Landing VFX (emitted once per frame, not per physics tick)
+                if _landing_occurred:
+                    particles.emit_landing_dust(
+                        player.px, player.py, player.player_w, player.player_h, player.gravity_dir,
+                    )
+                if _hard_landing_occurred:
+                    particles.emit_landing_dust(
+                        player.px, player.py, player.player_w, player.player_h, player.gravity_dir,
+                    )
+                    particles.emit_hit_spark(player.px, player.py)
+
                 # Gravity snap-back when chrono exhausted while off default orientation
                 if _gravity_expired and player.gravity_dir != level.gravity_start:
                     bus.emit(GameEvent.GRAVITY_ROTATED, gravity_dir=player.gravity_dir)
@@ -512,6 +532,7 @@ def main() -> None:
                     camera.on_gravity_rotate()
                     camera.shake(ROTATE_SHAKE_INTENSITY, ROTATE_SHAKE_DURATION)
                     flash_timer = ROTATION_FLASH_DURATION
+                    particles.emit_rotation_burst(player.px, player.py)
                     grav_vert = gravity_is_vertical(player.gravity_dir)
                     for e in enemies:
                         e.on_gravity_rotate()
@@ -613,6 +634,7 @@ def main() -> None:
                 cam_offset = camera.offset
                 draw_world(screen, background, level, [] if anomaly_pending else enemies,
                            animator, player, player_state, cam_offset, debug_draw)
+                particles.draw(screen, cam_offset)
                 if debug_draw:
                     draw_debug_overlay(screen, font, player, cam_offset, HEIGHT)
                 draw_fold_tint(screen, fold_tint_surf, run_state.fold_stability)

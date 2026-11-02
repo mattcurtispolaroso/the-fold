@@ -250,6 +250,12 @@ HUD_COLOR_CHRONO_EMPTY: tuple = (30, 22, 8)   # near-black
 HUD_COLOR_DILATION_ACTIVE: tuple = (80, 180, 255)    # cyan-blue
 HUD_COLOR_DILATION_COOLDOWN: tuple = (35, 75, 115)   # dim cyan
 
+# --- Particle VFX ---
+VFX_POOL_SIZE: int = 200           # total pre-allocated particle slots
+VFX_ROTATION_BURST_COUNT: int = 20  # particles per gravity rotation
+VFX_HIT_SPARK_COUNT: int = 12       # particles per damage event
+VFX_LANDING_DUST_COUNT: int = 8     # particles per landing
+
 # --- Font ---
 FONT_PATH: str = "assets/fonts/main_font.ttf"
 FONT_SIZE: int = 28
