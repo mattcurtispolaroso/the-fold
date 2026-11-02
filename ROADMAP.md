@@ -95,16 +95,18 @@ Done when: a ~10 min run from start to singularity or death is completable. **Ga
 - VFX pass: rotation burst, hit spark, landing dust (visual tuning deferred — see Needs revisit) ✅
 - Rotation cinematic: zoom-in → hold → zoom-out (1.08× / 0.18s) ✅
 
-**M7. Ship**
-Save/meta-progression, second character, Mac/Windows PyInstaller builds, Steam integration.
+**M7. Ship** ✅ Done 2026-11-02
+- M7a: Save + meta-progression — `SaveManager`, `MetaProgress` dataclass, atomic write, corruption recovery ✅
+- M7b: Second character (The Archivist) — deferred to backlog
+- M7c: Mac + Windows PyInstaller builds — `build/the_fold.spec`, `build/build_mac.sh`, `build/build_windows.bat` ✅
 
 ## Current milestone
-**M7 — Ship**
+**M8 — Post-launch polish / Steam**
 
 ## This sprint (max 3 tasks)
-- [ ] M7a: Save + meta-progression — persistent unlocks, run stats, atomic save with corruption recovery
-- [ ] M7b: Second character (The Archivist) — White Hole ultimate, distinct starting kit
-- [ ] M7c: Mac + Windows PyInstaller builds — single-file executables, test on both platforms
+- [ ] M8a: Steam integration — Steamworks SDK, achievements, Steam cloud save
+- [ ] M8b: Audio v1 — sound effects, music, spatial audio for ability use
+- [ ] M8c: Amber glow overlay — implement `EXOSKELETON_GLOW_PATH` + runtime glow rendering
 
 ## Needs revisit
 - VFX particles (rotation burst, hit spark, landing dust) — mechanic is wired, visual execution needs tuning. Particle sizes, speeds, colours, and counts all open. Revisit once we have a clearer feel for the visual language.
@@ -143,9 +145,11 @@ Cult enemies (Witness, Ordained, Architect); Archivist and Diplomat characters; 
 - 2026-11-01: fold_stability cost per integrity-0 death = 20 (5 deaths end a run). Leaves budget for hole encounters and node timers in M4b.
 - 2026-11-01: fold tint starts at stability 80, max alpha 110 at stability 0. Red overlay only — shader distortion deferred to M6.
 - 2026-11-01: M3 anchored state simplified — integrity 0 = immediate level reset. No anchored timer. Fold stability cost paid on reset.
+- 2026-11-02: The Archivist (second character) deferred to backlog. M7b skipped; game ships with one character (The Navigator) in v1.0.
+- 2026-11-02: fold-playtester built as a sibling project (../fold-playtester/), never shipped in the binary. Visual agent using Claude computer-use. Run with `python run_playtest.py` from that directory.
 
 ## Last session
 Date: 2026-11-02
-Did: M6 complete. Variable gravity with singularity pressure curve; gravity zones (direction snap + strength scale); chrono drain while off-default gravity with snap-back at 0; hard landing damage; pooled VFX particles (rotation burst, hit spark, landing dust); rotation cinematic zoom (1.08× / 0.18s total). Tuned zoom duration from 0.39s → 0.18s at user direction.
-State of tests: 560 passing
-Next up: M7 — Save/meta-progression, second character, PyInstaller builds.
+Did: M7 complete (minus deferred Archivist). M7a: SaveManager + MetaProgress dataclass, atomic write via .tmp→rename, corruption recovery, start/death/win screens show all-time stats. M7c: PyInstaller spec + build scripts (Mac .app + Windows .exe), frozen-context path split (sys._MEIPASS for read-only assets, executable dir for save/logs). Also built fold-playtester sibling project: visual playtesting agent using Claude computer-use (claude-opus-5-5), pyautogui keyboard control, mss screenshots, structured report output.
+State of tests: 560 passing (game); playtester has no automated tests
+Next up: M8 — Steam integration, audio, amber glow overlay. Second character (The Archivist) in backlog.
