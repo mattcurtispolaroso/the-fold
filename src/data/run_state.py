@@ -59,6 +59,14 @@ class RunState:
         """Move to the next node after completing the current one."""
         self.current_node_idx += 1
 
+    @property
+    def singularity_pressure(self) -> float:
+        """0.0 at run start, 1.0 at the last playable node before singularity."""
+        last_playable = self.node_count - 2
+        if last_playable <= 0:
+            return 0.0
+        return min(1.0, self.current_node_idx / last_playable)
+
     def current_hole_is_white(self) -> bool:
         """Return True if the current hole node is a white hole."""
         hole_idx = sum(

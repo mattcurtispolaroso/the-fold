@@ -77,13 +77,18 @@ class Player:
         self.gravity_dir = new_dir
         self.player_w, self.player_h = get_player_physics_size(new_dir)
 
-    def tick_chrono_regen(self, dt: float, is_moving: bool) -> None:
+    def tick_chrono_regen(
+        self, dt: float, is_moving: bool, regen_mult: float = 1.0,
+    ) -> None:
         """Advance Chrono Reserve regen for one physics step.
 
         Moving earns regen; idling earns nothing (CHRONO_REGEN_IDLE = 0).
+        regen_mult scales the rate — used by the singularity pressure curve.
         """
         regen = CHRONO_REGEN_MOVE if is_moving else CHRONO_REGEN_IDLE
-        self.chrono_reserve = min(CHRONO_RESERVE_MAX, self.chrono_reserve + regen * dt)
+        self.chrono_reserve = min(
+            CHRONO_RESERVE_MAX, self.chrono_reserve + regen * regen_mult * dt,
+        )
 
     def take_fall_damage(self) -> bool:
         """Decrement integrity for a fall. Returns True if integrity hit 0 (level reset needed)."""

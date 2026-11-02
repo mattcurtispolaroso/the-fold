@@ -29,6 +29,9 @@ from constants import (
     ROTATION_FLASH_DURATION,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
+    SINGULARITY_ABILITY_COST_MAX_MULT,
+    SINGULARITY_CHRONO_REGEN_MIN_MULT,
+    TIME_DILATION_COST,
     WHITE_HOLE_STABILITY_RESTORE,
 )
 from src.data.run_state import RunState
@@ -333,6 +336,11 @@ def main() -> None:
                 time_dilation.tick(frame_dt, bus)
                 item_manager.tick(frame_dt)
                 time_scale = time_dilation.time_scale()
+                pressure = run_state.singularity_pressure
+                regen_mult = 1.0 - pressure * (1.0 - SINGULARITY_CHRONO_REGEN_MIN_MULT)
+                time_dilation.cost = TIME_DILATION_COST * (
+                    1.0 + pressure * (SINGULARITY_ABILITY_COST_MAX_MULT - 1.0)
+                )
                 if flash_timer > 0:
                     flash_timer = max(0.0, flash_timer - frame_dt)
 
@@ -356,7 +364,7 @@ def main() -> None:
                         elif keys[pygame.K_DOWN] or keys[pygame.K_s]:
                             player.move_input = 1
 
-                    player.tick_chrono_regen(PHYSICS_DT, player.move_input != 0)
+                    player.tick_chrono_regen(PHYSICS_DT, player.move_input != 0, regen_mult)
                     player.iframes_timer = max(0.0, player.iframes_timer - PHYSICS_DT)
                     player.vx, player.vy = apply_lateral_movement(
                         player.vx, player.vy, player.move_input, player.gravity_dir, player.on_ground,

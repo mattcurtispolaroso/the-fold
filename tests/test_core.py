@@ -907,6 +907,68 @@ class TestChronoRegen(unittest.TestCase):
             p.tick_chrono_regen(C.PHYSICS_DT, is_moving=True)
         self.assertAlmostEqual(p.chrono_reserve, C.CHRONO_REGEN_MOVE, places=4)
 
+    def test_regen_mult_scales_rate(self) -> None:
+        p = Player.from_spawn((0.0, 0.0))
+        p.chrono_reserve = 0.0
+        p.tick_chrono_regen(1.0, is_moving=True, regen_mult=0.5)
+        self.assertAlmostEqual(p.chrono_reserve, C.CHRONO_REGEN_MOVE * 0.5)
+
+    def test_regen_mult_zero_earns_nothing(self) -> None:
+        p = Player.from_spawn((0.0, 0.0))
+        p.chrono_reserve = 50.0
+        p.tick_chrono_regen(1.0, is_moving=True, regen_mult=0.0)
+        self.assertAlmostEqual(p.chrono_reserve, 50.0)
+
+
+class TestSingularityPressure(unittest.TestCase):
+    """singularity_pressure drives the difficulty curve: 0.0 at start, 1.0 at last playable node."""
+
+    from src.data.run_state import RunState as _RS
+
+    def _run(self, node_idx: int):
+        from src.data.run_state import RunState
+        rs = RunState(
+            fold_stability=100.0, current_node_idx=node_idx,
+            run_seed=0, is_active=True,
+            combat_levels=[0, 2], hole_outcomes=[True, False],
+        )
+        return rs
+
+    def test_pressure_zero_at_start(self) -> None:
+        self.assertAlmostEqual(self._run(0).singularity_pressure, 0.0)
+
+    def test_pressure_one_at_last_playable(self) -> None:
+        # 5-node sequence: last playable = node 3 (node 4 is singularity)
+        self.assertAlmostEqual(self._run(3).singularity_pressure, 1.0)
+
+    def test_pressure_increases_monotonically(self) -> None:
+        pressures = [self._run(i).singularity_pressure for i in range(4)]
+        for a, b in zip(pressures, pressures[1:]):
+            self.assertGreater(b, a)
+
+    def test_pressure_capped_at_one(self) -> None:
+        self.assertLessEqual(self._run(4).singularity_pressure, 1.0)
+
+    def test_regen_mult_is_one_at_zero_pressure(self) -> None:
+        pressure = 0.0
+        mult = 1.0 - pressure * (1.0 - C.SINGULARITY_CHRONO_REGEN_MIN_MULT)
+        self.assertAlmostEqual(mult, 1.0)
+
+    def test_regen_mult_is_min_at_max_pressure(self) -> None:
+        pressure = 1.0
+        mult = 1.0 - pressure * (1.0 - C.SINGULARITY_CHRONO_REGEN_MIN_MULT)
+        self.assertAlmostEqual(mult, C.SINGULARITY_CHRONO_REGEN_MIN_MULT)
+
+    def test_cost_mult_is_one_at_zero_pressure(self) -> None:
+        pressure = 0.0
+        mult = 1.0 + pressure * (C.SINGULARITY_ABILITY_COST_MAX_MULT - 1.0)
+        self.assertAlmostEqual(mult, 1.0)
+
+    def test_cost_mult_is_max_at_max_pressure(self) -> None:
+        pressure = 1.0
+        mult = 1.0 + pressure * (C.SINGULARITY_ABILITY_COST_MAX_MULT - 1.0)
+        self.assertAlmostEqual(mult, C.SINGULARITY_ABILITY_COST_MAX_MULT)
+
 
 class TestLevel04(unittest.TestCase):
     """Level 04 geometry guarantees that Time Dilation is required to complete it."""
