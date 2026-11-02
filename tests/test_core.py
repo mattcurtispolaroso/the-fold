@@ -543,22 +543,34 @@ class TestLevelLoading(unittest.TestCase):
     def test_load_level_01(self):
         renderer = LevelRenderer()
         data = renderer.load(main.LEVELS[0])
-        self.assertEqual(data.name, "Test Level")
+        self.assertEqual(data.name, "The Dividing Wall")
 
     def test_level_01_has_correct_platform_count(self):
-        self.assertEqual(len(_level.static_platforms), 7)
+        self.assertEqual(len(_level.static_platforms), 8)
 
     def test_level_01_has_correct_moving_platform_count(self):
-        self.assertEqual(len(_level.moving_platforms), 2)
+        self.assertEqual(len(_level.moving_platforms), 1)
 
     def test_level_01_spawn(self):
-        self.assertEqual(_level.spawn, (110.0, 300.0))
+        self.assertEqual(_level.spawn, (100.0, 772.0))
 
     def test_level_01_gravity_start(self):
         self.assertEqual(_level.gravity_start, (0, 1))
 
     def test_level_01_goal_rect(self):
-        self.assertEqual(_level.goal_rect, pygame.Rect(15, 100, 50, 40))
+        self.assertEqual(_level.goal_rect, pygame.Rect(660, 490, 220, 90))
+
+    def test_level_01_physics_gate_gap(self):
+        """Vertical wall gap (y=730-820 = 90px) fits RIGHT gravity (64px) but blocks DOWN (96px)."""
+        with open(main.LEVELS[0]) as f:
+            data = json.load(f)
+        gate = next(p for p in data["static_platforms"] if p["x"] == 540)
+        floor = next(p for p in data["static_platforms"] if p["x"] == 0 and p["y"] == 820)
+        gap = floor["y"] - (gate["y"] + gate["h"])
+        self.assertGreater(gap, C.PLAYER_PHYSICS_HEIGHT_HORIZONTAL,
+            f"Gap {gap}px must fit horizontal player ({C.PLAYER_PHYSICS_HEIGHT_HORIZONTAL}px)")
+        self.assertLess(gap, C.PLAYER_PHYSICS_HEIGHT_NORMAL,
+            f"Gap {gap}px must block normal player ({C.PLAYER_PHYSICS_HEIGHT_NORMAL}px)")
 
     def test_roundtrip_serialisation(self):
         data = LevelData.load(main.LEVELS[0])
@@ -620,19 +632,21 @@ class TestGoalDetection(unittest.TestCase):
 class TestLevelGeometry(unittest.TestCase):
     """Level layout sanity checks using loaded level."""
 
-    def test_all_platforms_within_screen(self):
+    def test_all_platforms_within_level(self):
+        W, H = _level.level_width, _level.level_height
         for i, plat in enumerate(_level.static_platforms):
-            self.assertGreaterEqual(plat.left, 0, f"Platform {i} left edge off-screen")
-            self.assertLessEqual(plat.right, main.WIDTH, f"Platform {i} right edge off-screen")
-            self.assertGreaterEqual(plat.top, 0, f"Platform {i} top edge off-screen")
-            self.assertLessEqual(plat.bottom, main.HEIGHT, f"Platform {i} bottom edge off-screen")
+            self.assertGreaterEqual(plat.left, 0, f"Platform {i} left edge off-level")
+            self.assertLessEqual(plat.right, W, f"Platform {i} right edge off-level")
+            self.assertGreaterEqual(plat.top, 0, f"Platform {i} top edge off-level")
+            self.assertLessEqual(plat.bottom, H, f"Platform {i} bottom edge off-level")
 
-    def test_goal_within_screen(self):
+    def test_goal_within_level(self):
+        W, H = _level.level_width, _level.level_height
         g = _level.goal_rect
         self.assertGreaterEqual(g.left, 0)
-        self.assertLessEqual(g.right, main.WIDTH)
+        self.assertLessEqual(g.right, W)
         self.assertGreaterEqual(g.top, 0)
-        self.assertLessEqual(g.bottom, main.HEIGHT)
+        self.assertLessEqual(g.bottom, H)
 
     def test_start_platform_at_bottom_left(self):
         start = _level.static_platforms[0]

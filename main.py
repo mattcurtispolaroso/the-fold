@@ -18,6 +18,7 @@ from constants import (
     DEBUG_ITEMS,
     FOLD_STABILITY_INTEGRITY_COST,
     FOLD_STABILITY_MAX,
+    GRAVITY_ROTATION_COOLDOWN,
     HOLE_ENCOUNTER_PHASE1_DURATION,
     HOLE_ENCOUNTER_PHASE2_DURATION,
     FPS,
@@ -194,6 +195,7 @@ def main() -> None:
     reward_offers: list = []
     pending_node_advance: bool = False
     anomaly_pending: bool = False
+    rotation_cooldown: float = 0.0
 
     physics_history: deque = deque(maxlen=50)
     watchdog_consecutive: int = 0
@@ -223,7 +225,7 @@ def main() -> None:
                                 current_level_idx = run_state.combat_level_for_current_node()
                                 level.load(LEVELS[current_level_idx])
                                 _reset_level_state(level, player, camera, animator, enemies)
-                                physics_accumulator = flash_timer = 0.0
+                                physics_accumulator = flash_timer = rotation_cooldown = 0.0
                                 time_dilation.reset()
                                 game_state = "playing"
                                 bus.emit(GameEvent.ROOM_ENTERED)
@@ -233,7 +235,7 @@ def main() -> None:
                                 )
                                 level.load(anomaly_path)
                                 _reset_level_state(level, player, camera, animator, enemies)
-                                physics_accumulator = flash_timer = 0.0
+                                physics_accumulator = flash_timer = rotation_cooldown = 0.0
                                 time_dilation.reset()
                                 anomaly_pending = True
                                 game_state = "playing"
@@ -278,7 +280,7 @@ def main() -> None:
                             debug_draw = not debug_draw
                         if DEBUG_ITEMS and event.key == pygame.K_f:
                             _grant_debug_items(run_state, item_manager, item_registry)
-                        if event.key == pygame.K_r:
+                        if event.key == pygame.K_r and rotation_cooldown <= 0:
                             bus.emit(GameEvent.GRAVITY_ROTATED, gravity_dir=player.gravity_dir)
                             player.set_gravity(rotate_gravity_ccw(player.gravity_dir))
                             player.px = round(player.px)
@@ -294,6 +296,7 @@ def main() -> None:
                             camera.on_gravity_rotate()
                             camera.shake(ROTATE_SHAKE_INTENSITY, ROTATE_SHAKE_DURATION)
                             flash_timer = ROTATION_FLASH_DURATION
+                            rotation_cooldown = GRAVITY_ROTATION_COOLDOWN
                             for e in enemies:
                                 e.on_gravity_rotate()
                             if player.gravity_dir == (0, 1):
@@ -326,6 +329,7 @@ def main() -> None:
                 time_dilation.tick(frame_dt, bus)
                 item_manager.tick(frame_dt)
                 time_scale = time_dilation.time_scale()
+                rotation_cooldown = max(0.0, rotation_cooldown - frame_dt)
                 if flash_timer > 0:
                     flash_timer = max(0.0, flash_timer - frame_dt)
 
@@ -363,12 +367,13 @@ def main() -> None:
                         )
 
                     level.update(time_scale)
-                    for e in enemies:
-                        e.update(
-                            time_scale, dt=PHYSICS_DT,
-                            player_px=player.px, player_py=player.py,
-                            gravity_dir=player.gravity_dir,
-                        )
+                    if not anomaly_pending:
+                        for e in enemies:
+                            e.update(
+                                time_scale, dt=PHYSICS_DT,
+                                player_px=player.px, player_py=player.py,
+                                gravity_dir=player.gravity_dir,
+                            )
                     if player.on_ground:
                         pvx, pvy = level.riding_velocity(
                             player.px, player.py, player.player_w, player.player_h,
@@ -412,7 +417,7 @@ def main() -> None:
                         if player.take_fall_damage():
                             result = bus.emit(GameEvent.INTEGRITY_ZERO)
                             level_reset = not result.cancelled
-                if not level_reset:
+                if not level_reset and not anomaly_pending:
                     for e in enemies:
                         if check_hit(player, e):
                             hit_result = bus.emit(GameEvent.PLAYER_HIT)
@@ -434,7 +439,7 @@ def main() -> None:
                         run_state.is_active = False
                     else:
                         _reset_level_state(level, player, camera, animator, enemies)
-                    physics_accumulator = flash_timer = 0.0
+                    physics_accumulator = flash_timer = rotation_cooldown = 0.0
                     time_dilation.reset()
 
                 camera.update(player.px, player.py, frame_dt)
@@ -490,14 +495,15 @@ def main() -> None:
                 draw_win_screen(screen, font, run_state, WIDTH, HEIGHT)
             else:  # "playing"
                 cam_offset = camera.offset
-                draw_world(screen, background, level, enemies, animator, player,
-                           player_state, cam_offset, debug_draw)
+                draw_world(screen, background, level, [] if anomaly_pending else enemies,
+                           animator, player, player_state, cam_offset, debug_draw)
                 if debug_draw:
                     draw_debug_overlay(screen, font, player, cam_offset, HEIGHT)
                 draw_fold_tint(screen, fold_tint_surf, run_state.fold_stability)
                 draw_flash_overlay(screen, flash_surf, flash_timer)
                 draw_hud(screen, font, player, time_dilation.active_timer,
-                         time_dilation.cooldown_timer, WIDTH, HEIGHT)
+                         time_dilation.cooldown_timer, WIDTH, HEIGHT,
+                         rotation_cooldown=rotation_cooldown, in_anomaly=anomaly_pending)
             pygame.display.flip()
 
     except Exception as e:

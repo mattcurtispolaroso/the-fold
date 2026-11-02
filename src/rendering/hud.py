@@ -96,12 +96,18 @@ def draw_hud(
     dilation_cooldown_timer: float,
     screen_width: int,
     screen_height: int,
+    rotation_cooldown: float = 0.0,
+    in_anomaly: bool = False,
 ) -> None:
     """Draw always-visible resource HUD: integrity pips, chrono bar, dilation status."""
     _draw_integrity_pips(screen, player.anchor_integrity)
     _draw_chrono_bar(screen, font, player.chrono_reserve, screen_height)
     _draw_dilation_status(screen, font, dilation_timer, dilation_cooldown_timer,
                           screen_width, screen_height)
+    if rotation_cooldown > 0:
+        _draw_rotation_cooldown(screen, font, rotation_cooldown, screen_width)
+    if in_anomaly:
+        _draw_anomaly_label(screen, font, screen_width)
     if player.goal_reached:
         gt = font.render("GOAL REACHED!", True, _GREEN)
         screen.blit(gt, (screen_width // 2 - gt.get_width() // 2, screen_height // 2))
@@ -157,6 +163,23 @@ def _draw_dilation_status(
         return
     surf = font.render(text, True, color)
     screen.blit(surf, (screen_width // 2 - surf.get_width() // 2, screen_height - 52))
+
+
+def _draw_rotation_cooldown(
+    screen: pygame.Surface, font: pygame.font.Font,
+    rotation_cooldown: float, screen_width: int,
+) -> None:
+    """Show a brief locked indicator top-right while gravity rotation is on cooldown."""
+    surf = font.render(f"GRAVITY  {rotation_cooldown:.1f}s", True, (160, 140, 80))
+    screen.blit(surf, (screen_width - surf.get_width() - 14, C.HUD_PIP_Y))
+
+
+def _draw_anomaly_label(
+    screen: pygame.Surface, font: pygame.font.Font, screen_width: int,
+) -> None:
+    """Show ANOMALY label at top-centre during hole encounter levels."""
+    surf = font.render("ANOMALY", True, (120, 100, 160))
+    screen.blit(surf, (screen_width // 2 - surf.get_width() // 2, C.HUD_PIP_Y))
 
 
 def draw_fold_tint(
@@ -317,10 +340,16 @@ def draw_hole_screen(
     else:
         if is_white:
             color = (180, 220, 255)
-            lines = ["WHITE HOLE", "TEMPORAL ANCHOR RESTORED"]
+            lines = [
+                "WHITE HOLE",
+                f"ANCHOR RESTORED  +{C.WHITE_HOLE_STABILITY_RESTORE:.0f} STABILITY",
+            ]
         else:
             color = (220, 80, 80)
-            lines = ["BLACK HOLE", "ANCHOR DESTABILISED"]
+            lines = [
+                "BLACK HOLE",
+                f"ANCHOR DESTABILISED  −{C.BLACK_HOLE_STABILITY_COST:.0f} STABILITY",
+            ]
         for j, text in enumerate(lines):
             surf = font.render(text, True, color)
             screen.blit(surf, (cx - surf.get_width() // 2, cy - 20 + j * 50))

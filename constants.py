@@ -27,6 +27,9 @@ ROTATION_FLASH_COLOR: tuple = (200, 220, 255)  # pale blue-white
 ROTATION_FLASH_DURATION: float = 0.35          # seconds to fade out
 ROTATION_FLASH_MAX_ALPHA: int = 90             # peak opacity (0-255)
 
+# --- Gravity Rotation Cooldown ---
+GRAVITY_ROTATION_COOLDOWN: float = 0.5  # seconds between rotations
+
 # --- Physics Scale ---
 PPM: int = 50                                             # pixels per meter
 EARTH_GRAVITY: float = 9.8                                # m/s²
