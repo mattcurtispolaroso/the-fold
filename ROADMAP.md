@@ -87,19 +87,24 @@ Done when: a ~10 min run from start to singularity or death is completable. **Ga
 - M5e — The Anchored enemy ✅ Done 2026-11-01 — wander/stutter AI, frozen by Time Dilation, no-op on gravity rotate
 - Audio v1 — deferred
 
-**M6. Polish Beta**
-VFX (pooled particles), juice, full rotation cinematic, singularity difficulty curve tuning, art pass.
+**M6. Polish Beta** ✅ Done 2026-11-02
+- Variable gravity: singularity pressure + per-level multiplier ✅
+- Gravity zones: local fields that snap direction or scale strength ✅
+- Gravity drain + snap-back: chrono drains off-default gravity, snaps back at 0 ✅
+- Hard landing damage: impact above threshold costs 1 integrity ✅
+- VFX pass: rotation burst, hit spark, landing dust (visual tuning deferred — see Needs revisit) ✅
+- Rotation cinematic: zoom-in → hold → zoom-out (1.08× / 0.18s) ✅
 
 **M7. Ship**
 Save/meta-progression, second character, Mac/Windows PyInstaller builds, Steam integration.
 
 ## Current milestone
-**M6 — Polish Beta**
+**M7 — Ship**
 
 ## This sprint (max 3 tasks)
-- [ ] M6: Rotation cinematic (zoom in → rotate → zoom out)
-- [~] M6: VFX pass — implemented (rotation burst, hit spark, landing dust) but visual feel needs a revisit pass before it's done
-- [ ] M6: Singularity difficulty curve (regen/power scale by node position)
+- [ ] M7a: Save + meta-progression — persistent unlocks, run stats, atomic save with corruption recovery
+- [ ] M7b: Second character (The Archivist) — White Hole ultimate, distinct starting kit
+- [ ] M7c: Mac + Windows PyInstaller builds — single-file executables, test on both platforms
 
 ## Needs revisit
 - VFX particles (rotation burst, hit spark, landing dust) — mechanic is wired, visual execution needs tuning. Particle sizes, speeds, colours, and counts all open. Revisit once we have a clearer feel for the visual language.
@@ -141,6 +146,6 @@ Cult enemies (Witness, Ordained, Architect); Archivist and Diplomat characters; 
 
 ## Last session
 Date: 2026-11-02
-Did: M5c (anomaly rooms) + bug fixes. 3 anomaly room JSONs with distinct gravity theses; seeded room picker; wired into hole node flow. Fixed rapid-rotation disappear (immediate resolve_collisions in K_r handler instead of cooldown). Fixed level_04 enemies falling into void (added floor sections under spawn points). Improved hole outcome screen (shows resource numbers). Redesigned level_01 as physics gate puzzle. Enemies suppressed during anomaly rooms.
-State of tests: 497 passing
-Next up: M6 — rotation cinematic, VFX pass, or singularity difficulty curve.
+Did: M6 complete. Variable gravity with singularity pressure curve; gravity zones (direction snap + strength scale); chrono drain while off-default gravity with snap-back at 0; hard landing damage; pooled VFX particles (rotation burst, hit spark, landing dust); rotation cinematic zoom (1.08× / 0.18s total). Tuned zoom duration from 0.39s → 0.18s at user direction.
+State of tests: 560 passing
+Next up: M7 — Save/meta-progression, second character, PyInstaller builds.
