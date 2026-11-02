@@ -17,6 +17,10 @@ from constants import (
     CAMERA_RECENTRE_DURATION,
     CAMERA_RECENTRE_SPEED,
     CAMERA_ZOOM_SPEED,
+    ROTATION_ZOOM_HOLD_DUR,
+    ROTATION_ZOOM_IN_DUR,
+    ROTATION_ZOOM_OUT_DUR,
+    ROTATION_ZOOM_PEAK,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
 )
@@ -55,6 +59,10 @@ class Camera:
         # Zoom
         self._zoom: float = 1.0
         self._target_zoom: float = 1.0
+
+        # Rotation cinematic
+        self._cinematic_active: bool = False
+        self._cinematic_timer: float = 0.0
 
         # Gravity rotation re-centre
         self._recentre_timer: float = 0.0
@@ -161,8 +169,28 @@ class Camera:
         """Set target zoom (lerps toward it)."""
         self._target_zoom = max(0.1, value)
 
+    def start_rotation_cinematic(self) -> None:
+        """Begin zoom-in → hold → zoom-out sequence around a gravity rotation."""
+        self._cinematic_timer = 0.0
+        self._cinematic_active = True
+
     def _update_zoom(self, dt: float) -> None:
-        """Lerp current zoom toward target."""
+        """Drive cinematic zoom sequence; otherwise lerp toward target."""
+        if self._cinematic_active:
+            self._cinematic_timer += dt
+            _total = ROTATION_ZOOM_IN_DUR + ROTATION_ZOOM_HOLD_DUR + ROTATION_ZOOM_OUT_DUR
+            if self._cinematic_timer < ROTATION_ZOOM_IN_DUR:
+                t = self._cinematic_timer / ROTATION_ZOOM_IN_DUR
+                self._zoom = 1.0 + (ROTATION_ZOOM_PEAK - 1.0) * (1.0 - (1.0 - t) ** 2)
+            elif self._cinematic_timer < ROTATION_ZOOM_IN_DUR + ROTATION_ZOOM_HOLD_DUR:
+                self._zoom = ROTATION_ZOOM_PEAK
+            elif self._cinematic_timer < _total:
+                t = (self._cinematic_timer - ROTATION_ZOOM_IN_DUR - ROTATION_ZOOM_HOLD_DUR) / ROTATION_ZOOM_OUT_DUR
+                self._zoom = ROTATION_ZOOM_PEAK + (1.0 - ROTATION_ZOOM_PEAK) * (t * t)
+            else:
+                self._zoom = 1.0
+                self._cinematic_active = False
+            return
         diff = self._target_zoom - self._zoom
         self._zoom += diff * min(CAMERA_ZOOM_SPEED * dt, 1.0)
 

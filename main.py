@@ -179,6 +179,7 @@ def main() -> None:
     animator = PlayerAnimator()
     flash_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
     fold_tint_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+    world_surf = pygame.Surface((WIDTH, HEIGHT))
     particles = ParticlePool()
 
     player = Player.from_spawn(level.spawn, tuple(level.gravity_start))
@@ -314,6 +315,7 @@ def main() -> None:
                                 player.coyote_timer = COYOTE_TIME
                                 player.jumping = False
                             camera.on_gravity_rotate()
+                            camera.start_rotation_cinematic()
                             camera.shake(ROTATE_SHAKE_INTENSITY, ROTATE_SHAKE_DURATION)
                             flash_timer = ROTATION_FLASH_DURATION
                             particles.emit_rotation_burst(player.px, player.py)
@@ -387,6 +389,7 @@ def main() -> None:
                             player.coyote_timer = COYOTE_TIME
                             player.jumping = False
                         camera.on_gravity_rotate()
+                        camera.start_rotation_cinematic()
                         camera.shake(ROTATE_SHAKE_INTENSITY, ROTATE_SHAKE_DURATION)
                         flash_timer = ROTATION_FLASH_DURATION
                         particles.emit_rotation_burst(player.px, player.py)
@@ -530,6 +533,7 @@ def main() -> None:
                         player.coyote_timer = COYOTE_TIME
                         player.jumping = False
                     camera.on_gravity_rotate()
+                    camera.start_rotation_cinematic()
                     camera.shake(ROTATE_SHAKE_INTENSITY, ROTATE_SHAKE_DURATION)
                     flash_timer = ROTATION_FLASH_DURATION
                     particles.emit_rotation_burst(player.px, player.py)
@@ -632,9 +636,19 @@ def main() -> None:
                 draw_win_screen(screen, font, run_state, WIDTH, HEIGHT)
             else:  # "playing"
                 cam_offset = camera.offset
-                draw_world(screen, background, level, [] if anomaly_pending else enemies,
-                           animator, player, player_state, cam_offset, debug_draw)
-                particles.draw(screen, cam_offset)
+                _draw_enemies = [] if anomaly_pending else enemies
+                if abs(camera.zoom - 1.0) > 0.005:
+                    draw_world(world_surf, background, level, _draw_enemies,
+                               animator, player, player_state, cam_offset, debug_draw)
+                    particles.draw(world_surf, cam_offset)
+                    _sw = int(WIDTH * camera.zoom)
+                    _sh = int(HEIGHT * camera.zoom)
+                    _scaled = pygame.transform.scale(world_surf, (_sw, _sh))
+                    screen.blit(_scaled, ((WIDTH - _sw) // 2, (HEIGHT - _sh) // 2))
+                else:
+                    draw_world(screen, background, level, _draw_enemies,
+                               animator, player, player_state, cam_offset, debug_draw)
+                    particles.draw(screen, cam_offset)
                 if debug_draw:
                     draw_debug_overlay(screen, font, player, cam_offset, HEIGHT)
                 draw_fold_tint(screen, fold_tint_surf, run_state.fold_stability)

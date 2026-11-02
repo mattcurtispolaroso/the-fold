@@ -27,6 +27,12 @@ ROTATION_FLASH_COLOR: tuple = (200, 220, 255)  # pale blue-white
 ROTATION_FLASH_DURATION: float = 0.35          # seconds to fade out
 ROTATION_FLASH_MAX_ALPHA: int = 90             # peak opacity (0-255)
 
+# --- Rotation Cinematic Zoom ---
+ROTATION_ZOOM_PEAK: float = 1.35    # zoom factor at cinematic peak
+ROTATION_ZOOM_IN_DUR: float = 0.12  # seconds to zoom in (ease-out)
+ROTATION_ZOOM_HOLD_DUR: float = 0.05  # seconds held at peak
+ROTATION_ZOOM_OUT_DUR: float = 0.22  # seconds to zoom out (ease-in)
+
 # --- Physics Scale ---
 PPM: int = 50                                             # pixels per meter
 EARTH_GRAVITY: float = 9.8                                # m/s²
