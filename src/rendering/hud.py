@@ -189,15 +189,23 @@ def draw_start_screen(
     font: pygame.font.Font,
     screen_width: int,
     screen_height: int,
+    meta: object = None,
 ) -> None:
-    """Draw the pre-run start screen."""
+    """Draw the pre-run start screen with optional all-time meta stats."""
     screen.fill((0, 0, 0))
     title = font.render("THE FOLD", True, (200, 220, 255))
     prompt = font.render("Press ENTER to begin", True, (120, 140, 180))
     cx = screen_width // 2
     cy = screen_height // 2
-    screen.blit(title, (cx - title.get_width() // 2, cy - 40))
-    screen.blit(prompt, (cx - prompt.get_width() // 2, cy + 20))
+    screen.blit(title, (cx - title.get_width() // 2, cy - 60))
+    screen.blit(prompt, (cx - prompt.get_width() // 2, cy))
+    if meta is not None and meta.total_runs > 0:
+        stats = font.render(
+            f"Runs: {meta.total_runs}   Wins: {meta.runs_won}   "
+            f"Best stability: {meta.best_stability:.0f}",
+            True, (70, 80, 100),
+        )
+        screen.blit(stats, (cx - stats.get_width() // 2, cy + 50))
 
 
 def draw_node_map(
@@ -349,12 +357,13 @@ def draw_death_screen(
     run_state: object,
     screen_width: int,
     screen_height: int,
+    meta: object = None,
 ) -> None:
-    """Draw the end-of-run death screen with stats."""
+    """Draw the end-of-run death screen with stats and all-time bests."""
     screen.fill((0, 0, 0))
     cx, cy = screen_width // 2, screen_height // 2
     title = font.render("RUN OVER", True, (220, 80, 80))
-    screen.blit(title, (cx - title.get_width() // 2, cy - 80))
+    screen.blit(title, (cx - title.get_width() // 2, cy - 90))
     stats = [
         f"Nodes reached:   {run_state.current_node_idx} / {run_state.node_count}",
         f"Deaths:          {run_state.deaths}",
@@ -362,9 +371,16 @@ def draw_death_screen(
     ]
     for j, line in enumerate(stats):
         surf = font.render(line, True, (160, 160, 180))
-        screen.blit(surf, (cx - surf.get_width() // 2, cy + j * 40))
+        screen.blit(surf, (cx - surf.get_width() // 2, cy - 20 + j * 40))
+    if meta is not None and meta.total_runs > 0:
+        best = font.render(
+            f"All time — Runs: {meta.total_runs}   Wins: {meta.runs_won}   "
+            f"Best stability: {meta.best_stability:.0f}",
+            True, (70, 80, 100),
+        )
+        screen.blit(best, (cx - best.get_width() // 2, cy + 120))
     prompt = font.render("Press ENTER", True, (80, 100, 140))
-    screen.blit(prompt, (cx - prompt.get_width() // 2, cy + 160))
+    screen.blit(prompt, (cx - prompt.get_width() // 2, cy + 170))
 
 
 def draw_win_screen(
@@ -373,12 +389,13 @@ def draw_win_screen(
     run_state: object,
     screen_width: int,
     screen_height: int,
+    meta: object = None,
 ) -> None:
     """Draw the win screen shown when the singularity node is reached."""
     screen.fill((0, 0, 0))
     cx, cy = screen_width // 2, screen_height // 2
     title = font.render("THE FOLD HOLDS", True, (200, 220, 100))
-    screen.blit(title, (cx - title.get_width() // 2, cy - 80))
+    screen.blit(title, (cx - title.get_width() // 2, cy - 90))
     stats = [
         f"Nodes reached:   {run_state.current_node_idx} / {run_state.node_count}",
         f"Deaths:          {run_state.deaths}",
@@ -386,6 +403,13 @@ def draw_win_screen(
     ]
     for j, line in enumerate(stats):
         surf = font.render(line, True, (160, 160, 180))
-        screen.blit(surf, (cx - surf.get_width() // 2, cy + j * 40))
+        screen.blit(surf, (cx - surf.get_width() // 2, cy - 20 + j * 40))
+    if meta is not None and meta.total_runs > 0:
+        best = font.render(
+            f"All time — Runs: {meta.total_runs}   Wins: {meta.runs_won}   "
+            f"Best stability: {meta.best_stability:.0f}",
+            True, (70, 80, 100),
+        )
+        screen.blit(best, (cx - best.get_width() // 2, cy + 120))
     prompt = font.render("Press ENTER", True, (80, 100, 140))
-    screen.blit(prompt, (cx - prompt.get_width() // 2, cy + 160))
+    screen.blit(prompt, (cx - prompt.get_width() // 2, cy + 170))

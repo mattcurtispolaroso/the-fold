@@ -70,6 +70,7 @@ from src.systems.items import ItemManager, load_item_registry
 from src.systems.items.effects import EffectContext
 from src.systems.items.offers import generate_offers
 from src.data.items import OwnedItem
+from src.data.save_manager import SaveManager, MetaProgress
 from src.systems.logging_manager import LoggingManager
 from src.systems.spacetime import make_time_dilation
 from src.systems.level_generator import pick_anomaly_room
@@ -167,6 +168,9 @@ def main() -> None:
     logger.log_event("Game started")
     font = load_font(BASE_DIR)
 
+    save_manager = SaveManager(os.path.join(BASE_DIR, "save.json"))
+    meta = save_manager.load()
+
     current_level_idx = 0
     level = LevelRenderer()
     level.load(LEVELS[current_level_idx])
@@ -255,6 +259,12 @@ def main() -> None:
                             elif node_type == "singularity":
                                 game_state = "win"
                         elif game_state in ("dead", "win"):
+                            meta.record_run(
+                                won=(game_state == "win"),
+                                fold_stability=run_state.fold_stability,
+                                nodes_reached=run_state.current_node_idx,
+                            )
+                            save_manager.save(meta)
                             game_state = "start"
                             run_state.is_active = False
                             current_level_idx = 0
@@ -616,7 +626,7 @@ def main() -> None:
                     time_dilation.reset()
 
             if game_state == "start":
-                draw_start_screen(screen, font, WIDTH, HEIGHT)
+                draw_start_screen(screen, font, WIDTH, HEIGHT, meta)
             elif game_state == "node_map":
                 draw_node_map(screen, font, run_state, WIDTH, HEIGHT, registry=item_registry)
             elif game_state == "reward":
@@ -631,9 +641,9 @@ def main() -> None:
             elif game_state == "hole_encounter":
                 draw_hole_screen(screen, font, hole_timer, hole_is_white, WIDTH, HEIGHT)
             elif game_state == "dead":
-                draw_death_screen(screen, font, run_state, WIDTH, HEIGHT)
+                draw_death_screen(screen, font, run_state, WIDTH, HEIGHT, meta)
             elif game_state == "win":
-                draw_win_screen(screen, font, run_state, WIDTH, HEIGHT)
+                draw_win_screen(screen, font, run_state, WIDTH, HEIGHT, meta)
             else:  # "playing"
                 cam_offset = camera.offset
                 _draw_enemies = [] if anomaly_pending else enemies
