@@ -98,8 +98,11 @@ Save/meta-progression, second character, Mac/Windows PyInstaller builds, Steam i
 
 ## This sprint (max 3 tasks)
 - [ ] M6: Rotation cinematic (zoom in → rotate → zoom out)
-- [ ] M6: VFX pass (particle bursts on rotate, hit sparks, landing dust)
+- [~] M6: VFX pass — implemented (rotation burst, hit spark, landing dust) but visual feel needs a revisit pass before it's done
 - [ ] M6: Singularity difficulty curve (regen/power scale by node position)
+
+## Needs revisit
+- VFX particles (rotation burst, hit spark, landing dust) — mechanic is wired, visual execution needs tuning. Particle sizes, speeds, colours, and counts all open. Revisit once we have a clearer feel for the visual language.
 
 ## Known bugs / open items
 - Up/W doubles as move and jump in horizontal gravity | annoying, may cause unintended jumps | deliberately left as is for now (see Decisions log)
