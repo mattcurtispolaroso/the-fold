@@ -74,8 +74,16 @@ Done when: an arena room is winnable and losable, and dilation changes how you f
   - [x] Win screen (singularity reached) ✅
 Done when: a ~10 min run from start to singularity or death is completable. **Gate:** external playtest. Is it fun? Go / redesign / cut.
 
-**M5. Content Alpha** (post-gate)
-Data-driven item system; 3 abilities, 3 modifiers, 3 artifacts; Fold Predator and The Anchored enemies; procedural room generation (valid in 2+ gravity orientations); real node map UI; HUD; audio v1.
+**M5. Content Alpha** (in progress)
+- M5a — Run Build System ✅ Done 2026-11-01
+  - [x] EventBus + AbilitySlot framework (zero behaviour change) ✅
+  - [x] 6 modifiers, 3 artifacts, 3 resonances in JSON ✅
+  - [x] ItemManager — subscribes owned items to event bus, internal cooldowns, resonance detection ✅
+  - [x] Reward flow — pick-1-of-3 after combat rooms and white holes, seeded offers, Paradox artifacts ✅
+  - [x] Session 4 tuning pass ✅ — white hole no longer gives reward screen (resource restore is the reward); PARADOX_OFFER_CHANCE 25% → 15%
+- M5b — Fold Predator enemy (next)
+- M5c — Anomaly rooms (procedural room generation, valid in 2+ gravity orientations)
+- M5d — HUD + audio v1
 
 **M6. Polish Beta**
 VFX (pooled particles), juice, full rotation cinematic, singularity difficulty curve tuning, art pass.
@@ -84,12 +92,12 @@ VFX (pooled particles), juice, full rotation cinematic, singularity difficulty c
 Save/meta-progression, second character, Mac/Windows PyInstaller builds, Steam integration.
 
 ## Current milestone
-**M4 — First Run** ✅ Done 2026-11-01
+**M5 — Content Alpha** (in progress)
 
 ## This sprint (max 3 tasks)
-- [x] Node map + hole encounters (M4b) ✅
-- [x] Death screen + win screen (M4b) ✅
-- [x] External playtest — loop confirmed fun. Go. ✅
+- [x] M5a S1: EventBus + AbilitySlot refactor ✅
+- [x] M5a S2: Item system (6 modifiers, 3 artifacts, 3 resonances, ItemManager) ✅
+- [x] M5a S3: Reward flow (pick-1-of-3, seeded offers, Paradox artifacts, node map items display) ✅
 
 ## Known bugs / open items
 - Up/W doubles as move and jump in horizontal gravity | annoying, may cause unintended jumps | deliberately left as is for now (see Decisions log)
@@ -124,6 +132,6 @@ Cult enemies (Witness, Ordained, Architect); Archivist and Diplomat characters; 
 
 ## Last session
 Date: 2026-11-01
-Did: Fixed rotation rendering bug — goal detection now uses player center point (collidepoint) instead of physics rect, preventing accidental goal triggers when gravity rotation resizes the rect. Removed gravity_rotated_this_frame workaround. Added TestLevelGoalValidity test suite. M4 playtest gate passed — loop confirmed fun.
-State of tests: 352 passing
-Next up: M5 Content Alpha.
+Did: M5a complete — EventBus + item system + reward flow. 6 modifiers, 3 artifacts, 3 resonances in JSON. ItemManager subscribes items to event bus. Reward screen (pick-1-of-3) after combat rooms and white holes, seeded deterministic offers, domain pull, rank-ups, Paradox artifacts cost fold_stability. F key grants all items for playtesting. Session 4 tuning pass deferred pending playtest.
+State of tests: 433 passing
+Next up: M5b — Fold Predator enemy, OR M5d — HUD (resources visible without debug), OR M5a S4 tuning after playtest.

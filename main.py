@@ -306,20 +306,8 @@ def main() -> None:
             if game_state == "hole_encounter":
                 hole_timer = max(0.0, hole_timer - frame_dt)
                 if hole_timer <= 0:
-                    if run_state.fold_stability <= 0.0:
-                        run_state.advance_node()
-                        game_state = "dead"
-                    elif hole_is_white:
-                        reward_offers = generate_offers(
-                            item_registry, _owned_item_list(run_state),
-                            run_state.run_seed, run_state.current_node_idx,
-                            getattr(run_state, "extra_reward_options", 0),
-                        )
-                        pending_node_advance = True
-                        game_state = "reward"
-                    else:
-                        run_state.advance_node()
-                        game_state = "node_map"
+                    run_state.advance_node()
+                    game_state = "dead" if run_state.fold_stability <= 0.0 else "node_map"
 
             if game_state == "playing":
                 time_dilation.tick(frame_dt, bus)
