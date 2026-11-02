@@ -84,6 +84,7 @@ Done when: a ~10 min run from start to singularity or death is completable. **Ga
 - M5b — Fold Predator enemy ✅ Done 2026-11-01
 - M5c — Anomaly rooms (procedural room generation, valid in 2+ gravity orientations)
 - M5d — HUD ✅ Done 2026-11-01 — integrity pips + chrono bar + dilation status; gravity label removed from production HUD
+- M5e — The Anchored enemy ✅ Done 2026-11-01 — wander/stutter AI, frozen by Time Dilation, no-op on gravity rotate
 - Audio v1 — deferred
 
 **M6. Polish Beta**
@@ -96,9 +97,10 @@ Save/meta-progression, second character, Mac/Windows PyInstaller builds, Steam i
 **M5 — Content Alpha** (in progress)
 
 ## This sprint (max 3 tasks)
-- [x] M5a S1: EventBus + AbilitySlot refactor ✅
-- [x] M5a S2: Item system (6 modifiers, 3 artifacts, 3 resonances, ItemManager) ✅
-- [x] M5a S3: Reward flow (pick-1-of-3, seeded offers, Paradox artifacts, node map items display) ✅
+- [x] M5b — Fold Predator enemy ✅
+- [x] M5d — HUD (always-visible resources) ✅
+- [x] M5e — The Anchored enemy ✅
+- [ ] M5c — Anomaly rooms (hand-authored templates, valid in 2+ gravity orientations)
 
 ## Known bugs / open items
 - Up/W doubles as move and jump in horizontal gravity | annoying, may cause unintended jumps | deliberately left as is for now (see Decisions log)
@@ -133,6 +135,6 @@ Cult enemies (Witness, Ordained, Architect); Archivist and Diplomat characters; 
 
 ## Last session
 Date: 2026-11-01
-Did: M5a complete — EventBus + item system + reward flow. 6 modifiers, 3 artifacts, 3 resonances in JSON. ItemManager subscribes items to event bus. Reward screen (pick-1-of-3) after combat rooms and white holes, seeded deterministic offers, domain pull, rank-ups, Paradox artifacts cost fold_stability. F key grants all items for playtesting. Session 4 tuning pass deferred pending playtest.
-State of tests: 433 passing
-Next up: M5b — Fold Predator enemy, OR M5d — HUD (resources visible without debug), OR M5a S4 tuning after playtest.
+Did: M5b (Fold Predator), M5d (HUD), M5e (The Anchored). Room now has both enemies — Fold Predator stunned by any gravity rotation, The Anchored frozen by Time Dilation. Always-visible HUD: 3 integrity pips, segmented chrono bar, dilation status. Single-enemy architecture expanded to enemies list.
+State of tests: 483 passing
+Next up: M5c — Anomaly rooms (hand-authored templates, valid in 2+ gravity orientations).
