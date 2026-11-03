@@ -157,7 +157,7 @@ ARTIFACT_COST_HAWKING_EMITTER: float = 25.0
 
 # --- Fold Stability (run survival resource) ---
 FOLD_STABILITY_MAX: float = 100.0
-FOLD_STABILITY_INTEGRITY_COST: float = 20.0  # lost per integrity-0 death (5 deaths end a run)
+FOLD_STABILITY_INTEGRITY_COST: float = 15.0  # lost per integrity-0 death (~6-7 deaths end a run)
 FOLD_TINT_THRESHOLD: float = 80.0            # stability below this → red tint starts
 FOLD_TINT_MAX_ALPHA: int = 110               # tint alpha at stability = 0
 
@@ -231,8 +231,8 @@ TIME_DILATION_FACTOR: float = 0.0     # platform time scale while active (0 = fr
 NODE_SEQUENCE: tuple = ("combat", "hole", "combat", "hole", "singularity")
 
 # --- Hole Encounter (M4b) ---
-WHITE_HOLE_STABILITY_RESTORE: float = 5.0    # fold_stability restored on white hole
-BLACK_HOLE_STABILITY_COST: float = 15.0      # fold_stability lost on black hole
+WHITE_HOLE_STABILITY_RESTORE: float = 15.0   # fold_stability restored on white hole
+BLACK_HOLE_STABILITY_COST: float = 10.0      # fold_stability lost on black hole
 HOLE_ENCOUNTER_PHASE1_DURATION: float = 1.5  # seconds showing "ENTERING THE ANOMALY..."
 HOLE_ENCOUNTER_PHASE2_DURATION: float = 2.0  # seconds showing the outcome
 

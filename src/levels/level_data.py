@@ -129,6 +129,40 @@ class GravityZoneDef:
 
 
 @dataclass
+class EnemyDef:
+    """An enemy spawn point defined in a level file."""
+
+    type: str       # "temporal_echo" | "fold_predator" | "anchored"
+    x: float        # centre x at spawn
+    y: float        # centre y at spawn
+    min_x: float    # left patrol bound
+    max_x: float    # right patrol bound
+    speed: float = 0.0  # 0.0 = use class default for that enemy type
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialise to JSON-compatible dict."""
+        d: dict[str, Any] = {
+            "type": self.type, "x": self.x, "y": self.y,
+            "min_x": self.min_x, "max_x": self.max_x,
+        }
+        if self.speed > 0.0:
+            d["speed"] = self.speed
+        return d
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> EnemyDef:
+        """Deserialise from dict."""
+        return cls(
+            type=str(d["type"]),
+            x=float(d["x"]),
+            y=float(d["y"]),
+            min_x=float(d["min_x"]),
+            max_x=float(d["max_x"]),
+            speed=float(d.get("speed", 0.0)),
+        )
+
+
+@dataclass
 class LevelData:
     """Complete level definition loaded from a JSON file."""
 
@@ -139,6 +173,7 @@ class LevelData:
     static_platforms: list[PlatformDef] = field(default_factory=list)
     moving_platforms: list[MovingPlatformDef] = field(default_factory=list)
     gravity_zones: list[GravityZoneDef] = field(default_factory=list)
+    enemies: list[EnemyDef] = field(default_factory=list)
     tile_size: int = 40
     level_width: int = 800
     level_height: int = 600
@@ -158,6 +193,7 @@ class LevelData:
             "static_platforms": [p.to_dict() for p in self.static_platforms],
             "moving_platforms": [p.to_dict() for p in self.moving_platforms],
             "gravity_zones": [z.to_dict() for z in self.gravity_zones],
+            "enemies": [e.to_dict() for e in self.enemies],
         }
 
     @classmethod
@@ -181,6 +217,9 @@ class LevelData:
             ],
             gravity_zones=[
                 GravityZoneDef.from_dict(z) for z in d.get("gravity_zones", [])
+            ],
+            enemies=[
+                EnemyDef.from_dict(e) for e in d.get("enemies", [])
             ],
         )
 

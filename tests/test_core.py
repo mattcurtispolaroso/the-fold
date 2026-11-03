@@ -612,6 +612,67 @@ class TestLevelDataValidation(unittest.TestCase):
         self.assertEqual(len(data.moving_platforms), 0)
         self.assertEqual(data.tile_size, 40)
 
+    def test_no_enemies_field_defaults_to_empty(self):
+        minimal = json.dumps({
+            "name": "minimal", "gravity_start": [0, 1], "spawn": [0, 0],
+            "goal": {"x": 0, "y": 0, "w": 10, "h": 10},
+        })
+        data = LevelData.from_json(minimal)
+        self.assertEqual(len(data.enemies), 0)
+
+
+class TestEnemyDef(unittest.TestCase):
+    """EnemyDef round-trips through JSON and loads from level files."""
+
+    def test_roundtrip_temporal_echo(self):
+        from src.levels.level_data import EnemyDef
+        e = EnemyDef(type="temporal_echo", x=100.0, y=790.0, min_x=30.0, max_x=500.0)
+        restored = EnemyDef.from_dict(e.to_dict())
+        self.assertEqual(restored.type, "temporal_echo")
+        self.assertAlmostEqual(restored.x, 100.0)
+        self.assertAlmostEqual(restored.min_x, 30.0)
+        self.assertAlmostEqual(restored.max_x, 500.0)
+        self.assertAlmostEqual(restored.speed, 0.0)
+
+    def test_speed_included_only_when_nonzero(self):
+        from src.levels.level_data import EnemyDef
+        e_default = EnemyDef(type="fold_predator", x=0.0, y=0.0, min_x=0.0, max_x=100.0)
+        self.assertNotIn("speed", e_default.to_dict())
+        e_custom = EnemyDef(type="fold_predator", x=0.0, y=0.0, min_x=0.0, max_x=100.0, speed=3.5)
+        self.assertIn("speed", e_custom.to_dict())
+        self.assertAlmostEqual(e_custom.to_dict()["speed"], 3.5)
+
+    def test_level_file_enemies_load_correctly(self):
+        data = LevelData.load("levels/level_01.json")
+        self.assertEqual(len(data.enemies), 1)
+        self.assertEqual(data.enemies[0].type, "temporal_echo")
+        self.assertAlmostEqual(data.enemies[0].y, 790.0)
+
+    def test_level_04_has_two_enemies(self):
+        data = LevelData.load("levels/level_04.json")
+        self.assertEqual(len(data.enemies), 2)
+        types = {e.type for e in data.enemies}
+        self.assertIn("fold_predator", types)
+        self.assertIn("anchored", types)
+
+    def test_anomaly_rooms_have_no_enemies(self):
+        import glob
+        for path in glob.glob("levels/anomaly_*.json"):
+            data = LevelData.load(path)
+            self.assertEqual(len(data.enemies), 0, f"{path} should have no enemies")
+
+    def test_enemies_field_in_to_dict(self):
+        from src.levels.level_data import EnemyDef
+        data = LevelData(
+            name="t", gravity_start=(0, 1), spawn=(0.0, 0.0),
+            goal=GoalDef(0, 0, 10, 10),
+            enemies=[EnemyDef(type="temporal_echo", x=50.0, y=790.0, min_x=0.0, max_x=200.0)],
+        )
+        d = data.to_dict()
+        self.assertIn("enemies", d)
+        self.assertEqual(len(d["enemies"]), 1)
+        self.assertEqual(d["enemies"][0]["type"], "temporal_echo")
+
 
 class TestGoalDetection(unittest.TestCase):
     """Goal overlap detection using loaded level."""

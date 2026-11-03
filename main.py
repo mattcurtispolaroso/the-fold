@@ -41,6 +41,7 @@ from constants import (
 )
 from src.data.run_state import RunState
 from src.entities.anchored import TheAnchored
+from src.entities.enemy import TemporalEcho
 from src.entities.fold_predator import FoldPredator
 from src.entities.player import Player
 from src.levels.level_renderer import LevelRenderer
@@ -92,15 +93,36 @@ LEVEL_DIR = os.path.join(BASE_DIR, "levels")
 LEVELS = [os.path.join(LEVEL_DIR, f"level_0{i}.json") for i in range(1, 5)]
 
 
+def _spawn_enemies_from_level(level: object) -> list:
+    """Build enemy objects from the loaded level's EnemyDef list."""
+    from constants import TEMPORAL_ECHO_SPEED
+    spawned = []
+    defs = level.level_data.enemies if level.level_data else []
+    for e in defs:
+        spd = e.speed if e.speed > 0.0 else None
+        if e.type == "temporal_echo":
+            spawned.append(TemporalEcho(
+                px=e.x, py=e.y, min_x=e.min_x, max_x=e.max_x,
+                speed=spd if spd is not None else TEMPORAL_ECHO_SPEED,
+            ))
+        elif e.type == "fold_predator":
+            kw = {"speed": spd} if spd is not None else {}
+            spawned.append(FoldPredator(px=e.x, py=e.y, level_min=e.min_x, level_max=e.max_x, **kw))
+        elif e.type == "anchored":
+            kw = {"speed": spd} if spd is not None else {}
+            spawned.append(TheAnchored(px=e.x, py=e.y, level_min=e.min_x, level_max=e.max_x, **kw))
+    return spawned
+
+
 def _reset_level_state(
     level: object, player: object, camera: object, animator: object, enemies: list,
 ) -> None:
-    """Reset camera, player, and all enemies to the current level's spawn. Does not reload the level."""
+    """Reset camera, player, and enemies (respawned from level data) to the current level's spawn."""
     camera.set_bounds(level.level_width, level.level_height)
     camera.x, camera.y = level.spawn
     player.reset(level.spawn, tuple(level.gravity_start))
-    for e in enemies:
-        e.reset()
+    enemies.clear()
+    enemies.extend(_spawn_enemies_from_level(level))
     if player.gravity_dir == (0, 1):
         animator.helmet.request_off()
     else:
@@ -198,10 +220,7 @@ def main() -> None:
     particles = ParticlePool()
 
     player = Player.from_spawn(level.spawn, tuple(level.gravity_start))
-    enemies = [
-        FoldPredator(px=400.0, py=790.0, level_min=30.0, level_max=1170.0),
-        TheAnchored(px=800.0, py=790.0, level_min=30.0, level_max=1170.0),
-    ]
+    enemies = _spawn_enemies_from_level(level)
     run_state = RunState(fold_stability=100.0, current_node_idx=0, run_seed=0, is_active=False)
     bus = EventBus()
     time_dilation = make_time_dilation()
