@@ -603,7 +603,7 @@ class TestLevelLoading(unittest.TestCase):
         self.assertEqual(_level.gravity_start, (0, 1))
 
     def test_level_01_goal_rect(self):
-        self.assertEqual(_level.goal_rect, pygame.Rect(660, 490, 220, 90))
+        self.assertEqual(_level.goal_rect, pygame.Rect(660, 490, 220, 130))
 
     def test_level_01_physics_gate_gap(self):
         """Vertical wall gap (y=730-820 = 90px) fits RIGHT gravity (64px) but blocks DOWN (96px)."""
