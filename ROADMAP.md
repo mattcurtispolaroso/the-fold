@@ -95,18 +95,18 @@ Done when: a ~10 min run from start to singularity or death is completable. **Ga
 - VFX pass: rotation burst, hit spark, landing dust (visual tuning deferred — see Needs revisit) ✅
 - Rotation cinematic: zoom-in → hold → zoom-out (1.08× / 0.18s) ✅
 
-**M7. Ship** ✅ Done 2026-11-02
+**M7. Ship prep** ✅ Done 2026-11-02
 - M7a: Save + meta-progression — `SaveManager`, `MetaProgress` dataclass, atomic write, corruption recovery ✅
 - M7b: Second character (The Archivist) — deferred to backlog
 - M7c: Mac + Windows PyInstaller builds — `build/the_fold.spec`, `build/build_mac.sh`, `build/build_windows.bat` ✅
 
 ## Current milestone
-**M8 — Post-launch polish / Steam**
+**M8 — Playtest Pass**
 
 ## This sprint (max 3 tasks)
-- [ ] M8a: Steam integration — Steamworks SDK, achievements, Steam cloud save
-- [ ] M8b: Audio v1 — sound effects, music, spatial audio for ability use
-- [ ] M8c: Amber glow overlay — implement `EXOSKELETON_GLOW_PATH` + runtime glow rendering
+- [ ] M8a: Fix hole uncertainty — seed white/black on `run_seed + node_idx` instead of prior-hole count; rebalance stability costs (black hole 15→10, white hole restore 5→15, death cost 20→15)
+- [ ] M8b: Enemy data pass — move enemy placement into level JSON; add Temporal Echo back into combat rooms; vary composition by node (node 0: Echo only, node 2: Echo + Predator, node 4: Predator + Anchored)
+- [ ] M8c: Extend run to 9 nodes — `NODE_SEQUENCE = ("combat","hole","combat","hole","combat","hole","combat","hole","singularity")`; add 3 more combat level files; validate pressure curve end to end
 
 ## Needs revisit
 - VFX particles (rotation burst, hit spark, landing dust) — mechanic is wired, visual execution needs tuning. Particle sizes, speeds, colours, and counts all open. Revisit once we have a clearer feel for the visual language.
@@ -115,6 +115,15 @@ Done when: a ~10 min run from start to singularity or death is completable. **Ga
 - Up/W doubles as move and jump in horizontal gravity | annoying, may cause unintended jumps | deliberately left as is for now (see Decisions log)
 - Helmet sprite files referenced in constants.py do not exist | cosmetic (placeholder renders)
 - Amber glow overlay not implemented | deferred — needs `EXOSKELETON_GLOW_PATH` art asset (glow reference image showing exoskeleton path on black background)
+- **Hole white/black is deterministic** — derived from prior-hole count, not seeded. Every run has the same hole outcomes. Blocks shipping. (M8a)
+- **Temporal Echo never spawned** — fully implemented but missing from main.py enemy list. Only FoldPredator and TheAnchored are used. (M8b)
+- **Enemy placement hardcoded in main.py** — same x=400/800, y=790 every run, not driven by level JSON. Combat rooms 1 and 2 are identical. (M8b)
+- Enemies always at ground y=790 — incoherent in level_02/03 which are designed for wall-walking. (M8b)
+- AIR_DECEL = 0.1 may read as floaty — lateral momentum persists ~50 frames airborne. Needs live playtest to confirm.
+- level_01.json and anomaly_01.json both named "The Dividing Wall" — duplicate name on node map display
+- No controls hint on start screen — first-time players see no key mapping
+- Death screen shows stats but not cause of death — players can't learn from runs
+- Hard landing damage (HARD_LAND_VELOCITY = 13.0) has no visual feedback — damage source is opaque to player
 
 ## Risks
 1. **Cadence.** 19 modules at 3 hr/week is multi-year. The M4 gate exists to avoid sinking that time into an unproven loop.
@@ -123,7 +132,7 @@ Done when: a ~10 min run from start to singularity or death is completable. **Ga
 4. **Procgen.** "Valid in 2+ gravity orientations" is the hardest algorithmic piece. Hand-authored templates first.
 
 ## Backlog (parked, not commitments)
-Cult enemies (Witness, Ordained, Architect); Archivist and Diplomat characters; Closed Loop rewind ultimate; spatial audio; controller rumble; Steam cloud and trading cards; Codex; amber glow overlay (needs `EXOSKELETON_GLOW_PATH` art asset).
+Cult enemies (Witness, Ordained, Architect); Archivist and Diplomat characters; Closed Loop rewind ultimate; spatial audio; controller rumble; Steam integration; Codex; amber glow overlay (needs `EXOSKELETON_GLOW_PATH` art asset); jump buffer (8–10 frame input queue); node map visual upgrade (star chart glyphs instead of text list); 6+ anomaly rooms (currently 3); controls hint on start screen; death cause on death screen.
 
 ### Design ideas parking lot (unscoped, not committed)
 - **Chrono degradation across levels** — cumulative chrono use degrades the reserve cap or regen rate across subsequent levels, making runs harder as the player burns more resource. Creates a "spend now vs. protect for later" arc across the run, not just within a level.
@@ -147,9 +156,11 @@ Cult enemies (Witness, Ordained, Architect); Archivist and Diplomat characters; 
 - 2026-11-01: M3 anchored state simplified — integrity 0 = immediate level reset. No anchored timer. Fold stability cost paid on reset.
 - 2026-11-02: The Archivist (second character) deferred to backlog. M7b skipped; game ships with one character (The Navigator) in v1.0.
 - 2026-11-02: fold-playtester built as a sibling project (../fold-playtester/), never shipped in the binary. Visual agent using Claude computer-use. Run with `python run_playtest.py` from that directory.
+- 2026-11-02: 28-item design assessment via code review. Core finding: hole uncertainty non-functional, enemies identical every run, 5-node run too short for build system or pressure curve to land. M8 sprint pivoted to playtest fixes. Steam deferred indefinitely — game needs art before Steam is relevant.
+- 2026-11-02: Proposed stability rebalance: death cost 20→15, black hole 15→10, white hole restore 5→15. Makes holes feel like calculated risk rather than a penalty worse than dying twice. Pending implementation in M8a.
 
 ## Last session
 Date: 2026-11-02
-Did: M7 complete (minus deferred Archivist). M7a: SaveManager + MetaProgress dataclass, atomic write via .tmp→rename, corruption recovery, start/death/win screens show all-time stats. M7c: PyInstaller spec + build scripts (Mac .app + Windows .exe), frozen-context path split (sys._MEIPASS for read-only assets, executable dir for save/logs). Also built fold-playtester sibling project: visual playtesting agent using Claude computer-use (claude-opus-5-5), pyautogui keyboard control, mss screenshots, structured report output.
-State of tests: 560 passing (game); playtester has no automated tests
-Next up: M8 — Steam integration, audio, amber glow overlay. Second character (The Archivist) in backlog.
+Did: Fixed playtester requirements.txt version pin. Ran 28-item design assessment via code review. Key findings: hole white/black is deterministic (every run identical), enemies hardcoded in main.py (same position every run, Temporal Echo unused), 5-node run too short for pressure curve or build system to register. M8 sprint pivoted from Steam/audio to core playability fixes. ROADMAP updated with 8 new known bugs and backlog items from assessment.
+State of tests: 572 passing
+Next up: M8a (fix hole uncertainty + stability rebalance), M8b (enemy data pass), M8c (extend to 9 nodes)
