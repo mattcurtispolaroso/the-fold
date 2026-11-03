@@ -90,7 +90,7 @@ else:
     WRITABLE_DIR = BASE_DIR
 
 LEVEL_DIR = os.path.join(BASE_DIR, "levels")
-LEVELS = [os.path.join(LEVEL_DIR, f"level_0{i}.json") for i in range(1, 5)]
+LEVELS = [os.path.join(LEVEL_DIR, f"level_0{i}.json") for i in range(1, 9)]
 
 
 def _spawn_enemies_from_level(level: object) -> list:

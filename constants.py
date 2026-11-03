@@ -228,7 +228,11 @@ TIME_DILATION_COOLDOWN: float = 2.0   # seconds after duration before reuse
 TIME_DILATION_FACTOR: float = 0.0     # platform time scale while active (0 = frozen)
 
 # --- Node Map (M4b) ---
-NODE_SEQUENCE: tuple = ("combat", "hole", "combat", "hole", "singularity")
+NODE_SEQUENCE: tuple = (
+    "combat", "hole", "combat", "hole",
+    "combat", "hole", "combat", "hole",
+    "singularity"
+)
 
 # --- Hole Encounter (M4b) ---
 WHITE_HOLE_STABILITY_RESTORE: float = 15.0   # fold_stability restored on white hole

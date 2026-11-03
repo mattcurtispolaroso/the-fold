@@ -33,8 +33,13 @@ class RunState:
         """Create a fresh run — generates level assignments and hole outcomes from seed."""
         seed = random.randint(0, 2**32 - 1)
         rng = random.Random(seed)
-        combat_levels = [rng.randint(0, 1), rng.randint(2, 3)]
-        hole_outcomes = [rng.random() < 0.5, rng.random() < 0.5]
+        combat_levels = [
+            rng.randint(0, 1),   # node 0: levels 0-1 (easier)
+            rng.randint(2, 3),   # node 2: levels 2-3 (adds Predator or Anchored)
+            rng.randint(4, 5),   # node 4: levels 4-5 (gravity zone challenge)
+            rng.randint(6, 7),   # node 6: levels 6-7 (all 3 enemy types, hardest)
+        ]
+        hole_outcomes = [rng.random() < 0.5 for _ in range(4)]
         return cls(
             fold_stability=FOLD_STABILITY_MAX,
             current_node_idx=0,

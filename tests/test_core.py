@@ -999,11 +999,11 @@ class TestSingularityPressure(unittest.TestCase):
         self.assertAlmostEqual(self._run(0).singularity_pressure, 0.0)
 
     def test_pressure_one_at_last_playable(self) -> None:
-        # 5-node sequence: last playable = node 3 (node 4 is singularity)
-        self.assertAlmostEqual(self._run(3).singularity_pressure, 1.0)
+        # 9-node sequence: last playable = node 7 (node 8 is singularity)
+        self.assertAlmostEqual(self._run(7).singularity_pressure, 1.0)
 
     def test_pressure_increases_monotonically(self) -> None:
-        pressures = [self._run(i).singularity_pressure for i in range(4)]
+        pressures = [self._run(i).singularity_pressure for i in range(8)]
         for a, b in zip(pressures, pressures[1:]):
             self.assertGreater(b, a)
 
@@ -1388,21 +1388,23 @@ class TestRunState(unittest.TestCase):
 class TestRunStateM4b(unittest.TestCase):
     """RunState M4b additions — node sequence, hole outcomes, combat levels."""
 
-    def test_new_run_has_two_combat_levels(self):
+    def test_new_run_has_four_combat_levels(self):
         from src.data.run_state import RunState
         rs = RunState.new_run()
-        self.assertEqual(len(rs.combat_levels), 2)
+        self.assertEqual(len(rs.combat_levels), 4)
 
     def test_new_run_combat_levels_in_valid_range(self):
         from src.data.run_state import RunState
         rs = RunState.new_run()
         self.assertIn(rs.combat_levels[0], (0, 1))
         self.assertIn(rs.combat_levels[1], (2, 3))
+        self.assertIn(rs.combat_levels[2], (4, 5))
+        self.assertIn(rs.combat_levels[3], (6, 7))
 
-    def test_new_run_has_two_hole_outcomes(self):
+    def test_new_run_has_four_hole_outcomes(self):
         from src.data.run_state import RunState
         rs = RunState.new_run()
-        self.assertEqual(len(rs.hole_outcomes), 2)
+        self.assertEqual(len(rs.hole_outcomes), 4)
 
     def test_current_node_type_at_start(self):
         from src.data.run_state import RunState
@@ -1416,10 +1418,10 @@ class TestRunStateM4b(unittest.TestCase):
         self.assertEqual(rs.current_node_idx, 1)
         self.assertEqual(rs.current_node_type, "hole")
 
-    def test_node_count_is_five(self):
+    def test_node_count_is_nine(self):
         from src.data.run_state import RunState
         rs = RunState.new_run()
-        self.assertEqual(rs.node_count, 5)
+        self.assertEqual(rs.node_count, 9)
 
     def test_combat_level_for_first_node(self):
         from src.data.run_state import RunState
@@ -1445,7 +1447,7 @@ class TestRunStateM4b(unittest.TestCase):
     def test_singularity_is_last_node(self):
         from src.data.run_state import RunState
         rs = RunState.new_run()
-        for _ in range(4):
+        for _ in range(8):
             rs.advance_node()
         self.assertEqual(rs.current_node_type, "singularity")
 

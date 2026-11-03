@@ -104,9 +104,9 @@ Done when: a ~10 min run from start to singularity or death is completable. **Ga
 **M8 — Playtest Pass**
 
 ## This sprint (max 3 tasks)
-- [ ] M8a: Fix hole uncertainty — seed white/black on `run_seed + node_idx` instead of prior-hole count; rebalance stability costs (black hole 15→10, white hole restore 5→15, death cost 20→15)
-- [ ] M8b: Enemy data pass — move enemy placement into level JSON; add Temporal Echo back into combat rooms; vary composition by node (node 0: Echo only, node 2: Echo + Predator, node 4: Predator + Anchored)
-- [ ] M8c: Extend run to 9 nodes — `NODE_SEQUENCE = ("combat","hole","combat","hole","combat","hole","combat","hole","singularity")`; add 3 more combat level files; validate pressure curve end to end
+- [x] M8a: Stability rebalance — death cost 20→15, black hole 15→10, white hole restore 5→15 ✅
+- [x] M8b: Enemy data pass — EnemyDef in level JSON; Temporal Echo back in combat rooms; varies by node ✅
+- [x] M8c: Extend run to 9 nodes — 4 combat + 4 hole + singularity; 4 new level files (05-08); pressure curve validated ✅
 
 ## Needs revisit
 - VFX particles (rotation burst, hit spark, landing dust) — mechanic is wired, visual execution needs tuning. Particle sizes, speeds, colours, and counts all open. Revisit once we have a clearer feel for the visual language.
@@ -115,10 +115,7 @@ Done when: a ~10 min run from start to singularity or death is completable. **Ga
 - Up/W doubles as move and jump in horizontal gravity | annoying, may cause unintended jumps | deliberately left as is for now (see Decisions log)
 - Helmet sprite files referenced in constants.py do not exist | cosmetic (placeholder renders)
 - Amber glow overlay not implemented | deferred — needs `EXOSKELETON_GLOW_PATH` art asset (glow reference image showing exoskeleton path on black background)
-- **Hole white/black is deterministic** — derived from prior-hole count, not seeded. Every run has the same hole outcomes. Blocks shipping. (M8a)
-- **Temporal Echo never spawned** — fully implemented but missing from main.py enemy list. Only FoldPredator and TheAnchored are used. (M8b)
-- **Enemy placement hardcoded in main.py** — same x=400/800, y=790 every run, not driven by level JSON. Combat rooms 1 and 2 are identical. (M8b)
-- Enemies always at ground y=790 — incoherent in level_02/03 which are designed for wall-walking. (M8b)
+- Enemies in levels 05-08 placed in DOWN-gravity starting section only — incoherent once player enters gravity zone. Deferred; needs level-specific enemy y-coordinates for ceiling/wall gravity areas.
 - AIR_DECEL = 0.1 may read as floaty — lateral momentum persists ~50 frames airborne. Needs live playtest to confirm.
 - level_01.json and anomaly_01.json both named "The Dividing Wall" — duplicate name on node map display
 - No controls hint on start screen — first-time players see no key mapping
@@ -161,6 +158,6 @@ Cult enemies (Witness, Ordained, Architect); Archivist and Diplomat characters; 
 
 ## Last session
 Date: 2026-11-02
-Did: Fixed playtester requirements.txt version pin. Ran 28-item design assessment via code review. Key findings: hole white/black is deterministic (every run identical), enemies hardcoded in main.py (same position every run, Temporal Echo unused), 5-node run too short for pressure curve or build system to register. M8 sprint pivoted from Steam/audio to core playability fixes. ROADMAP updated with 8 new known bugs and backlog items from assessment.
-State of tests: 572 passing
-Next up: M8a (fix hole uncertainty + stability rebalance), M8b (enemy data pass), M8c (extend to 9 nodes)
+Did: Completed M8 sprint — M8a stability rebalance (death/black hole/white hole costs rebalanced), M8b enemy data pass (EnemyDef dataclass, all 4 combat levels now have varied enemy compositions driven by JSON, Temporal Echo back in rotation), M8c 9-node run (NODE_SEQUENCE extended to 4 combat + 4 hole + singularity, 4 new level files 05-08 with gravity zone complexity scaling). Node map now shows 8 playable nodes before singularity. Singularity pressure curve validated across all 8 nodes.
+State of tests: 579 passing
+Next up: Playtest the 9-node run; assess whether the pressure curve lands; consider M9 (audio v1, anomaly room variety, or jump buffer)
