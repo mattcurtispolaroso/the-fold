@@ -111,6 +111,9 @@ def _spawn_enemies_from_level(level: object) -> list:
         elif e.type == "anchored":
             kw = {"speed": spd} if spd is not None else {}
             spawned.append(TheAnchored(px=e.x, py=e.y, level_min=e.min_x, level_max=e.max_x, **kw))
+        else:
+            import logging
+            logging.getLogger(__name__).warning("Unknown enemy type in level JSON: %r", e.type)
     return spawned
 
 
