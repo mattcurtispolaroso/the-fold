@@ -35,7 +35,14 @@ class TemporalEcho:
         self._start_px: float = px
         self.frozen_timer: float = 0.0  # seconds remaining of Hawking Emitter freeze
 
-    def update(self, time_scale: float = 1.0, dt: float = 0.0) -> None:
+    def update(
+        self,
+        time_scale: float = 1.0,
+        dt: float = 0.0,
+        player_px: float = 0.0,
+        player_py: float = 0.0,
+        gravity_dir: tuple = (0, 1),
+    ) -> None:
         """Move one step; time_scale=0 or frozen_timer>0 freezes the enemy."""
         if self.frozen_timer > 0.0:
             self.frozen_timer = max(0.0, self.frozen_timer - dt)
