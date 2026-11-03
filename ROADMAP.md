@@ -117,8 +117,8 @@ Done when: a ~10 min run from start to singularity or death is completable. **Ga
 - Amber glow overlay not implemented | deferred — needs `EXOSKELETON_GLOW_PATH` art asset (glow reference image showing exoskeleton path on black background)
 - Enemies in levels 05-08 placed in DOWN-gravity starting section only — incoherent once player enters gravity zone. Deferred; needs level-specific enemy y-coordinates for ceiling/wall gravity areas.
 - AIR_DECEL = 0.1 may read as floaty — lateral momentum persists ~50 frames airborne. Needs live playtest to confirm.
-- level_01.json and anomaly_01.json both named "The Dividing Wall" — duplicate name on node map display
-- No controls hint on start screen — first-time players see no key mapping
+- ~~level_01.json and anomaly_01.json both named "The Dividing Wall"~~ fixed: anomaly_03 renamed to "The Overhang"
+- ~~No controls hint on start screen~~ fixed — first-time players see no key mapping
 - Death screen shows stats but not cause of death — players can't learn from runs
 - Hard landing damage (HARD_LAND_VELOCITY = 13.0) has no visual feedback — damage source is opaque to player
 

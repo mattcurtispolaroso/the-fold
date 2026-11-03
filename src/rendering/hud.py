@@ -199,13 +199,18 @@ def draw_start_screen(
     cy = screen_height // 2
     screen.blit(title, (cx - title.get_width() // 2, cy - 60))
     screen.blit(prompt, (cx - prompt.get_width() // 2, cy))
+    controls = font.render(
+        "Move: A/D   Jump: Space   Rotate gravity: R   Time Dilation: E",
+        True, (60, 75, 95),
+    )
+    screen.blit(controls, (cx - controls.get_width() // 2, cy + 46))
     if meta is not None and meta.total_runs > 0:
         stats = font.render(
             f"Runs: {meta.total_runs}   Wins: {meta.runs_won}   "
             f"Best stability: {meta.best_stability:.0f}",
-            True, (70, 80, 100),
+            True, (50, 60, 80),
         )
-        screen.blit(stats, (cx - stats.get_width() // 2, cy + 50))
+        screen.blit(stats, (cx - stats.get_width() // 2, cy + 80))
 
 
 def draw_node_map(
