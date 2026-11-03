@@ -115,7 +115,7 @@ Done when: a ~10 min run from start to singularity or death is completable. **Ga
 - Up/W doubles as move and jump in horizontal gravity | annoying, may cause unintended jumps | deliberately left as is for now (see Decisions log)
 - Helmet sprite files referenced in constants.py do not exist | cosmetic (placeholder renders)
 - Amber glow overlay not implemented | deferred — needs `EXOSKELETON_GLOW_PATH` art asset (glow reference image showing exoskeleton path on black background)
-- Enemies in levels 05-08 placed in DOWN-gravity starting section only — incoherent once player enters gravity zone. Deferred; needs level-specific enemy y-coordinates for ceiling/wall gravity areas.
+- level_06 RIGHT gravity zone has no enemies — enemy patrol is x-axis only so wall-crawl placement isn't viable without y-patrol support. Deferred; fix when enemy AI supports directional patrol.
 - AIR_DECEL = 0.1 may read as floaty — lateral momentum persists ~50 frames airborne. Needs live playtest to confirm.
 - ~~level_01.json and anomaly_01.json both named "The Dividing Wall"~~ fixed: anomaly_03 renamed to "The Overhang"
 - ~~No controls hint on start screen~~ fixed — first-time players see no key mapping

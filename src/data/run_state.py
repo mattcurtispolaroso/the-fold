@@ -24,6 +24,7 @@ class RunState:
     combat_levels: list = field(default_factory=list)   # level indices for combat nodes
     hole_outcomes: list = field(default_factory=list)   # True = white hole, per hole node
     deaths: int = 0
+    last_death_cause: str = ""                          # human-readable cause of the final death
     owned_items: list = field(default_factory=list)     # list of {id, rank} dicts
     paradox_spent: float = 0.0                          # fold_stability spent on paradox artifacts
     extra_reward_options: int = 0                       # extra options from Penrose Diagram etc.

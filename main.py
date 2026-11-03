@@ -148,6 +148,7 @@ def _apply_hole_consequences(
             0.0, run_state.fold_stability - BLACK_HOLE_STABILITY_COST,
         )
         run_state.deaths += 1
+        run_state.last_death_cause = "black hole"
 
 
 def _owned_item_list(run_state: object) -> list:
@@ -162,6 +163,8 @@ def _apply_offer(offer: object, run_state: object, item_manager: object, item_re
     if offer.is_paradox:
         run_state.fold_stability -= offer.paradox_cost
         run_state.paradox_spent += offer.paradox_cost
+        if run_state.fold_stability <= 0.0:
+            run_state.last_death_cause = "paradox artifact"
 
     entry = {"id": offer.item_def.id, "rank": offer.target_rank}
     owned = list(run_state.owned_items)
@@ -602,16 +605,28 @@ def main() -> None:
                         animator.helmet.request_on()
 
                 level_reset = False
+                _death_cause = ""
                 if _hard_landing_occurred:
                     if player.take_hit(0.0, 0.0):
                         result = bus.emit(GameEvent.INTEGRITY_ZERO)
                         level_reset = not result.cancelled
-                if not level_reset and player.gravity_dir == (0, 1):
-                    fall_threshold = level.level_height - player.player_h / 2 - 10.0
-                    if player.py >= fall_threshold:
+                        _death_cause = "hard landing"
+                if not level_reset:
+                    _gx, _gy = player.gravity_dir
+                    _fell = False
+                    if _gy == 1:    # DOWN — fell past bottom
+                        _fell = player.py >= level.level_height - player.player_h / 2 - 10.0
+                    elif _gy == -1:  # UP — fell past top
+                        _fell = player.py <= player.player_h / 2 + 10.0
+                    elif _gx == 1:  # RIGHT — fell past right edge
+                        _fell = player.px >= level.level_width - player.player_w / 2 - 10.0
+                    elif _gx == -1:  # LEFT — fell past left edge
+                        _fell = player.px <= player.player_w / 2 + 10.0
+                    if _fell:
                         if player.take_fall_damage():
                             result = bus.emit(GameEvent.INTEGRITY_ZERO)
                             level_reset = not result.cancelled
+                            _death_cause = "fell into the void"
                 if not level_reset and not anomaly_pending:
                     for e in enemies:
                         if check_hit(player, e):
@@ -623,8 +638,11 @@ def main() -> None:
                                 if player.take_hit(kx, ky):
                                     result = bus.emit(GameEvent.INTEGRITY_ZERO)
                                     level_reset = not result.cancelled
+                                    _death_cause = "enemy"
                             break
                 if level_reset:
+                    if _death_cause:
+                        run_state.last_death_cause = _death_cause
                     run_state.deaths += 1
                     run_state.fold_stability = max(
                         0.0, run_state.fold_stability - FOLD_STABILITY_INTEGRITY_COST,

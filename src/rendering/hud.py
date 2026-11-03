@@ -368,7 +368,11 @@ def draw_death_screen(
     screen.fill((0, 0, 0))
     cx, cy = screen_width // 2, screen_height // 2
     title = font.render("RUN OVER", True, (220, 80, 80))
-    screen.blit(title, (cx - title.get_width() // 2, cy - 90))
+    screen.blit(title, (cx - title.get_width() // 2, cy - 110))
+    cause = getattr(run_state, "last_death_cause", "")
+    if cause:
+        cause_surf = font.render(f"Cause: {cause}", True, (200, 100, 100))
+        screen.blit(cause_surf, (cx - cause_surf.get_width() // 2, cy - 60))
     stats = [
         f"Nodes reached:   {run_state.current_node_idx} / {run_state.node_count}",
         f"Deaths:          {run_state.deaths}",
@@ -376,16 +380,16 @@ def draw_death_screen(
     ]
     for j, line in enumerate(stats):
         surf = font.render(line, True, (160, 160, 180))
-        screen.blit(surf, (cx - surf.get_width() // 2, cy - 20 + j * 40))
+        screen.blit(surf, (cx - surf.get_width() // 2, cy + 10 + j * 40))
     if meta is not None and meta.total_runs > 0:
         best = font.render(
             f"All time — Runs: {meta.total_runs}   Wins: {meta.runs_won}   "
             f"Best stability: {meta.best_stability:.0f}",
             True, (70, 80, 100),
         )
-        screen.blit(best, (cx - best.get_width() // 2, cy + 120))
+        screen.blit(best, (cx - best.get_width() // 2, cy + 140))
     prompt = font.render("Press ENTER", True, (80, 100, 140))
-    screen.blit(prompt, (cx - prompt.get_width() // 2, cy + 170))
+    screen.blit(prompt, (cx - prompt.get_width() // 2, cy + 190))
 
 
 def draw_win_screen(
