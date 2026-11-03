@@ -273,6 +273,51 @@ class TestCoyoteTime(unittest.TestCase):
         self.assertEqual(coyote_timer, 0.0)
 
 
+class TestJumpBuffer(unittest.TestCase):
+    """Jump buffer stores an airborne jump press and fires it on the next landing."""
+
+    def test_buffer_time_matches_frames(self):
+        self.assertAlmostEqual(C.JUMP_BUFFER_TIME, C.JUMP_BUFFER_FRAMES / C.FPS, places=6)
+
+    def test_buffer_expires_after_window(self):
+        timer = C.JUMP_BUFFER_TIME
+        dt = C.PHYSICS_DT
+        for _ in range(C.JUMP_BUFFER_FRAMES + 1):
+            timer = max(0.0, timer - dt)
+        self.assertEqual(timer, 0.0)
+
+    def test_buffer_still_alive_within_window(self):
+        timer = C.JUMP_BUFFER_TIME
+        dt = C.PHYSICS_DT
+        for _ in range(C.JUMP_BUFFER_FRAMES - 1):
+            timer = max(0.0, timer - dt)
+        self.assertGreater(timer, 0.0)
+
+    def test_player_has_jump_buffer_field(self):
+        p = Player.from_spawn((100.0, 772.0))
+        self.assertEqual(p.jump_buffer_timer, 0.0)
+
+    def test_player_reset_clears_buffer(self):
+        p = Player.from_spawn((100.0, 772.0))
+        p.jump_buffer_timer = C.JUMP_BUFFER_TIME
+        p.reset((100.0, 772.0), (0, 1))
+        self.assertEqual(p.jump_buffer_timer, 0.0)
+
+    def test_fall_damage_clears_buffer(self):
+        p = Player.from_spawn((100.0, 772.0))
+        p.jump_buffer_timer = C.JUMP_BUFFER_TIME
+        p.anchor_integrity = 2
+        p.take_fall_damage()
+        self.assertEqual(p.jump_buffer_timer, 0.0)
+
+    def test_buffer_in_player_to_dict(self):
+        p = Player.from_spawn((100.0, 772.0))
+        p.jump_buffer_timer = 0.05
+        d = p.to_dict()
+        self.assertIn("jump_buffer_timer", d)
+        self.assertAlmostEqual(d["jump_buffer_timer"], 0.05)
+
+
 class TestMovementAcceleration(unittest.TestCase):
     """Horizontal movement should accelerate and decelerate, not snap."""
 

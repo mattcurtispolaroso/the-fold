@@ -50,6 +50,8 @@ MAX_MOVE_SPEED: float = 5.0  # max lateral speed
 # --- Jump Tuning ---
 COYOTE_TIME: float = 0.1             # seconds grace period after leaving ground
 JUMP_CUT_MULTIPLIER: float = 0.4     # velocity multiplier on early jump release
+JUMP_BUFFER_FRAMES: int = 10         # frames a buffered jump input stays alive
+JUMP_BUFFER_TIME: float = JUMP_BUFFER_FRAMES / FPS  # ~0.167s at 60fps
 PEAK_GRAVITY_MULT: float = 2.5       # gravity multiplier near jump peak
 PEAK_SPEED_THRESHOLD: float = 2.0    # speed below which peak gravity kicks in
 

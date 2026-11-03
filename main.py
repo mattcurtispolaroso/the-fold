@@ -16,6 +16,7 @@ from constants import (
     ANCHOR_INTEGRITY_MAX,
     BLACK_HOLE_STABILITY_COST,
     COYOTE_TIME,
+    JUMP_BUFFER_TIME,
     DEBUG_ITEMS,
     FOLD_STABILITY_INTEGRITY_COST,
     FOLD_STABILITY_MAX,
@@ -371,12 +372,16 @@ def main() -> None:
                         if event.key == pygame.K_e and time_dilation.is_ready and player.chrono_reserve >= time_dilation.cost:
                             player.chrono_reserve = time_dilation.activate(player.chrono_reserve)
                             bus.emit(GameEvent.ABILITY_USED, ability_name="time_dilation")
-                        if event.key in (pygame.K_SPACE, pygame.K_UP, pygame.K_w) and player.coyote_timer > 0:
-                            player.vx, player.vy = apply_jump_impulse(
-                                player.vx, player.vy, player.gravity_dir,
-                            )
-                            player.coyote_timer = 0.0
-                            player.jumping = True
+                        if event.key in (pygame.K_SPACE, pygame.K_UP, pygame.K_w):
+                            if player.coyote_timer > 0:
+                                player.vx, player.vy = apply_jump_impulse(
+                                    player.vx, player.vy, player.gravity_dir,
+                                )
+                                player.coyote_timer = 0.0
+                                player.jump_buffer_timer = 0.0
+                                player.jumping = True
+                            else:
+                                player.jump_buffer_timer = JUMP_BUFFER_TIME
                 if event.type == pygame.KEYUP:
                     if event.key in (pygame.K_SPACE, pygame.K_UP, pygame.K_w) and player.jumping:
                         player.vx, player.vy = apply_jump_cut(
@@ -527,11 +532,19 @@ def main() -> None:
                     if player.on_ground:
                         player.jumping = False
                         player.coyote_timer = COYOTE_TIME
+                        if not _was_grounded and player.jump_buffer_timer > 0:
+                            player.vx, player.vy = apply_jump_impulse(
+                                player.vx, player.vy, player.gravity_dir,
+                            )
+                            player.jumping = True
+                            player.jump_buffer_timer = 0.0
+                            player.coyote_timer = 0.0
                         if player.py < level.level_height - player.player_h:
                             player.last_safe_px = player.px
                             player.last_safe_py = player.py
                     else:
                         player.coyote_timer = max(0.0, player.coyote_timer - PHYSICS_DT)
+                        player.jump_buffer_timer = max(0.0, player.jump_buffer_timer - PHYSICS_DT)
 
                     physics_ms = (time.perf_counter() - physics_start) * 1000
                     if PHYSICS_WATCHDOG_ENABLED and physics_ms > PHYSICS_WATCHDOG_THRESHOLD_MS:

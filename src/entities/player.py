@@ -34,6 +34,7 @@ class Player:
     player_h: int = PLAYER_PHYSICS_HEIGHT_NORMAL
     on_ground: bool = False
     coyote_timer: float = 0.0
+    jump_buffer_timer: float = 0.0
     jumping: bool = False
     facing_right: bool = True
     move_input: int = 0
@@ -62,6 +63,7 @@ class Player:
         self.player_w, self.player_h = get_player_physics_size(gravity_start)
         self.on_ground = False
         self.coyote_timer = 0.0
+        self.jump_buffer_timer = 0.0
         self.jumping = False
         self.facing_right = True
         self.move_input = 0
@@ -102,6 +104,7 @@ class Player:
         self.on_ground = False
         self.jumping = False
         self.coyote_timer = 0.0
+        self.jump_buffer_timer = 0.0
         return False
 
     def take_hit(self, knockback_vx: float, knockback_vy: float) -> bool:
