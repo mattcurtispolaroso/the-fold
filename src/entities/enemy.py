@@ -55,6 +55,9 @@ class TemporalEcho:
             self.px = self.min_x
             self.direction = 1
 
+    def on_gravity_rotate(self) -> None:
+        """No-op — gravity rotation has no special effect on the Temporal Echo."""
+
     def reset(self) -> None:
         """Return to spawn position and initial direction."""
         self.px = self._start_px
