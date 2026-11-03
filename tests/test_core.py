@@ -560,17 +560,17 @@ class TestLevelLoading(unittest.TestCase):
     def test_level_01_goal_rect(self):
         self.assertEqual(_level.goal_rect, pygame.Rect(660, 490, 220, 90))
 
-    def test_level_01_wall_gap_passable(self):
-        """Dividing wall gap must be larger than the player's DOWN-gravity height so level_01 is
-        solvable without rotation. Level_02 and 03 are the rotation-required rooms."""
+    def test_level_01_physics_gate_gap(self):
+        """Vertical wall gap (y=730-820 = 90px) fits RIGHT gravity (64px) but blocks DOWN (96px)."""
         with open(main.LEVELS[0]) as f:
             data = json.load(f)
         gate = next(p for p in data["static_platforms"] if p["x"] == 540)
         floor = next(p for p in data["static_platforms"] if p["x"] == 0 and p["y"] == 820)
         gap = floor["y"] - (gate["y"] + gate["h"])
-        self.assertGreater(gap, C.PLAYER_PHYSICS_HEIGHT_NORMAL,
-            f"Gap {gap}px must be taller than normal player ({C.PLAYER_PHYSICS_HEIGHT_NORMAL}px) "
-            f"so level_01 is winnable without gravity rotation")
+        self.assertGreater(gap, C.PLAYER_PHYSICS_HEIGHT_HORIZONTAL,
+            f"Gap {gap}px must fit horizontal player ({C.PLAYER_PHYSICS_HEIGHT_HORIZONTAL}px)")
+        self.assertLess(gap, C.PLAYER_PHYSICS_HEIGHT_NORMAL,
+            f"Gap {gap}px must block normal player ({C.PLAYER_PHYSICS_HEIGHT_NORMAL}px)")
 
     def test_roundtrip_serialisation(self):
         data = LevelData.load(main.LEVELS[0])
