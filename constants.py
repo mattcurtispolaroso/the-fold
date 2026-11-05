@@ -44,7 +44,7 @@ JUMP_SPEED: float = 8.0
 ACCEL: float = 1.5           # ground lateral acceleration per frame
 DECEL: float = 1.0           # ground lateral deceleration per frame
 AIR_ACCEL: float = 0.4       # air lateral acceleration
-AIR_DECEL: float = 0.1       # air lateral deceleration
+AIR_DECEL: float = 0.25      # air lateral deceleration
 MAX_MOVE_SPEED: float = 5.0  # max lateral speed
 
 # --- Jump Tuning ---
