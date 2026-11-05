@@ -31,6 +31,9 @@ from constants import (
     PHYSICS_WATCHDOG_THRESHOLD_MS,
     ROTATE_SHAKE_DURATION,
     ROTATE_SHAKE_INTENSITY,
+    HARD_LAND_FLASH_DURATION,
+    HARD_LAND_PUNCH_DURATION,
+    HARD_LAND_PUNCH_MAGNITUDE,
     ROTATION_FLASH_DURATION,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
@@ -62,7 +65,7 @@ from src.rendering.animation import PlayerAnimator, PlayerState, determine_playe
 from src.rendering.camera import Camera
 from src.rendering.hud import (
     draw_debug_overlay, draw_death_screen, draw_flash_overlay, draw_fold_tint,
-    draw_hole_screen, draw_hud, draw_node_map, draw_reward_screen,
+    draw_hole_screen, draw_hud, draw_impact_flash, draw_node_map, draw_reward_screen,
     draw_start_screen, draw_win_screen, draw_world,
 )
 from src.rendering.loader import load_background, load_font
@@ -222,6 +225,7 @@ def main() -> None:
     background = load_background(BASE_DIR, WIDTH, HEIGHT)
     animator = PlayerAnimator()
     flash_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+    impact_flash_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
     fold_tint_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
     world_surf = pygame.Surface((WIDTH, HEIGHT))
     particles = ParticlePool()
@@ -241,6 +245,7 @@ def main() -> None:
     debug_draw = False
     physics_accumulator: float = 0.0
     flash_timer: float = 0.0
+    impact_flash_timer: float = 0.0
     hole_timer: float = 0.0
     hole_is_white: bool = False
     reward_offers: list = []
@@ -460,6 +465,8 @@ def main() -> None:
                 )
                 if flash_timer > 0:
                     flash_timer = max(0.0, flash_timer - frame_dt)
+                if impact_flash_timer > 0:
+                    impact_flash_timer = max(0.0, impact_flash_timer - frame_dt)
 
                 grav_vert = gravity_is_vertical(player.gravity_dir)
                 _gravity_expired = False
@@ -573,6 +580,13 @@ def main() -> None:
                         player.px, player.py, player.player_w, player.player_h, player.gravity_dir,
                     )
                     particles.emit_hit_spark(player.px, player.py)
+                    _gdir = player.gravity_dir
+                    camera.punch(
+                        _gdir[0] * HARD_LAND_PUNCH_MAGNITUDE,
+                        _gdir[1] * HARD_LAND_PUNCH_MAGNITUDE,
+                        HARD_LAND_PUNCH_DURATION,
+                    )
+                    impact_flash_timer = HARD_LAND_FLASH_DURATION
 
                 # Gravity snap-back when chrono exhausted while off default orientation
                 if _gravity_expired and player.gravity_dir != level.gravity_start:
@@ -727,6 +741,7 @@ def main() -> None:
                     draw_debug_overlay(screen, font, player, cam_offset, HEIGHT)
                 draw_fold_tint(screen, fold_tint_surf, run_state.fold_stability)
                 draw_flash_overlay(screen, flash_surf, flash_timer)
+                draw_impact_flash(screen, impact_flash_surf, impact_flash_timer)
                 draw_hud(screen, font, player, time_dilation.active_timer,
                          time_dilation.cooldown_timer, WIDTH, HEIGHT,
                          in_anomaly=anomaly_pending)

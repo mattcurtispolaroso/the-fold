@@ -217,6 +217,11 @@ GRAVITY_OFFDEFAULT_DRAIN: float = 10.0  # chrono per second
 
 # --- Fall / Impact Damage ---
 HARD_LAND_VELOCITY: float = 13.0  # px/physics-frame — impact above this deals 1 integrity hit
+HARD_LAND_PUNCH_MAGNITUDE: float = 14.0   # pixels of camera jolt in gravity direction
+HARD_LAND_PUNCH_DURATION: float = 0.22    # seconds for jolt to decay to zero
+HARD_LAND_FLASH_COLOR: tuple = (220, 60, 60)   # red-orange
+HARD_LAND_FLASH_DURATION: float = 0.30          # seconds to fade out
+HARD_LAND_FLASH_MAX_ALPHA: int = 80             # peak opacity (0-255)
 
 # --- Singularity Pressure ---
 SINGULARITY_CHRONO_REGEN_MIN_MULT: float = 0.33  # regen fraction at max pressure

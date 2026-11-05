@@ -56,6 +56,14 @@ class Camera:
         self._shake_offset_x: float = 0.0
         self._shake_offset_y: float = 0.0
 
+        # Directional punch (hard landing feedback)
+        self._punch_x0: float = 0.0   # initial displacement
+        self._punch_y0: float = 0.0
+        self._punch_x: float = 0.0    # current displacement
+        self._punch_y: float = 0.0
+        self._punch_remaining: float = 0.0
+        self._punch_duration: float = 1.0
+
         # Zoom
         self._zoom: float = 1.0
         self._target_zoom: float = 1.0
@@ -97,6 +105,7 @@ class Camera:
         self._follow(target_x, target_y, dt, speed)
         self._clamp_to_bounds()
         self._update_shake(dt)
+        self._update_punch(dt)
         self._update_zoom(dt)
         self._tick_recentre(dt)
 
@@ -128,6 +137,29 @@ class Camera:
         """Count down the re-centre timer."""
         if self._recentre_timer > 0:
             self._recentre_timer = max(0.0, self._recentre_timer - dt)
+
+    # --- Directional Punch ---
+
+    def punch(self, dx: float, dy: float, duration: float) -> None:
+        """Apply a directional camera jolt that decays linearly to zero over duration seconds."""
+        if not constants.SCREEN_SHAKE_ENABLED:
+            return
+        self._punch_x0 = dx
+        self._punch_y0 = dy
+        self._punch_x = dx
+        self._punch_y = dy
+        self._punch_remaining = duration
+        self._punch_duration = max(duration, 0.001)
+
+    def _update_punch(self, dt: float) -> None:
+        """Linearly decay the punch offset toward zero."""
+        if self._punch_remaining <= 0.0:
+            self._punch_x = self._punch_y = 0.0
+            return
+        self._punch_remaining = max(0.0, self._punch_remaining - dt)
+        t = self._punch_remaining / self._punch_duration  # 1.0→0.0
+        self._punch_x = self._punch_x0 * t
+        self._punch_y = self._punch_y0 * t
 
     # --- Screen Shake ---
 
@@ -211,6 +243,6 @@ class Camera:
     def offset(self) -> tuple[float, float]:
         """Screen offset for simple rendering (no zoom)."""
         return (
-            -self.x + self.screen_w / 2 + self._shake_offset_x,
-            -self.y + self.screen_h / 2 + self._shake_offset_y,
+            -self.x + self.screen_w / 2 + self._shake_offset_x + self._punch_x,
+            -self.y + self.screen_h / 2 + self._shake_offset_y + self._punch_y,
         )

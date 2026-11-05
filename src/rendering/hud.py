@@ -88,6 +88,19 @@ def draw_flash_overlay(
     screen.blit(flash_surf, (0, 0))
 
 
+def draw_impact_flash(
+    screen: pygame.Surface,
+    flash_surf: pygame.Surface,
+    flash_timer: float,
+) -> None:
+    """Draw the hard-landing impact flash if the timer is still running."""
+    if flash_timer <= 0:
+        return
+    alpha = int(C.HARD_LAND_FLASH_MAX_ALPHA * (flash_timer / C.HARD_LAND_FLASH_DURATION))
+    flash_surf.fill((*C.HARD_LAND_FLASH_COLOR, alpha))
+    screen.blit(flash_surf, (0, 0))
+
+
 def draw_hud(
     screen: pygame.Surface,
     font: pygame.font.Font,
