@@ -332,5 +332,112 @@ class TestLevelNavigability(unittest.TestCase):
             )
 
 
+def _load_anomaly(name: str) -> dict:
+    """Load an anomaly room JSON by filename (no extension)."""
+    import os
+    path = os.path.join(os.path.dirname(main.__file__), "levels", f"{name}.json")
+    with open(path) as f:
+        return json.load(f)
+
+
+class TestAnomalyNavigability(unittest.TestCase):
+    """Each anomaly room has at least one platform/gravity combo that reaches the goal."""
+
+    def _assert_reachable(self, name: str) -> None:
+        data = _load_anomaly(name)
+        goal = data["goal"]
+        platforms = _all_platforms(data)
+        all_gravities = [(0, 1), (0, -1), (1, 0), (-1, 0)]
+        found = any(
+            _goal_triggerable(p, goal, g)
+            for p in platforms
+            for g in all_gravities
+        )
+        self.assertTrue(
+            found,
+            f"{name} ({data['name']}): no platform/gravity combination "
+            f"places player centre in goal rect {goal}",
+        )
+
+    # anomaly_04 — The Undercroft (LEFT gravity)
+    def test_anomaly_04_left_wall_reaches_goal(self) -> None:
+        """Left wall platform in LEFT gravity puts player centre in goal rect."""
+        data = _load_anomaly("anomaly_04")
+        left_wall = next(
+            p for p in data["static_platforms"]
+            if p["x"] == 0 and p["w"] == 20 and p["h"] == 600
+        )
+        self.assertTrue(
+            _goal_triggerable(left_wall, data["goal"], (-1, 0)),
+            "Left wall in LEFT gravity must reach goal",
+        )
+
+    def test_anomaly_04_barrier_gap_fits_player(self) -> None:
+        """120 px gap between barriers fits LEFT-gravity player (h=64) with clearance."""
+        data = _load_anomaly("anomaly_04")
+        barriers = [p for p in data["static_platforms"] if p["x"] == 300]
+        self.assertEqual(len(barriers), 2, "Must have exactly two central barriers")
+        top_barrier = min(barriers, key=lambda p: p["y"])
+        bot_barrier = max(barriers, key=lambda p: p["y"])
+        gap = bot_barrier["y"] - (top_barrier["y"] + top_barrier["h"])
+        self.assertGreater(gap, C.PLAYER_PHYSICS_HEIGHT_HORIZONTAL,
+                           "Gap must be wider than horizontal-gravity player height (64 px)")
+
+    def test_anomaly_04_goal_reachable(self) -> None:
+        self._assert_reachable("anomaly_04")
+
+    # anomaly_05 — The Crossing (DOWN + UP zone)
+    def test_anomaly_05_ceiling_reaches_goal(self) -> None:
+        """Ceiling platform in UP gravity puts player centre in goal rect."""
+        data = _load_anomaly("anomaly_05")
+        ceiling = next(
+            p for p in data["static_platforms"]
+            if p["x"] == 400 and p["y"] == 0
+        )
+        self.assertTrue(
+            _goal_triggerable(ceiling, data["goal"], (0, -1)),
+            "Ceiling platform in UP gravity must reach goal",
+        )
+
+    def test_anomaly_05_up_zone_covers_goal(self) -> None:
+        """UP gravity zone fully covers the goal rect."""
+        data = _load_anomaly("anomaly_05")
+        goal = data["goal"]
+        zone = next(z for z in data["gravity_zones"] if z["gravity_dir"] == [0, -1])
+        self.assertLessEqual(zone["x"], goal["x"])
+        self.assertGreaterEqual(zone["x"] + zone["w"], goal["x"] + goal["w"])
+        self.assertLessEqual(zone["y"], goal["y"])
+        self.assertGreater(zone["y"] + zone["h"], goal["y"])
+
+    def test_anomaly_05_goal_reachable(self) -> None:
+        self._assert_reachable("anomaly_05")
+
+    # anomaly_06 — The Wall (DOWN + RIGHT zone)
+    def test_anomaly_06_right_wall_reaches_goal(self) -> None:
+        """Right wall platform in RIGHT gravity puts player centre in goal rect."""
+        data = _load_anomaly("anomaly_06")
+        right_wall = next(
+            p for p in data["static_platforms"]
+            if p["x"] == 780 and p["w"] == 20
+        )
+        self.assertTrue(
+            _goal_triggerable(right_wall, data["goal"], (1, 0)),
+            "Right wall in RIGHT gravity must reach goal",
+        )
+
+    def test_anomaly_06_right_zone_covers_goal(self) -> None:
+        """RIGHT gravity zone fully covers the goal rect."""
+        data = _load_anomaly("anomaly_06")
+        goal = data["goal"]
+        zone = next(z for z in data["gravity_zones"] if z["gravity_dir"] == [1, 0])
+        self.assertLessEqual(zone["x"], goal["x"])
+        self.assertGreaterEqual(zone["x"] + zone["w"], goal["x"] + goal["w"])
+        self.assertLessEqual(zone["y"], goal["y"])
+        self.assertGreater(zone["y"] + zone["h"], goal["y"])
+
+    def test_anomaly_06_goal_reachable(self) -> None:
+        self._assert_reachable("anomaly_06")
+
+
 if __name__ == "__main__":
     unittest.main()

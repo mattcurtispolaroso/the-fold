@@ -1,0 +1,19 @@
+{
+  "name": "The Undercroft",
+  "gravity_start": [-1, 0],
+  "spawn": [680.0, 120.0],
+  "tile_size": 40,
+  "level_width": 800,
+  "level_height": 600,
+  "goal": {"x": 30, "y": 380, "w": 120, "h": 140},
+  "static_platforms": [
+    {"x": 0, "y": 0, "w": 800, "h": 20},
+    {"x": 0, "y": 580, "w": 800, "h": 20},
+    {"x": 0, "y": 0, "w": 20, "h": 600},
+    {"x": 300, "y": 0, "w": 20, "h": 240},
+    {"x": 300, "y": 360, "w": 20, "h": 240}
+  ],
+  "moving_platforms": [],
+  "gravity_zones": [],
+  "enemies": []
+}

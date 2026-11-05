@@ -1,0 +1,18 @@
+{
+  "name": "The Wall",
+  "gravity_start": [0, 1],
+  "spawn": [80.0, 472.0],
+  "tile_size": 40,
+  "level_width": 800,
+  "level_height": 600,
+  "goal": {"x": 680, "y": 100, "w": 100, "h": 200},
+  "static_platforms": [
+    {"x": 0, "y": 520, "w": 400, "h": 80},
+    {"x": 780, "y": 0, "w": 20, "h": 600}
+  ],
+  "moving_platforms": [],
+  "gravity_zones": [
+    {"x": 400, "y": 0, "w": 400, "h": 600, "gravity_dir": [1, 0]}
+  ],
+  "enemies": []
+}

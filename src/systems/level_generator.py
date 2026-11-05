@@ -11,6 +11,9 @@ ANOMALY_LEVELS: list[str] = [
     os.path.join(_LEVEL_DIR, "anomaly_01.json"),
     os.path.join(_LEVEL_DIR, "anomaly_02.json"),
     os.path.join(_LEVEL_DIR, "anomaly_03.json"),
+    os.path.join(_LEVEL_DIR, "anomaly_04.json"),
+    os.path.join(_LEVEL_DIR, "anomaly_05.json"),
+    os.path.join(_LEVEL_DIR, "anomaly_06.json"),
 ]
 
 
