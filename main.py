@@ -20,12 +20,15 @@ from constants import (
     DEBUG_ITEMS,
     FOLD_STABILITY_INTEGRITY_COST,
     FOLD_STABILITY_MAX,
+    FOLD_TINT_THRESHOLD,
+    FOLD_TINT_MAX_ALPHA,
     GRAVITY_OFFDEFAULT_DRAIN,
     GRAVITY_ROTATION_COST,
     HARD_LAND_VELOCITY,
     HOLE_ENCOUNTER_PHASE1_DURATION,
     HOLE_ENCOUNTER_PHASE2_DURATION,
     FPS,
+    MODIFIER_CAP,
     PHYSICS_DT,
     PHYSICS_WATCHDOG_ENABLED,
     PHYSICS_WATCHDOG_THRESHOLD_MS,
@@ -80,6 +83,9 @@ from src.data.save_manager import SaveManager, MetaProgress
 from src.systems.logging_manager import LoggingManager
 from src.systems.spacetime import make_time_dilation
 from src.systems.level_generator import pick_anomaly_room
+from src.rendering.gpu.context import GPUContext, use_gpu_renderer
+from src.rendering.gpu.atlas import RuntimeAtlas
+from src.rendering.gpu.sprite_batch import SpriteBatch, gpu_draw_world
 
 WIDTH, HEIGHT = SCREEN_WIDTH, SCREEN_HEIGHT
 
@@ -193,6 +199,49 @@ def _apply_offer(offer: object, run_state: object, item_manager: object, item_re
     item_manager.sync_owned(_owned_item_list(run_state))
 
 
+def _do_gravity_rotation(
+    new_dir: tuple,
+    player: object,
+    level: object,
+    camera: object,
+    animator: object,
+    enemies: list,
+    particles: object,
+    bus: object,
+) -> float:
+    """Apply a gravity rotation: update player direction, resolve collisions, fire camera/VFX.
+
+    Returns the new flash_timer value (ROTATION_FLASH_DURATION).
+    """
+    from constants import COYOTE_TIME, ROTATE_SHAKE_INTENSITY, ROTATE_SHAKE_DURATION, ROTATION_FLASH_DURATION
+    bus.emit(GameEvent.GRAVITY_ROTATED, gravity_dir=player.gravity_dir)
+    player.set_gravity(new_dir)
+    player.px, player.py = round(player.px), round(player.py)
+    all_plats = level.all_platform_rects() + level.boundary_rects()
+    player.px, player.py, player.vx, player.vy, player.on_ground = resolve_collisions(
+        player.px, player.py, player.vx, player.vy,
+        player.player_w, player.player_h, all_plats, player.gravity_dir,
+    )
+    player.on_ground = check_ground_adjacent(
+        player.px, player.py, player.player_w, player.player_h,
+        all_plats, player.gravity_dir,
+    )
+    if player.on_ground:
+        player.coyote_timer = COYOTE_TIME
+        player.jumping = False
+    camera.on_gravity_rotate()
+    camera.start_rotation_cinematic()
+    camera.shake(ROTATE_SHAKE_INTENSITY, ROTATE_SHAKE_DURATION)
+    particles.emit_rotation_burst(player.px, player.py)
+    for e in enemies:
+        e.on_gravity_rotate()
+    if player.gravity_dir == (0, 1):
+        animator.helmet.request_off()
+    else:
+        animator.helmet.request_on()
+    return ROTATION_FLASH_DURATION
+
+
 def _grant_debug_items(run_state: object, item_manager: object, item_registry: object) -> None:
     """Grant one of each item at rank 1 for playtesting. Only active when DEBUG_ITEMS=True."""
     from src.data.items import OwnedItem
@@ -204,7 +253,22 @@ def _grant_debug_items(run_state: object, item_manager: object, item_registry: o
 def main() -> None:
     """Main game loop — orchestrates physics, rendering, input."""
     pygame.init()
-    screen = pygame.display.set_mode((WIDTH, HEIGHT))
+    _use_gpu = use_gpu_renderer()
+    if _use_gpu:
+        # macOS requires explicit Core Profile request before set_mode — without it
+        # SDL2 returns a legacy 2.1 context and ModernGL refuses to initialise.
+        pygame.display.gl_set_attribute(pygame.GL_CONTEXT_MAJOR_VERSION, 3)
+        pygame.display.gl_set_attribute(pygame.GL_CONTEXT_MINOR_VERSION, 3)
+        pygame.display.gl_set_attribute(
+            pygame.GL_CONTEXT_PROFILE_MASK, pygame.GL_CONTEXT_PROFILE_CORE,
+        )
+        pygame.display.gl_set_attribute(pygame.GL_CONTEXT_FORWARD_COMPATIBLE_FLAG, True)
+        screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.OPENGL | pygame.DOUBLEBUF)
+    else:
+        screen = pygame.display.set_mode((WIDTH, HEIGHT))
+    gpu_ctx: GPUContext | None = None
+    if _use_gpu:
+        gpu_ctx = GPUContext()
     pygame.display.set_caption("The Fold")
     clock = pygame.time.Clock()
     logger = LoggingManager(log_dir=os.path.join(WRITABLE_DIR, "logs"))
@@ -224,10 +288,28 @@ def main() -> None:
 
     background = load_background(BASE_DIR, WIDTH, HEIGHT)
     animator = PlayerAnimator()
+
+    # Build GPU atlas and sprite batch after sprites are loaded
+    gpu_atlas: RuntimeAtlas | None = None
+    gpu_batch: SpriteBatch | None = None
+    if gpu_ctx is not None:
+        _atlas_frames: dict[str, pygame.Surface] = {}
+        if background is not None:
+            _atlas_frames["background"] = background
+        for state, frame_list in animator._sprites.items():
+            for idx, surf in enumerate(frame_list):
+                _atlas_frames[f"player_{state.name.lower()}_{idx}"] = surf
+        gpu_atlas = RuntimeAtlas(gpu_ctx.ctx, _atlas_frames)
+        gpu_batch = SpriteBatch(gpu_ctx.ctx, gpu_atlas, (WIDTH, HEIGHT))
+
     flash_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
     impact_flash_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
     fold_tint_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
     world_surf = pygame.Surface((WIDTH, HEIGHT))
+    # Software-rendered frame for GPU overlay (non-playing states)
+    gpu_sw_surf = pygame.Surface((WIDTH, HEIGHT))
+    # Transparent overlay for HUD compositing over GPU world render
+    gpu_hud_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
     particles = ParticlePool()
 
     player = Player.from_spawn(level.spawn, tuple(level.gravity_start))
@@ -347,36 +429,10 @@ def main() -> None:
                             _grant_debug_items(run_state, item_manager, item_registry)
                         if event.key == pygame.K_r and player.chrono_reserve >= GRAVITY_ROTATION_COST:
                             player.chrono_reserve -= GRAVITY_ROTATION_COST
-                            bus.emit(GameEvent.GRAVITY_ROTATED, gravity_dir=player.gravity_dir)
-                            player.set_gravity(rotate_gravity_ccw(player.gravity_dir))
-                            player.px = round(player.px)
-                            player.py = round(player.py)
-                            all_plats = level.all_platform_rects() + level.boundary_rects()
-                            player.px, player.py, player.vx, player.vy, player.on_ground = (
-                                resolve_collisions(
-                                    player.px, player.py, player.vx, player.vy,
-                                    player.player_w, player.player_h,
-                                    all_plats, player.gravity_dir,
-                                )
+                            flash_timer = _do_gravity_rotation(
+                                rotate_gravity_ccw(player.gravity_dir),
+                                player, level, camera, animator, enemies, particles, bus,
                             )
-                            player.on_ground = check_ground_adjacent(
-                                player.px, player.py, player.player_w, player.player_h,
-                                all_plats, player.gravity_dir,
-                            )
-                            if player.on_ground:
-                                player.coyote_timer = COYOTE_TIME
-                                player.jumping = False
-                            camera.on_gravity_rotate()
-                            camera.start_rotation_cinematic()
-                            camera.shake(ROTATE_SHAKE_INTENSITY, ROTATE_SHAKE_DURATION)
-                            flash_timer = ROTATION_FLASH_DURATION
-                            particles.emit_rotation_burst(player.px, player.py)
-                            for e in enemies:
-                                e.on_gravity_rotate()
-                            if player.gravity_dir == (0, 1):
-                                animator.helmet.request_off()
-                            else:
-                                animator.helmet.request_on()
                         if event.key == pygame.K_e and time_dilation.is_ready and player.chrono_reserve >= time_dilation.cost:
                             player.chrono_reserve = time_dilation.activate(player.chrono_reserve)
                             bus.emit(GameEvent.ABILITY_USED, ability_name="time_dilation")
@@ -427,34 +483,10 @@ def main() -> None:
                 for _zi in new_zone_indices - active_zone_indices:
                     _zone = level.gravity_zones[_zi]
                     if _zone.gravity_dir is not None and tuple(_zone.gravity_dir) != player.gravity_dir:
-                        bus.emit(GameEvent.GRAVITY_ROTATED, gravity_dir=player.gravity_dir)
-                        player.set_gravity(tuple(_zone.gravity_dir))
-                        player.px, player.py = round(player.px), round(player.py)
-                        _zplats = level.all_platform_rects() + level.boundary_rects()
-                        player.px, player.py, player.vx, player.vy, player.on_ground = (
-                            resolve_collisions(
-                                player.px, player.py, player.vx, player.vy,
-                                player.player_w, player.player_h, _zplats, player.gravity_dir,
-                            )
+                        flash_timer = _do_gravity_rotation(
+                            tuple(_zone.gravity_dir),
+                            player, level, camera, animator, enemies, particles, bus,
                         )
-                        player.on_ground = check_ground_adjacent(
-                            player.px, player.py, player.player_w, player.player_h,
-                            _zplats, player.gravity_dir,
-                        )
-                        if player.on_ground:
-                            player.coyote_timer = COYOTE_TIME
-                            player.jumping = False
-                        camera.on_gravity_rotate()
-                        camera.start_rotation_cinematic()
-                        camera.shake(ROTATE_SHAKE_INTENSITY, ROTATE_SHAKE_DURATION)
-                        flash_timer = ROTATION_FLASH_DURATION
-                        particles.emit_rotation_burst(player.px, player.py)
-                        for e in enemies:
-                            e.on_gravity_rotate()
-                        if player.gravity_dir == (0, 1):
-                            animator.helmet.request_off()
-                        else:
-                            animator.helmet.request_on()
                 active_zone_indices = new_zone_indices
 
                 gravity_mult = level.gravity_multiplier * zone_strength_mult * (
@@ -590,33 +622,11 @@ def main() -> None:
 
                 # Gravity snap-back when chrono exhausted while off default orientation
                 if _gravity_expired and player.gravity_dir != level.gravity_start:
-                    bus.emit(GameEvent.GRAVITY_ROTATED, gravity_dir=player.gravity_dir)
-                    player.set_gravity(level.gravity_start)
-                    player.px, player.py = round(player.px), round(player.py)
-                    _snap_plats = level.all_platform_rects() + level.boundary_rects()
-                    player.px, player.py, player.vx, player.vy, player.on_ground = resolve_collisions(
-                        player.px, player.py, player.vx, player.vy,
-                        player.player_w, player.player_h, _snap_plats, player.gravity_dir,
+                    flash_timer = _do_gravity_rotation(
+                        level.gravity_start,
+                        player, level, camera, animator, enemies, particles, bus,
                     )
-                    player.on_ground = check_ground_adjacent(
-                        player.px, player.py, player.player_w, player.player_h,
-                        _snap_plats, player.gravity_dir,
-                    )
-                    if player.on_ground:
-                        player.coyote_timer = COYOTE_TIME
-                        player.jumping = False
-                    camera.on_gravity_rotate()
-                    camera.start_rotation_cinematic()
-                    camera.shake(ROTATE_SHAKE_INTENSITY, ROTATE_SHAKE_DURATION)
-                    flash_timer = ROTATION_FLASH_DURATION
-                    particles.emit_rotation_burst(player.px, player.py)
                     grav_vert = gravity_is_vertical(player.gravity_dir)
-                    for e in enemies:
-                        e.on_gravity_rotate()
-                    if player.gravity_dir == (0, 1):
-                        animator.helmet.request_off()
-                    else:
-                        animator.helmet.request_on()
 
                 level_reset = False
                 _death_cause = ""
@@ -703,19 +713,66 @@ def main() -> None:
                     active_zone_indices = set()
                     time_dilation.reset()
 
+            # Compute once — used in both render paths
+            at_modifier_cap = sum(
+                1 for o in run_state.owned_items
+                if item_registry.get_item(o.get("id", "")) is not None
+                and item_registry.get_item(o["id"]).tier == "modifier"
+            ) >= MODIFIER_CAP
+
+            if gpu_ctx is not None and gpu_batch is not None and gpu_atlas is not None:
+                gpu_ctx.clear()
+                if game_state == "playing":
+                    _draw_enemies = [] if anomaly_pending else enemies
+                    gpu_draw_world(
+                        gpu_batch, gpu_atlas, background, level, _draw_enemies,
+                        animator, player, player_state, camera.offset, WIDTH, HEIGHT,
+                    )
+                    # Fold tint overlay
+                    if run_state.fold_stability < FOLD_TINT_THRESHOLD:
+                        t = 1.0 - run_state.fold_stability / FOLD_TINT_THRESHOLD
+                        alpha = t * FOLD_TINT_MAX_ALPHA / 255.0
+                        gpu_batch.begin()
+                        gpu_batch.draw_rect(0, 0, WIDTH, HEIGHT, (0.6, 0.0, 0.0, alpha))
+                        gpu_batch.flush()
+                    # HUD + flash overlays — composite over game world
+                    gpu_hud_surf.fill((0, 0, 0, 0))
+                    draw_hud(gpu_hud_surf, font, player, time_dilation.active_timer,
+                             time_dilation.cooldown_timer, WIDTH, HEIGHT,
+                             in_anomaly=anomaly_pending)
+                    draw_flash_overlay(gpu_hud_surf, flash_surf, flash_timer)
+                    draw_impact_flash(gpu_hud_surf, impact_flash_surf, impact_flash_timer)
+                    gpu_batch.draw_fullscreen_surface(gpu_hud_surf)
+                else:
+                    # Non-playing states: render via existing software functions
+                    gpu_sw_surf.fill((0, 0, 0))
+                    if game_state == "start":
+                        draw_start_screen(gpu_sw_surf, font, WIDTH, HEIGHT, meta)
+                    elif game_state == "node_map":
+                        draw_node_map(gpu_sw_surf, font, run_state, WIDTH, HEIGHT,
+                                      registry=item_registry)
+                    elif game_state == "reward":
+                        draw_reward_screen(gpu_sw_surf, font, reward_offers,
+                                           run_state.fold_stability, WIDTH, HEIGHT,
+                                           at_modifier_cap=at_modifier_cap)
+                    elif game_state == "hole_encounter":
+                        draw_hole_screen(gpu_sw_surf, font, hole_timer, hole_is_white,
+                                         WIDTH, HEIGHT)
+                    elif game_state == "dead":
+                        draw_death_screen(gpu_sw_surf, font, run_state, WIDTH, HEIGHT, meta)
+                    elif game_state == "win":
+                        draw_win_screen(gpu_sw_surf, font, run_state, WIDTH, HEIGHT, meta)
+                    gpu_batch.draw_fullscreen_surface(gpu_sw_surf)
+                pygame.display.flip()
+                continue
+
             if game_state == "start":
                 draw_start_screen(screen, font, WIDTH, HEIGHT, meta)
             elif game_state == "node_map":
                 draw_node_map(screen, font, run_state, WIDTH, HEIGHT, registry=item_registry)
             elif game_state == "reward":
-                from constants import MODIFIER_CAP
-                at_cap = sum(
-                    1 for o in run_state.owned_items
-                    if item_registry.get_item(o.get("id", "")) is not None
-                    and item_registry.get_item(o["id"]).tier == "modifier"
-                ) >= MODIFIER_CAP
                 draw_reward_screen(screen, font, reward_offers, run_state.fold_stability,
-                                   WIDTH, HEIGHT, at_modifier_cap=at_cap)
+                                   WIDTH, HEIGHT, at_modifier_cap=at_modifier_cap)
             elif game_state == "hole_encounter":
                 draw_hole_screen(screen, font, hole_timer, hole_is_white, WIDTH, HEIGHT)
             elif game_state == "dead":
@@ -753,6 +810,12 @@ def main() -> None:
         raise
     finally:
         logger.log_event("Game shutting down")
+        if gpu_batch is not None:
+            gpu_batch.release()
+        if gpu_atlas is not None:
+            gpu_atlas.release()
+        if gpu_ctx is not None:
+            gpu_ctx.release()
         pygame.quit()
 
 

@@ -65,6 +65,9 @@ PLAYER_PHYSICS_HEIGHT_HORIZONTAL: int = 64  # height when gravity is LEFT or RIG
 PLAYER_SPRITE_WIDTH: int = 60
 PLAYER_SPRITE_HEIGHT: int = 90
 
+# --- Renderer ---
+USE_GPU_RENDERER: bool = True   # False or env FOLD_RENDERER=software → Pygame fallback
+
 DEBUG_DRAW_RECTS: bool = False        # draw physics rects for debugging
 SPRITE_PHYSICS_OFFSET_Y: int = 0      # vertical pixel offset to align sprite to physics rect
 

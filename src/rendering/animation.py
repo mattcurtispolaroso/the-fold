@@ -62,6 +62,8 @@ class PlayerAnimator:
         self._walk_timer: float = 0.0
         self._walk_frame: int = 0
         self._lateral_speed: float = 0.0
+        self._air_timer: float = 0.0
+        self._air_frame: int = 0
 
         self.helmet = HelmetOverlay(self._base)
 
@@ -151,10 +153,29 @@ class PlayerAnimator:
         self._lateral_speed = abs(lateral_speed)
         self.helmet.update(dt)
 
+        _AIR_STATES = (PlayerState.JUMP_RISING, PlayerState.JUMP_FALLING)
+        _AIR_FPS = 10.0  # fixed playback rate for air frames
+
+        if state in _AIR_STATES and state in self._sprites:
+            self._walk_timer = 0.0
+            self._walk_frame = 0
+            self._air_timer += dt
+            frame_dur = 1.0 / _AIR_FPS
+            if self._air_timer >= frame_dur:
+                self._air_timer -= frame_dur
+                frame_count = len(self._sprites[state])
+                self._air_frame = (self._air_frame + 1) % frame_count
+            return
+
         if state != PlayerState.WALK or PlayerState.WALK not in self._sprites:
             self._walk_timer = 0.0
             self._walk_frame = 0
+            self._air_timer = 0.0
+            self._air_frame = 0
             return
+
+        self._air_timer = 0.0
+        self._air_frame = 0
 
         if self._lateral_speed < C.WALK_ANIM_MIN_SPEED:
             self._walk_timer = 0.0
@@ -178,6 +199,8 @@ class PlayerAnimator:
             return None
         if state == PlayerState.WALK:
             return frames[self._walk_frame % len(frames)]
+        if state in (PlayerState.JUMP_RISING, PlayerState.JUMP_FALLING):
+            return frames[self._air_frame % len(frames)]
         return frames[0]
 
     def draw(
