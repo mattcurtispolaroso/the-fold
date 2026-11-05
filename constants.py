@@ -33,6 +33,9 @@ ROTATION_ZOOM_IN_DUR: float = 0.07  # seconds to zoom in (ease-out)
 ROTATION_ZOOM_HOLD_DUR: float = 0.03  # seconds held at peak
 ROTATION_ZOOM_OUT_DUR: float = 0.08  # seconds to zoom out (ease-in)
 
+# --- Physics Safety ---
+EPSILON: float = 0.001  # floating-point zero threshold; use abs(v) < EPSILON instead of v == 0
+
 # --- Physics Scale ---
 PPM: int = 50                                             # pixels per meter
 EARTH_GRAVITY: float = 9.8                                # m/s²
@@ -75,8 +78,9 @@ SPRITE_PHYSICS_OFFSET_Y: int = 0      # vertical pixel offset to align sprite to
 SPRITE_SHEET_FRAME_WIDTH: int = 256   # source frame width on sheets
 SPRITE_SHEET_FRAME_HEIGHT: int = 384  # source frame height on sheets
 
-# Walk animation tuning
+# Walk / Land animation tuning
 WALK_ANIM_MIN_SPEED: float = 0.5     # lateral speed below which walk anim pauses
+LAND_ANIM_DURATION: float = 0.1      # seconds to show LAND frame after touching ground
 WALK_ANIM_MIN_FPS: int = 6           # slowest walk cycle rate
 WALK_ANIM_MAX_FPS: int = 12          # fastest walk cycle rate
 
@@ -167,8 +171,9 @@ FOLD_TINT_THRESHOLD: float = 80.0            # stability below this → red tint
 FOLD_TINT_MAX_ALPHA: int = 110               # tint alpha at stability = 0
 
 # --- Combat (M3) ---
-IFRAMES_DURATION: float = 0.8    # seconds invincible after taking a hit
-KNOCKBACK_FORCE: float = 6.0     # px/frame lateral velocity impulse on hit
+IFRAMES_DURATION: float = 0.8         # seconds invincible after taking a hit
+KNOCKBACK_FORCE: float = 6.0          # px/frame lateral velocity impulse on hit
+KNOCKBACK_VERTICAL_FORCE: float = 4.0  # px/frame upward (anti-gravity) impulse on hit
 
 # --- Fold Predator (M5b enemy) ---
 FOLD_PREDATOR_W: int = 40
@@ -208,8 +213,9 @@ CHRONO_RESERVE_MAX: float = 100.0
 CHRONO_REGEN_MOVE: float = 15.0   # per second during active lateral movement
 CHRONO_REGEN_IDLE: float = 0.0    # per second while idle (passive play earns nothing)
 
-# --- Gravity Rotation Cost ---
-GRAVITY_ROTATION_COST: float = 10.0  # chrono spent per rotation; blocks rotation if insufficient
+# --- Gravity Rotation ---
+GRAVITY_ROTATION_COST: float = 10.0     # chrono spent per rotation; blocks rotation if insufficient
+ROTATION_COOLDOWN: float = 0.4          # seconds before another rotation is allowed
 
 # --- Gravity Off-Default Drain ---
 # Chrono drains while in non-default gravity; when chrono hits 0, gravity snaps back.

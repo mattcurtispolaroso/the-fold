@@ -20,7 +20,8 @@ class AbilitySlot:
     name: str
     duration: float
     cost: float
-    cooldown: float
+    cooldown: float  # seconds after active_timer expires before next use (post-effect wait)
+    time_scale_factor: float = field(default=1.0)  # time scale when active; 1.0 = no effect
     active_timer: float = field(default=0.0)
     cooldown_timer: float = field(default=0.0)
 
@@ -35,11 +36,10 @@ class AbilitySlot:
         return self.cooldown_timer <= 0.0
 
     def activate(self, chrono_reserve: float) -> float:
-        """Start the ability, deduct cost, return updated chrono_reserve."""
-        chrono_reserve -= self.cost
+        """Start the ability, deduct cost, return updated chrono_reserve (floored at 0)."""
         self.active_timer = self.duration
         self.cooldown_timer = self.duration + self.cooldown
-        return chrono_reserve
+        return max(0.0, chrono_reserve - self.cost)
 
     def tick(self, dt: float, bus: EventBus) -> None:
         """Advance timers by dt. Emits ABILITY_ENDED when effect expires."""
@@ -55,8 +55,8 @@ class AbilitySlot:
         self.cooldown_timer = 0.0
 
     def time_scale(self) -> float:
-        """Return physics time scale: dilated when active, normal otherwise."""
-        return TIME_DILATION_FACTOR if self.is_active else 1.0
+        """Return physics time scale: time_scale_factor when active, 1.0 otherwise."""
+        return self.time_scale_factor if self.is_active else 1.0
 
 
 def make_time_dilation() -> AbilitySlot:
@@ -66,4 +66,5 @@ def make_time_dilation() -> AbilitySlot:
         duration=TIME_DILATION_DURATION,
         cost=TIME_DILATION_COST,
         cooldown=TIME_DILATION_COOLDOWN,
+        time_scale_factor=TIME_DILATION_FACTOR,
     )

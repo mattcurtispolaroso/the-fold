@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pygame
 
+from constants import EPSILON
 from src.levels.level_data import (
     GoalDef,
     GravityZoneDef,
@@ -40,6 +41,10 @@ class MovingPlatform:
         self.max_val: int = definition.max_val
         self.speed: int = definition.speed
         self.direction: int = 1
+        # Float positions prevent drift from repeated int truncation at fractional
+        # time_scale values (e.g. speed=1, time_scale=0.5 → int(0.5)=0 would freeze the platform)
+        self._fx: float = float(definition.x)
+        self._fy: float = float(definition.y)
 
     def update(self, time_scale: float = 1.0) -> None:
         """Move the platform one step and reverse at bounds.
@@ -47,21 +52,23 @@ class MovingPlatform:
         time_scale=0.0 freezes the platform (Time Dilation ability).
         """
         if self.axis == "x":
-            self.rect.x += int(self.speed * self.direction * time_scale)
-            if self.rect.x >= self.max_val:
-                self.rect.x = self.max_val
+            self._fx += self.speed * self.direction * time_scale
+            if self._fx >= self.max_val:
+                self._fx = float(self.max_val)
                 self.direction = -1
-            elif self.rect.x <= self.min_val:
-                self.rect.x = self.min_val
+            elif self._fx <= self.min_val:
+                self._fx = float(self.min_val)
                 self.direction = 1
+            self.rect.x = int(self._fx)
         else:
-            self.rect.y += int(self.speed * self.direction * time_scale)
-            if self.rect.y >= self.max_val:
-                self.rect.y = self.max_val
+            self._fy += self.speed * self.direction * time_scale
+            if self._fy >= self.max_val:
+                self._fy = float(self.max_val)
                 self.direction = -1
-            elif self.rect.y <= self.min_val:
-                self.rect.y = self.min_val
+            elif self._fy <= self.min_val:
+                self._fy = float(self.min_val)
                 self.direction = 1
+            self.rect.y = int(self._fy)
 
 
 class LevelRenderer:
@@ -136,7 +143,7 @@ class LevelRenderer:
         check_ground_adjacent. Returns (0.0, 0.0) if not on any moving platform
         or if time is frozen (time_scale=0 means platform isn't moving either).
         """
-        if time_scale == 0.0 or not self.moving_platforms:
+        if abs(time_scale) < EPSILON or not self.moving_platforms:
             return 0.0, 0.0
         if gravity_dir == (0, 1):
             probe = pygame.Rect(px - player_w / 2 + 1, py + player_h / 2, player_w - 2, 2)

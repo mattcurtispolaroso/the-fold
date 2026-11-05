@@ -12,6 +12,7 @@ from enum import Enum, auto
 import pygame
 
 import constants as C
+from constants import LAND_ANIM_DURATION
 from src.physics import gravity_speed
 from src.rendering.helmet import HelmetOverlay, _apply_gravity_rotation, _load_sprite
 from src.rendering.sprite_sheet import load_sheet
@@ -64,6 +65,7 @@ class PlayerAnimator:
         self._lateral_speed: float = 0.0
         self._air_timer: float = 0.0
         self._air_frame: int = 0
+        self._land_timer: float = 0.0  # counts down after touching ground
 
         self.helmet = HelmetOverlay(self._base)
 
@@ -146,12 +148,18 @@ class PlayerAnimator:
         """Sprite height in pixels."""
         return C.PLAYER_SPRITE_HEIGHT
 
+    def notify_landed(self) -> None:
+        """Call when player transitions from air to ground to trigger LAND animation."""
+        self._land_timer = LAND_ANIM_DURATION
+
     def update(
         self, dt: float, state: PlayerState, lateral_speed: float = 0.0,
     ) -> None:
         """Advance animation timers. lateral_speed drives walk cycle."""
         self._lateral_speed = abs(lateral_speed)
         self.helmet.update(dt)
+        if self._land_timer > 0:
+            self._land_timer = max(0.0, self._land_timer - dt)
 
         _AIR_STATES = (PlayerState.JUMP_RISING, PlayerState.JUMP_FALLING)
         _AIR_FPS = 10.0  # fixed playback rate for air frames
@@ -248,11 +256,22 @@ def determine_player_state(
     vy: float,
     gravity_dir: tuple[int, int],
     move_input: int,
+    land_timer: float = 0.0,
 ) -> PlayerState:
-    """Map current physics state to the correct animation state."""
-    if on_ground:
-        return PlayerState.WALK if move_input != 0 else PlayerState.IDLE
-    gv = gravity_speed(vx, vy, gravity_dir)
-    if gv < C.JUMP_RISING_THRESHOLD:
-        return PlayerState.JUMP_RISING
-    return PlayerState.JUMP_PEAK if abs(gv) <= C.JUMP_PEAK_THRESHOLD else PlayerState.JUMP_FALLING
+    """Map current physics state to the correct animation state.
+
+    land_timer: seconds remaining in the LAND animation (set by PlayerAnimator.notify_landed).
+    """
+    if not on_ground:
+        gv = gravity_speed(vx, vy, gravity_dir)
+        if gv < C.JUMP_RISING_THRESHOLD:
+            return PlayerState.JUMP_RISING
+        return PlayerState.JUMP_PEAK if abs(gv) <= C.JUMP_PEAK_THRESHOLD else PlayerState.JUMP_FALLING
+
+    if land_timer > 0:
+        return PlayerState.LAND
+
+    # Use lateral speed, not just move_input, so the player shows WALK while
+    # decelerating on a moving platform or after knockback.
+    lat_speed = abs(vx) if gravity_dir[1] != 0 else abs(vy)
+    return PlayerState.WALK if lat_speed > C.WALK_ANIM_MIN_SPEED or move_input != 0 else PlayerState.IDLE

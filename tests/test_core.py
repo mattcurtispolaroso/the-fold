@@ -1231,22 +1231,25 @@ class TestCombat(unittest.TestCase):
         self.assertTrue(check_hit(p, e))
 
     def test_compute_knockback_pushes_right(self) -> None:
+        """Player to right of enemy gets positive vx and upward anti-gravity vy."""
         from src.systems.combat import compute_knockback
         vx, vy = compute_knockback(150.0, 100.0, 100.0, 100.0, (0, 1))
         self.assertGreater(vx, 0.0)
-        self.assertAlmostEqual(vy, 0.0)
+        self.assertLess(vy, 0.0)  # upward kick against DOWN gravity
 
     def test_compute_knockback_pushes_left(self) -> None:
+        """Player to left of enemy gets negative vx and upward anti-gravity vy."""
         from src.systems.combat import compute_knockback
         vx, vy = compute_knockback(50.0, 100.0, 100.0, 100.0, (0, 1))
         self.assertLess(vx, 0.0)
-        self.assertAlmostEqual(vy, 0.0)
+        self.assertLess(vy, 0.0)  # upward kick against DOWN gravity
 
     def test_compute_knockback_horizontal_gravity_uses_y(self) -> None:
+        """With RIGHT gravity, lateral component is vy and anti-gravity kick is -vx."""
         from src.systems.combat import compute_knockback
         vx, vy = compute_knockback(100.0, 150.0, 100.0, 100.0, (1, 0))
-        self.assertAlmostEqual(vx, 0.0)
-        self.assertGreater(vy, 0.0)
+        self.assertLess(vx, 0.0)  # kick against RIGHT gravity = leftward
+        self.assertGreater(vy, 0.0)  # player below enemy, pushed down (lateral)
 
     def test_take_fall_damage_returns_false_above_zero(self) -> None:
         p = self._make_player()

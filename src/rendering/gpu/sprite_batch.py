@@ -125,13 +125,18 @@ class SpriteBatch:
         self._quad_count = 0
 
     def flush(self) -> None:
-        """Upload buffered quads and issue the draw call."""
+        """Upload buffered quads, issue the draw call, and reset the counter.
+
+        Resetting here ensures that a second flush() call (e.g. from
+        draw_fullscreen_surface) does not re-render the same batch.
+        """
         if self._quad_count == 0:
             return
         byte_count = self._quad_count * 4 * _VBYTES
         self._vbo.write(self._vdata.tobytes()[:byte_count])
         self._atlas.use(0)
         self._vao.render(moderngl.TRIANGLES, vertices=self._quad_count * 6)
+        self._quad_count = 0
 
     # ------------------------------------------------------------------
     # Draw helpers
@@ -213,8 +218,7 @@ class SpriteBatch:
         correctly. Used for game states (start screen, node map, etc.) that
         still run through the software rendering path.
         """
-        self.flush()
-        self._quad_count = 0  # flush doesn't reset; overlay quad must land at index 0
+        self.flush()  # renders pending world quads and resets _quad_count to 0
         raw = pygame.image.tostring(surf, "RGBA", True)
         self._overlay_tex.write(raw)
         # Draw one fullscreen quad using the overlay texture instead of the atlas
@@ -227,7 +231,7 @@ class SpriteBatch:
         byte_count = 1 * 4 * _VBYTES
         self._vbo.write(self._vdata.tobytes()[:byte_count])
         self._vao.render(moderngl.TRIANGLES, vertices=6)
-        self._quad_count = 0
+        self._quad_count = 0  # overlay quad not managed by flush(); clear manually
         # Restore atlas binding for subsequent draw calls
         self._atlas.use(0)
 

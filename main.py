@@ -37,6 +37,7 @@ from constants import (
     HARD_LAND_FLASH_DURATION,
     HARD_LAND_PUNCH_DURATION,
     HARD_LAND_PUNCH_MAGNITUDE,
+    ROTATION_COOLDOWN,
     ROTATION_FLASH_DURATION,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
@@ -328,6 +329,7 @@ def main() -> None:
     physics_accumulator: float = 0.0
     flash_timer: float = 0.0
     impact_flash_timer: float = 0.0
+    rotation_cooldown_timer: float = 0.0
     hole_timer: float = 0.0
     hole_is_white: bool = False
     reward_offers: list = []
@@ -427,8 +429,9 @@ def main() -> None:
                             debug_draw = not debug_draw
                         if DEBUG_ITEMS and event.key == pygame.K_f:
                             _grant_debug_items(run_state, item_manager, item_registry)
-                        if event.key == pygame.K_r and player.chrono_reserve >= GRAVITY_ROTATION_COST:
+                        if event.key == pygame.K_r and player.chrono_reserve >= GRAVITY_ROTATION_COST and rotation_cooldown_timer <= 0:
                             player.chrono_reserve -= GRAVITY_ROTATION_COST
+                            rotation_cooldown_timer = ROTATION_COOLDOWN
                             flash_timer = _do_gravity_rotation(
                                 rotate_gravity_ccw(player.gravity_dir),
                                 player, level, camera, animator, enemies, particles, bus,
@@ -499,6 +502,8 @@ def main() -> None:
                     flash_timer = max(0.0, flash_timer - frame_dt)
                 if impact_flash_timer > 0:
                     impact_flash_timer = max(0.0, impact_flash_timer - frame_dt)
+                if rotation_cooldown_timer > 0:
+                    rotation_cooldown_timer = max(0.0, rotation_cooldown_timer - frame_dt)
 
                 grav_vert = gravity_is_vertical(player.gravity_dir)
                 _gravity_expired = False
@@ -602,7 +607,9 @@ def main() -> None:
                     physics_history.append(player.to_dict())
                     physics_accumulator -= PHYSICS_DT
 
-                # Landing VFX (emitted once per frame, not per physics tick)
+                # Landing VFX and animation (emitted once per frame, not per physics tick)
+                if _landing_occurred or _hard_landing_occurred:
+                    animator.notify_landed()
                 if _landing_occurred:
                     particles.emit_landing_dust(
                         player.px, player.py, player.player_w, player.player_h, player.gravity_dir,
@@ -676,13 +683,14 @@ def main() -> None:
                         run_state.is_active = False
                     else:
                         _reset_level_state(level, player, camera, animator, enemies)
-                    physics_accumulator = flash_timer = 0.0
+                    physics_accumulator = flash_timer = rotation_cooldown_timer = 0.0
                     active_zone_indices = set()
                     time_dilation.reset()
 
                 camera.update(player.px, player.py, frame_dt)
                 player_state = determine_player_state(
                     player.on_ground, player.vx, player.vy, player.gravity_dir, player.move_input,
+                    animator._land_timer,
                 )
                 lateral_speed = player.vx if grav_vert else player.vy
                 animator.update(frame_dt, player_state, lateral_speed)
