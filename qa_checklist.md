@@ -190,5 +190,5 @@ Run through this after each coding session. Launch the game with `python main.py
 - [ ] Sky and far background layers are NOT darkened by lighting; mid pipework band and playfield are
 - [ ] Levels other than level_01 look exactly as after TA-2 (unlit, no player light)
 - [ ] F3 overlay shows a `light` line; with level_01 it stays well under 2ms (measured ~0.5ms with 10 lights)
-- [ ] Brightness tuning: is level_01 too dark? Tune ambient/light values in levels/level_01.json and PLAYER_LIGHT_* in constants.py
+- [ ] Brightness tuning: level_01 ambient raised 0.30-0.42 → 0.72-0.82 and player light 0.7 → 0.85 after first look was too dark. Re-check in play; tune in levels/level_01.json and PLAYER_LIGHT_* in constants.py
 - [ ] A level JSON with a malformed "lights" value loads the fallback level instead of crashing

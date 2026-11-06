@@ -107,7 +107,7 @@ LIGHT_DEFAULT_AMBIENT: tuple[float, float, float] = (0.35, 0.38, 0.45)  # lit le
 PARALLAX_LIT_LAYERS: tuple[str, ...] = ("mid", "play")  # multiplied by the light buffer
 PLAYER_LIGHT_RADIUS: float = 220.0
 PLAYER_LIGHT_COLOR: tuple[float, float, float] = (1.0, 0.72, 0.38)   # warm amber (exosuit glow)
-PLAYER_LIGHT_INTENSITY: float = 0.7
+PLAYER_LIGHT_INTENSITY: float = 0.85
 
 DEBUG_DRAW_RECTS: bool = False        # draw physics rects for debugging
 SPRITE_PHYSICS_OFFSET_Y: int = 0      # vertical pixel offset to align sprite to physics rect

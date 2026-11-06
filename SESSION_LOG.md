@@ -67,3 +67,4 @@
 - main.py renders the light buffer each playing frame; F3 overlay shows a `light` line.
 - level_01.json lit: ambient + 3 point lights.
 - 683 tests pass (24 new in tests/test_gpu_lights.py incl. GPU readback of ambient, additive, capped, spot-cone, player-follow, lit composite). Window smoke: 10 lights + player ~0.53ms avg, no GL errors.
+- Lighting too dark on first look (Matt): level_01 ambient raised (0.30,0.34,0.42) → (0.72,0.75,0.82); PLAYER_LIGHT_INTENSITY 0.7 → 0.85 so the player pool still reads over the brighter ambient.
