@@ -82,7 +82,7 @@ Done when: a ~10 min run from start to singularity or death is completable. **Ga
   - [x] Reward flow — pick-1-of-3 after combat rooms and white holes, seeded offers, Paradox artifacts ✅
   - [x] Session 4 tuning pass ✅ — white hole no longer gives reward screen (resource restore is the reward); PARADOX_OFFER_CHANCE 25% → 15%
 - M5b — Fold Predator enemy ✅ Done 2026-11-01
-- M5c — Anomaly rooms ✅ Done 2026-11-02 — 3 hand-authored rooms (physics gate, RIGHT-gravity navigation, UP-gravity overhead), seeded picker, wired into hole node flow
+- M5c — Anomaly rooms ✅ Done 2026-11-02 — 3 hand-authored rooms (physics gate, RIGHT-gravity navigation, UP-gravity overhead), seeded picker, wired into hole node flow; expanded to 6 rooms post-M8 (3 added in commit 47d360d)
 - M5d — HUD ✅ Done 2026-11-01 — integrity pips + chrono bar + dilation status; gravity label removed from production HUD
 - M5e — The Anchored enemy ✅ Done 2026-11-01 — wander/stutter AI, frozen by Time Dilation, no-op on gravity rotate
 - Audio v1 — deferred
@@ -101,26 +101,67 @@ Done when: a ~10 min run from start to singularity or death is completable. **Ga
 - M7c: Mac + Windows PyInstaller builds — `build/the_fold.spec`, `build/build_mac.sh`, `build/build_windows.bat` ✅
 
 ## Current milestone
-**M8 — Playtest Pass**
+**M8 — Playtest Pass** ✅ Done 2026-11-02
+- M8a: Stability rebalance — death cost 20→15, black hole 15→10, white hole restore 5→15 ✅
+- M8b: Enemy data pass — EnemyDef in level JSON; Temporal Echo back in combat rooms; varies by node ✅
+- M8c: Extend run to 9 nodes — 4 combat + 4 hole + singularity; 4 new level files (05-08); pressure curve validated ✅
+
+**M8-post. Bug fixes + audit (between M8 and M9)** ✅ Done 2026-11-05
+- Adversarial game-dev audit — 12 bugs fixed (AbilitySlot chrono floor, knockback gravity-aware, animation walk/land fixes, moving platform float precision, rotation cooldown constant). Tests in `tests/test_audit_fixes.py`. ✅
+- AIR_DECEL increased 0.1 → 0.25 — reduces floaty lateral drift ✅
+- Hard landing visual feedback — directional camera punch + red impact flash on HARD_LAND_VELOCITY hit ✅
+- Death cause tracked and shown on death screen ✅
+- 3 additional anomaly rooms added (now 6 total) ✅
+- Test suite refactored — `test_core.py` split into 6 focused domain files; 2 redundant duplicate test classes removed ✅
+
+## Current milestone
+**TA — Tech Art Pipeline** (in progress)
 
 ## This sprint (max 3 tasks)
-- [x] M8a: Stability rebalance — death cost 20→15, black hole 15→10, white hole restore 5→15 ✅
-- [x] M8b: Enemy data pass — EnemyDef in level JSON; Temporal Echo back in combat rooms; varies by node ✅
-- [x] M8c: Extend run to 9 nodes — 4 combat + 4 hole + singularity; 4 new level files (05-08); pressure curve validated ✅
+- [x] TA-0: GPU backend foundation — ModernGL context alongside Pygame, software fallback flag, triangle smoke test ✅
+- [x] TA-1: Sprite batch + atlas loader — player and level geometry via GPU sprite batch, atlas packer tool ✅
+- [ ] TA-2: Parallax layer system — 5 FBOs with per-layer scroll factors, background split across sky/far/mid layers
+
+## TA milestone track (tech art pipeline)
+
+Full plan in `docs/tech-art-plan.md`. Runs alongside the M-series. Each TA module is one autonomous session.
+
+| Module | Description | Status |
+|---|---|---|
+| TA-0 | GPU backend foundation (ModernGL context, software fallback, triangle) | ✅ Done |
+| TA-1 | Sprite batch + atlas loader | ✅ Done |
+| TA-2 | Parallax layer system (5 FBOs, per-layer scroll) | Next |
+| TA-3 | 2D light buffer (ambient + point/spot lights per level) | — |
+| TA-4 | Post-processing stack v1 (bloom, vignette, grain, LUT) | — |
+| TA-5 | Fold distortion + gravity flip (screen-space warp, rotation bend) | — |
+| TA-6 | Feel framework (hitstop, sprite flash, squash/stretch, accessibility toggle) | — |
+| TA-7 | GPU particles (instanced quad draw, visual upgrade) | — |
+| TA-8 | Normal maps + emissive mask (optional, post-launch candidate) | — |
+
+**Vertical slice acceptance (end of TA-5):** level_01 renders with 5 parallax layers, 3 point lights, bloom, vignette, grain, Fold distortion on rotation. 60fps on dev Mac. Software fallback passes all existing tests unchanged.
+
+**Open decisions (see `docs/tech-art-plan.md` §5):**
+- Q3: Is the software renderer CI-only or a user-facing option for older/no-GPU machines?
+- Q4: Normal map authoring — hand-painted or algorithmically generated from sprites?
+- Q5: CRT/halation pass — in scope for TA-4, or defer post-vertical-slice?
+- Q6: Parallax art for TA-2 testing — procedural split of `background.png` or painted layers?
 
 ## Needs revisit
-- VFX particles (rotation burst, hit spark, landing dust) — mechanic is wired, visual execution needs tuning. Particle sizes, speeds, colours, and counts all open. Revisit once we have a clearer feel for the visual language.
+- VFX particles (rotation burst, hit spark, landing dust) — mechanic is wired, visual execution needs tuning. Particle sizes, speeds, colours, and counts all open. Will be addressed in TA-7 (GPU particles).
 
 ## Known bugs / open items
 - Up/W doubles as move and jump in horizontal gravity | annoying, may cause unintended jumps | deliberately left as is for now (see Decisions log)
 - Helmet sprite files referenced in constants.py do not exist | cosmetic (placeholder renders)
 - Amber glow overlay not implemented | deferred — needs `EXOSKELETON_GLOW_PATH` art asset (glow reference image showing exoskeleton path on black background)
 - level_06 RIGHT gravity zone has no enemies — enemy patrol is x-axis only so wall-crawl placement isn't viable without y-patrol support. Deferred; fix when enemy AI supports directional patrol.
-- AIR_DECEL = 0.1 may read as floaty — lateral momentum persists ~50 frames airborne. Needs live playtest to confirm.
+- **`JUMP_ANTICIPATION` is a dead animation state** — the enum value exists, sprites are loaded from the jump sheet, but `determine_player_state()` never returns it. Requires a pre-jump squat timer. Either wire it up or delete the state. (From adversarial audit item 6.)
+- **`AbilitySlot.cooldown` naming confusion** — `cooldown` is the post-effect wait, not total recharge time. `TIME_DILATION_DURATION + TIME_DILATION_COOLDOWN = actual recharge`. Balancing requires holding this in your head. Document clearly or rename `cooldown` → `post_effect_wait`. (From adversarial audit item 12.)
+- **Ability combination test coverage incomplete** — CLAUDE.md requires tests for every ability/modifier combination. Currently only the basic chrono floor and time_scale cases are covered. Gaps: Time Dilation at fractional scale, activation-while-active, item modifier stacking on ability duration/cost. (From adversarial audit item 13.)
 - ~~level_01.json and anomaly_01.json both named "The Dividing Wall"~~ fixed: anomaly_03 renamed to "The Overhang"
 - ~~No controls hint on start screen~~ fixed — first-time players see no key mapping
-- Death screen shows stats but not cause of death — players can't learn from runs
-- Hard landing damage (HARD_LAND_VELOCITY = 13.0) has no visual feedback — damage source is opaque to player
+- ~~Death screen shows stats but not cause of death~~ fixed (commit 0a01be2 — death cause tracked and displayed)
+- ~~Hard landing damage (HARD_LAND_VELOCITY = 13.0) has no visual feedback~~ fixed (commit 47ae69c — directional camera punch + red impact flash)
+- ~~AIR_DECEL = 0.1 may read as floaty~~ fixed (commit b031882 — increased to 0.25)
 
 ## Risks
 1. **Cadence.** 19 modules at 3 hr/week is multi-year. The M4 gate exists to avoid sinking that time into an unproven loop.
@@ -129,7 +170,7 @@ Done when: a ~10 min run from start to singularity or death is completable. **Ga
 4. **Procgen.** "Valid in 2+ gravity orientations" is the hardest algorithmic piece. Hand-authored templates first.
 
 ## Backlog (parked, not commitments)
-Cult enemies (Witness, Ordained, Architect); Archivist and Diplomat characters; Closed Loop rewind ultimate; spatial audio; controller rumble; Steam integration; Codex; amber glow overlay (needs `EXOSKELETON_GLOW_PATH` art asset); node map visual upgrade (star chart glyphs instead of text list); 6+ anomaly rooms (currently 3); death cause on death screen; **level pathfinding validator** — BFS/flood-fill that simulates player movement (all 4 gravity orientations, jump arcs, moving platform positions) from spawn to goal for each level file; currently we use geometry-only checks (option 2, `tests/test_level_navigability.py`) which verify reachable positions exist but do not trace the navigation path — needed when procedural level generation (M11) ships.
+Cult enemies (Witness, Ordained, Architect); Archivist and Diplomat characters; Closed Loop rewind ultimate; spatial audio; controller rumble; Steam integration; Codex; amber glow overlay (needs `EXOSKELETON_GLOW_PATH` art asset); node map visual upgrade (star chart glyphs instead of text list); more anomaly rooms (currently 6); **level pathfinding validator** — BFS/flood-fill that simulates player movement (all 4 gravity orientations, jump arcs, moving platform positions) from spawn to goal for each level file; currently we use geometry-only checks (option 2, `tests/test_level_navigability.py`) which verify reachable positions exist but do not trace the navigation path — needed when procedural level generation (M11) ships.
 
 ### Design ideas parking lot (unscoped, not committed)
 - **Chrono degradation across levels** — cumulative chrono use degrades the reserve cap or regen rate across subsequent levels, making runs harder as the player burns more resource. Creates a "spend now vs. protect for later" arc across the run, not just within a level.
@@ -140,6 +181,10 @@ Cult enemies (Witness, Ordained, Architect); Archivist and Diplomat characters; 
 2. ~~Launch scope.~~ Decided: lean v1.0.
 3. ~~Horizontal-gravity controls.~~ Decided: no change for now.
 4. ~~Art strategy through M4.~~ Decided: placeholders for everything except the player sprite and existing background.
+5. **TA Q3 — Software renderer scope:** CI-only fallback, or exposed as a user option for older/no-GPU machines? (Recommendation: CI-only now, revisit on a compatibility report.)
+6. **TA Q4 — Normal map authoring:** Hand-painted per sprite, or algorithmically generated from painted surface? (Recommendation: generated via SpriteIlluminator or similar; upgrade hero sprites if quality is insufficient.)
+7. **TA Q5 — CRT/halation pass:** In scope for TA-4, or stub and defer post-vertical-slice? (Recommendation: stub the toggle in TA-4, leave shader empty; decide after seeing full post stack on real art.)
+8. **TA Q6 — TA-2 parallax art:** Does TA-2 need painted layered backgrounds, or test with procedural tinted copies of `background.png`? (Recommendation: procedural split for TA-2 testing; real layers when art pipeline produces them.)
 
 ## Decisions log
 - 2026-10-31: roadmap drafted.
@@ -155,9 +200,12 @@ Cult enemies (Witness, Ordained, Architect); Archivist and Diplomat characters; 
 - 2026-11-02: fold-playtester built as a sibling project (../fold-playtester/), never shipped in the binary. Visual agent using Claude computer-use. Run with `python run_playtest.py` from that directory.
 - 2026-11-02: 28-item design assessment via code review. Core finding: hole uncertainty non-functional, enemies identical every run, 5-node run too short for build system or pressure curve to land. M8 sprint pivoted to playtest fixes. Steam deferred indefinitely — game needs art before Steam is relevant.
 - 2026-11-02: Proposed stability rebalance: death cost 20→15, black hole 15→10, white hole restore 5→15. Makes holes feel like calculated risk rather than a penalty worse than dying twice. Pending implementation in M8a.
+- 2026-11-05: Tech art plan approved (`docs/tech-art-plan.md`). Resolution strategy: stay at 800×600 world units, upscale to display (TA Q1). Art pipeline first, art second — build TA-0 through TA-5 with current placeholders, swap real art later (TA Q2).
+- 2026-11-05: Adversarial game-dev audit completed. 12 bugs fixed across GPU, physics, resources, combat, animation, and input systems. 3 items remain open: JUMP_ANTICIPATION dead state, cooldown naming confusion, ability combination test coverage gaps. See Known bugs.
+- 2026-11-05: 28-item design assessment (separate from adversarial audit) drove the M8 sprint: hole uncertainty non-functional, enemies identical every run, 5-node run too short. All three addressed in M8a-c.
 
 ## Last session
-Date: 2026-11-02
-Did: Completed M8 sprint — M8a stability rebalance (death/black hole/white hole costs rebalanced), M8b enemy data pass (EnemyDef dataclass, all 4 combat levels now have varied enemy compositions driven by JSON, Temporal Echo back in rotation), M8c 9-node run (NODE_SEQUENCE extended to 4 combat + 4 hole + singularity, 4 new level files 05-08 with gravity zone complexity scaling). Node map now shows 8 playable nodes before singularity. Singularity pressure curve validated across all 8 nodes.
-State of tests: 579 passing
-Next up: Playtest the 9-node run; assess whether the pressure curve lands; consider M9 (audio v1, anomaly room variety, or jump buffer)
+Date: 2026-11-05
+Did: Adversarial audit fixes (12 bugs), GPU render pipeline TA-0/TA-1, AIR_DECEL tuning, hard landing visual feedback, death cause on death screen, 3 additional anomaly rooms (now 6 total), test suite refactor (test_core.py split into 6 domain files, 2 redundant duplicate test classes removed). Roadmap updated to reflect all of the above.
+State of tests: 632 passing
+Next up: TA-2 (parallax layer system) or M9 gameplay pass — decide based on whether art pipeline or content is the higher priority
