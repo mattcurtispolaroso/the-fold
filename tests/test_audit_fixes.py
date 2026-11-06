@@ -208,5 +208,80 @@ class TestRotationCooldownConstant(unittest.TestCase):
         self.assertLess(EPSILON, 0.1)
 
 
+class TestAbilitySlotCombinations(unittest.TestCase):
+    """Gaps from adversarial audit item 13: activation-while-active, fractional
+    time scale, total_recharge property, modifier stacking with real slot."""
+
+    def _make_slot(self, duration: float = 3.0, cost: float = 10.0,
+                   cooldown: float = 2.0, tsf: float = 0.0) -> object:
+        from src.systems.spacetime import AbilitySlot
+        return AbilitySlot(
+            name="time_dilation", duration=duration, cost=cost,
+            cooldown=cooldown, time_scale_factor=tsf,
+        )
+
+    def _bus(self) -> object:
+        from src.systems.events import EventBus
+        return EventBus()
+
+    def test_activate_while_active_resets_timer_to_full_duration(self) -> None:
+        """Re-activating mid-effect resets active_timer to full duration."""
+        slot = self._make_slot(duration=3.0)
+        slot.activate(100.0)
+        slot.tick(1.0, self._bus())  # 1s into effect → timer=2.0
+        slot.activate(100.0)        # re-activate
+        self.assertAlmostEqual(slot.active_timer, 3.0)
+
+    def test_activate_while_active_deducts_cost_again(self) -> None:
+        """Re-activating while active still deducts chrono cost."""
+        slot = self._make_slot(cost=10.0)
+        remaining = slot.activate(100.0)   # → 90
+        remaining = slot.activate(remaining)  # → 80
+        self.assertAlmostEqual(remaining, 80.0)
+
+    def test_total_recharge_equals_duration_plus_cooldown(self) -> None:
+        """total_recharge property returns duration + post-effect wait."""
+        slot = self._make_slot(duration=3.0, cooldown=2.0)
+        self.assertAlmostEqual(slot.total_recharge, 5.0)
+
+    def test_cooldown_timer_set_to_total_recharge_on_activate(self) -> None:
+        """cooldown_timer is initialised to duration + cooldown on activate."""
+        slot = self._make_slot(duration=3.0, cooldown=2.0)
+        slot.activate(100.0)
+        self.assertAlmostEqual(slot.cooldown_timer, 5.0)
+
+    def test_fractional_time_scale_factor_returned_while_active(self) -> None:
+        """time_scale_factor of 0.3 (partial slow) is returned correctly."""
+        slot = self._make_slot(tsf=0.3)
+        slot.activate(100.0)
+        self.assertAlmostEqual(slot.time_scale(), 0.3)
+
+    def test_ability_ready_after_full_cooldown_elapsed(self) -> None:
+        """Ability becomes ready exactly after duration + cooldown has ticked down."""
+        slot = self._make_slot(duration=1.0, cooldown=1.0)
+        bus = self._bus()
+        slot.activate(100.0)
+        slot.tick(2.0, bus)  # exactly duration + cooldown
+        self.assertTrue(slot.is_ready)
+        self.assertFalse(slot.is_active)
+
+    def test_extend_active_ability_works_with_real_slot(self) -> None:
+        """extend_active_ability effect integrates with a real AbilitySlot, not a stub."""
+        import random
+        from src.systems.items.effects import EFFECT_REGISTRY, EffectContext
+        from src.systems.events import EventResult
+        slot = self._make_slot(duration=3.0)
+        slot.activate(100.0)
+        slot.tick(1.0, self._bus())  # 1s in → active_timer = 2.0
+        ctx = EffectContext(
+            player=None, enemies=[], run_state=None,
+            ability_slot=slot, rng=random.Random(0),
+        )
+        EFFECT_REGISTRY["extend_active_ability"](
+            EventResult(), ctx, {"ability_name": "time_dilation", "seconds": 0.5},
+        )
+        self.assertAlmostEqual(slot.active_timer, 2.5)
+
+
 if __name__ == "__main__":
     unittest.main()
