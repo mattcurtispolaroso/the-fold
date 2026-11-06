@@ -241,21 +241,8 @@ class TestPlayerAnimatorHelmetIntegration(unittest.TestCase):
 class TestNewPlayerStates(unittest.TestCase):
     """New player animation states exist and have fallback colors."""
 
-    def test_jump_anticipation_state_exists(self):
-        self.assertIsNotNone(PlayerState.JUMP_ANTICIPATION)
-
     def test_land_state_exists(self):
         self.assertIsNotNone(PlayerState.LAND)
-
-    def test_fallback_drawn_for_jump_anticipation(self):
-        animator = PlayerAnimator()
-        surface = pygame.Surface((200, 200))
-        surface.fill((0, 0, 0))
-        animator.draw(surface, 10, 10, PlayerState.JUMP_ANTICIPATION, True, (0, 1))
-        cx = 10 + C.PLAYER_SPRITE_WIDTH // 2
-        cy = 10 + C.PLAYER_SPRITE_HEIGHT // 2
-        color = surface.get_at((cx, cy))
-        self.assertNotEqual((color.r, color.g, color.b), (0, 0, 0))
 
     def test_fallback_drawn_for_land(self):
         animator = PlayerAnimator()

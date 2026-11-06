@@ -100,7 +100,7 @@ JUMP_PEAK_THRESHOLD: float = 1.0      # abs(gravity_speed) below this = peak
 # 8-frame jump sheet: anticipation, launch, rising_fast, rising_slow,
 #                     peak, falling_slow, falling_fast, land_impact
 JUMP_SHEET_FRAMES: int = 8
-JUMP_SHEET_ANTICIPATION: int = 0
+JUMP_SHEET_ANTICIPATION: int = 0  # frame exists in sheet; no in-game state maps to it
 JUMP_SHEET_LAUNCH: int = 1
 JUMP_SHEET_RISING_FAST: int = 2
 JUMP_SHEET_RISING_SLOW: int = 3

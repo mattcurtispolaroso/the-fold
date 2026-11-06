@@ -39,7 +39,6 @@ class PlayerState(Enum):
     JUMP_RISING = auto()
     JUMP_PEAK = auto()
     JUMP_FALLING = auto()
-    JUMP_ANTICIPATION = auto()
     LAND = auto()
 
 
@@ -99,9 +98,6 @@ class PlayerAnimator:
             C.SPRITE_SHEET_FRAME_HEIGHT,
         )
         if jump_frames:
-            self._sprites[PlayerState.JUMP_ANTICIPATION] = [
-                jump_frames[C.JUMP_SHEET_ANTICIPATION],
-            ]
             self._sprites[PlayerState.JUMP_RISING] = [
                 jump_frames[C.JUMP_SHEET_LAUNCH],
                 jump_frames[C.JUMP_SHEET_RISING_FAST],
