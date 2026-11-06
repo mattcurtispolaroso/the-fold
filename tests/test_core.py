@@ -1429,11 +1429,11 @@ class TestAbilitySlot(unittest.TestCase):
         self.assertTrue(slot.is_ready)
 
     def test_make_time_dilation_uses_constants(self):
-        from constants import TIME_DILATION_DURATION, TIME_DILATION_COST, TIME_DILATION_COOLDOWN
+        from constants import TIME_DILATION_DURATION, TIME_DILATION_COST, TIME_DILATION_POST_EFFECT_WAIT
         slot = self.make_time_dilation()
         self.assertAlmostEqual(slot.duration, TIME_DILATION_DURATION)
         self.assertAlmostEqual(slot.cost, TIME_DILATION_COST)
-        self.assertAlmostEqual(slot.cooldown, TIME_DILATION_COOLDOWN)
+        self.assertAlmostEqual(slot.cooldown, TIME_DILATION_POST_EFFECT_WAIT)
 
 
 class TestLevelGoalValidity(unittest.TestCase):

@@ -238,10 +238,11 @@ SINGULARITY_ABILITY_COST_MAX_MULT: float = 2.0   # ability cost multiplier at ma
 SINGULARITY_GRAVITY_MAX_MULT: float = 1.5        # gravity strength multiplier at max pressure
 
 # --- Time Dilation (M2 ability, E key) ---
-TIME_DILATION_COST: float = 25.0      # chrono_reserve spent on activation
-TIME_DILATION_DURATION: float = 3.0   # seconds platforms are frozen
-TIME_DILATION_COOLDOWN: float = 2.0   # seconds after duration before reuse
-TIME_DILATION_FACTOR: float = 0.0     # platform time scale while active (0 = frozen)
+TIME_DILATION_COST: float = 25.0             # chrono_reserve spent on activation
+TIME_DILATION_DURATION: float = 3.0          # seconds platforms are frozen
+TIME_DILATION_POST_EFFECT_WAIT: float = 2.0  # seconds AFTER effect ends before reuse
+                                              # total recharge = DURATION + POST_EFFECT_WAIT = 5.0s
+TIME_DILATION_FACTOR: float = 0.0            # platform time scale while active (0 = frozen)
 
 # --- Node Map (M4b) ---
 NODE_SEQUENCE: tuple = (

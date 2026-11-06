@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from constants import TIME_DILATION_COOLDOWN, TIME_DILATION_COST, TIME_DILATION_DURATION, TIME_DILATION_FACTOR
+from constants import TIME_DILATION_POST_EFFECT_WAIT, TIME_DILATION_COST, TIME_DILATION_DURATION, TIME_DILATION_FACTOR
 from src.systems.events import EventBus, EventResult, GameEvent
 
 
@@ -20,10 +20,15 @@ class AbilitySlot:
     name: str
     duration: float
     cost: float
-    cooldown: float  # seconds after active_timer expires before next use (post-effect wait)
+    cooldown: float  # post-effect wait: seconds after effect ends before reuse (not total recharge)
     time_scale_factor: float = field(default=1.0)  # time scale when active; 1.0 = no effect
     active_timer: float = field(default=0.0)
     cooldown_timer: float = field(default=0.0)
+
+    @property
+    def total_recharge(self) -> float:
+        """Total time from activation until the ability is ready again: duration + post-effect wait."""
+        return self.duration + self.cooldown
 
     @property
     def is_active(self) -> bool:
@@ -65,6 +70,6 @@ def make_time_dilation() -> AbilitySlot:
         name="time_dilation",
         duration=TIME_DILATION_DURATION,
         cost=TIME_DILATION_COST,
-        cooldown=TIME_DILATION_COOLDOWN,
+        cooldown=TIME_DILATION_POST_EFFECT_WAIT,
         time_scale_factor=TIME_DILATION_FACTOR,
     )
