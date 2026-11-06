@@ -282,5 +282,66 @@ class TestOffset(unittest.TestCase):
         self.assertAlmostEqual(oy, -100.0, delta=1.0)
 
 
+class TestRotationCinematic(unittest.TestCase):
+    """Tests for camera zoom-in / hold / zoom-out cinematic."""
+
+    def _cam(self) -> object:
+        from src.rendering.camera import Camera
+        return Camera(800, 600)
+
+    def test_zoom_is_one_initially(self) -> None:
+        self.assertAlmostEqual(self._cam().zoom, 1.0)
+
+    def test_inactive_by_default(self) -> None:
+        self.assertFalse(self._cam()._cinematic_active)
+
+    def test_cinematic_active_after_start(self) -> None:
+        cam = self._cam()
+        cam.start_rotation_cinematic()
+        self.assertTrue(cam._cinematic_active)
+
+    def test_zoom_increases_during_zoom_in_phase(self) -> None:
+        cam = self._cam()
+        cam.start_rotation_cinematic()
+        cam.update(0.0, 0.0, constants.ROTATION_ZOOM_IN_DUR * 0.5)
+        self.assertGreater(cam.zoom, 1.0)
+
+    def test_zoom_reaches_peak_after_zoom_in(self) -> None:
+        cam = self._cam()
+        cam.start_rotation_cinematic()
+        cam.update(0.0, 0.0, constants.ROTATION_ZOOM_IN_DUR)
+        self.assertAlmostEqual(cam.zoom, constants.ROTATION_ZOOM_PEAK, places=2)
+
+    def test_zoom_returns_to_one_after_cinematic(self) -> None:
+        cam = self._cam()
+        cam.start_rotation_cinematic()
+        total = (constants.ROTATION_ZOOM_IN_DUR + constants.ROTATION_ZOOM_HOLD_DUR
+                 + constants.ROTATION_ZOOM_OUT_DUR)
+        cam.update(0.0, 0.0, total + 0.1)
+        self.assertAlmostEqual(cam.zoom, 1.0, places=2)
+
+    def test_cinematic_inactive_after_completion(self) -> None:
+        cam = self._cam()
+        cam.start_rotation_cinematic()
+        total = (constants.ROTATION_ZOOM_IN_DUR + constants.ROTATION_ZOOM_HOLD_DUR
+                 + constants.ROTATION_ZOOM_OUT_DUR)
+        cam.update(0.0, 0.0, total + 0.1)
+        self.assertFalse(cam._cinematic_active)
+
+    def test_normal_zoom_unaffected_when_cinematic_inactive(self) -> None:
+        cam = self._cam()
+        cam.zoom = 1.5
+        cam.update(0.0, 0.0, 1.0)
+        self.assertGreater(cam.zoom, 1.0)
+
+    def test_peak_zoom_above_one(self) -> None:
+        self.assertGreater(constants.ROTATION_ZOOM_PEAK, 1.0)
+
+    def test_total_cinematic_duration_under_one_second(self) -> None:
+        total = (constants.ROTATION_ZOOM_IN_DUR + constants.ROTATION_ZOOM_HOLD_DUR
+                 + constants.ROTATION_ZOOM_OUT_DUR)
+        self.assertLess(total, 1.0)
+
+
 if __name__ == "__main__":
     unittest.main()
