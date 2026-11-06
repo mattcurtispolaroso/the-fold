@@ -19,7 +19,7 @@ import constants as C
 from src.rendering.gpu.feel import DistortionParams
 from src.rendering.gpu.layer import FULLSCREEN_QUAD
 from src.rendering.gpu.lut import upload_lut
-from src.rendering.gpu.sprite_batch import _load_shader
+from src.rendering.gpu.shader_source import load_shader
 
 TimedFn = Callable[[str], AbstractContextManager]
 
@@ -41,7 +41,7 @@ _GRAIN_SEED_PERIOD: int = 997  # frame counter wraps here to keep float seeds pr
 
 def _load_pass_shader(filename: str) -> str:
     """Load a pass shader, applying any compile-time define rewrite."""
-    source = _load_shader(filename)
+    source = load_shader(filename)
     if filename in _SHADER_DEFINES:
         placeholder, replacement = _SHADER_DEFINES[filename]
         if placeholder not in source:
@@ -89,7 +89,7 @@ class PostStack:
         self._timed: TimedFn = timed or (lambda _key: nullcontext())
         self.enabled: dict[str, bool] = {n: C.POST_PASS_DEFAULTS[n] for n in C.POST_PASS_ORDER}
         self._frame: int = 0
-        vert = _load_shader("post.vert")
+        vert = load_shader("post.vert")
         self._progs = {name: ctx.program(vertex_shader=vert, fragment_shader=_load_pass_shader(f))
                        for name, f in _PASS_SHADERS.items()}
         self._quad_vbo = ctx.buffer(array.array("f", FULLSCREEN_QUAD).tobytes())

@@ -16,7 +16,7 @@ import moderngl
 import constants as C
 from src.levels.light_data import LightDef, LightKind
 from src.rendering.gpu.layer import FULLSCREEN_QUAD
-from src.rendering.gpu.sprite_batch import _load_shader
+from src.rendering.gpu.shader_source import load_shader
 
 # Cone bounds that make smoothstep() return 1 for every direction (point lights)
 POINT_LIGHT_CONE: tuple[float, float] = (-2.0, -1.0)
@@ -94,11 +94,11 @@ class LightBuffer:
     def __init__(self, ctx: moderngl.Context, size: tuple[int, int]) -> None:
         """Compile the light shader and allocate the half-float light FBO."""
         self._ctx = ctx
-        frag = _load_shader("light.frag")
+        frag = load_shader("light.frag")
         if _MAX_LIGHTS_DEFINE not in frag:
             raise RuntimeError("light.frag is missing its MAX_LIGHTS define")
         frag = frag.replace(_MAX_LIGHTS_DEFINE, f"#define MAX_LIGHTS {C.LIGHT_SHADER_SLOTS}")
-        self._prog = ctx.program(vertex_shader=_load_shader("upscale.vert"), fragment_shader=frag)
+        self._prog = ctx.program(vertex_shader=load_shader("upscale.vert"), fragment_shader=frag)
         self._prog["u_max_brightness"].value = C.LIGHT_BUFFER_MAX_BRIGHTNESS
         self._quad_vbo = ctx.buffer(array.array("f", FULLSCREEN_QUAD).tobytes())
         self._quad_vao = ctx.vertex_array(self._prog, [(self._quad_vbo, "2f", "a_pos")])

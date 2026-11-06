@@ -12,7 +12,7 @@ import array
 import moderngl
 
 import constants as C
-from src.rendering.gpu.sprite_batch import _load_shader
+from src.rendering.gpu.shader_source import load_shader
 from src.rendering.vfx import INSTANCE_FLOATS, ParticlePool
 
 _UNIT_QUAD = (-1.0, -1.0, 1.0, -1.0, -1.0, 1.0, 1.0, 1.0)  # triangle strip
@@ -32,8 +32,8 @@ class ParticleRenderer:
         """Compile the particle program and allocate quad + instance buffers."""
         self._ctx = ctx
         self._capacity = capacity
-        self._prog = ctx.program(vertex_shader=_load_shader("particle.vert"),
-                                 fragment_shader=_load_shader("particle.frag"))
+        self._prog = ctx.program(vertex_shader=load_shader("particle.vert"),
+                                 fragment_shader=load_shader("particle.frag"))
         self._prog["u_resolution"].value = (float(resolution[0]), float(resolution[1]))
         self._prog["u_soft_edge"].value = C.PARTICLE_SOFT_EDGE
         self._prog["u_glow_core"].value = C.PARTICLE_GLOW_CORE

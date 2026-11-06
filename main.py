@@ -79,9 +79,12 @@ from src.physics import (
 from src.rendering.animation import PlayerAnimator, PlayerState, determine_player_state
 from src.rendering.camera import Camera
 from src.rendering.hud import (
-    draw_debug_overlay, draw_death_screen, draw_flash_overlay, draw_fold_tint,
-    draw_hole_screen, draw_hud, draw_impact_flash, draw_node_map, draw_reward_screen,
-    draw_start_screen, draw_win_screen, draw_world,
+    draw_debug_overlay, draw_flash_overlay, draw_fold_tint, draw_hud, draw_impact_flash,
+    draw_world,
+)
+from src.rendering.screens import (
+    draw_death_screen, draw_hole_screen, draw_node_map, draw_reward_screen,
+    draw_start_screen, draw_win_screen,
 )
 from src.rendering.loader import load_background, load_font
 from src.rendering.vfx import ParticlePool
@@ -97,7 +100,8 @@ from src.systems.spacetime import make_time_dilation
 from src.systems.level_generator import pick_anomaly_room
 from src.rendering.gpu.context import GPUContext, use_gpu_renderer
 from src.rendering.gpu.atlas import RuntimeAtlas
-from src.rendering.gpu.sprite_batch import SpriteBatch, gpu_draw_world
+from src.rendering.gpu.sprite_batch import SpriteBatch
+from src.rendering.gpu.world_draw import gpu_draw_world
 from src.rendering.gpu.layer import LIGHT_TIMING_KEY, ParallaxStack
 from src.rendering.gpu.light_buffer import LightBuffer
 from src.rendering.gpu.layer_images import build_layer_images

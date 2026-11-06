@@ -2,6 +2,24 @@
 
 ---
 
+## Refactor: split oversized render modules (plan, 2026-11-05)
+
+**Touches more than 3 files. Pure refactor: no behaviour change.** Matt chose a refactor session. Work happens on branch `refactor/render-module-split`.
+
+| Change | Files |
+|---|---|
+| Move `gpu_draw_world` and its helpers out of `sprite_batch.py` into `gpu/world_draw.py`, and split it into functions under 40 lines (zones, platforms+goal, enemies, player) | `sprite_batch.py`, `world_draw.py` (new), `main.py` |
+| Public `load_shader()` in a new `gpu/shader_source.py`, replacing the private `sprite_batch._load_shader` that 4 modules import | `shader_source.py` (new), `sprite_batch.py`, `layer.py`, `light_buffer.py`, `post_stack.py`, `particles.py` |
+| Move the 6 full-screen menus from `hud.py` into `rendering/screens.py`. Split `draw_reward_screen` and `draw_node_map` under 40 lines, and share the duplicated run-stats / all-time-best blocks between the death and win screens (same pixels, positions passed in) | `hud.py`, `screens.py` (new), `main.py` |
+
+**Out of scope (noted, not done):**
+- `main()` is far over 40 lines. It's the orchestrator, and splitting it is a much bigger, riskier job than this session.
+- Hard-coded colours and y positions in the menu screens should eventually become constants. That's a separate task.
+
+**Verification:** the test suite, plus reference renders captured *before* the change and compared byte for byte afterwards: all 6 menus in several states, HUD variants, flash/tint/debug overlays, the software world draw, and the GPU playfield with and without feel effects.
+
+---
+
 ## TA-7 — GPU Particles (plan, 2026-11-05)
 
 **Touches more than 3 files.** The spec is approved in `docs/tech-art-plan.md` §3 TA-7. Matt said "next".

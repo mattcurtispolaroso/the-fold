@@ -19,7 +19,7 @@ import moderngl
 import pygame
 
 import constants as C
-from src.rendering.gpu.sprite_batch import _load_shader
+from src.rendering.gpu.shader_source import load_shader
 
 # Sprite/image draws INTO a layer: straight-alpha colour, accumulate alpha correctly
 _LAYER_BLEND = (moderngl.SRC_ALPHA, moderngl.ONE_MINUS_SRC_ALPHA,
@@ -113,8 +113,8 @@ class ParallaxStack:
             name: LayerFBO(ctx, name, size) for name in C.PARALLAX_LAYER_NAMES
         }
         self._prog = ctx.program(
-            vertex_shader=_load_shader("upscale.vert"),
-            fragment_shader=_load_shader("upscale.frag"),
+            vertex_shader=load_shader("upscale.vert"),
+            fragment_shader=load_shader("upscale.frag"),
         )
         self._prog["u_texture"] = 0
         self._prog["u_light"] = LIGHT_TEXTURE_UNIT

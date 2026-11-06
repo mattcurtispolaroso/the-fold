@@ -4,22 +4,19 @@ Collects quads each frame and flushes them to the GPU in one draw call.
 Both textured sprites and solid-color rects share one shader and one VBO.
 
 Camera convention: cam_offset is ADDITIVE — screen_pos = world_pos + cam_offset.
+What to draw for the playfield lives in world_draw.py; this module is only
+the batching mechanism.
 """
 from __future__ import annotations
 
 import array
 import math
-import os
-from typing import TYPE_CHECKING
 
 import pygame
 import moderngl
 
-import constants as C
-from src.rendering.gpu.atlas import RuntimeAtlas, WHITE_FRAME
-
-if TYPE_CHECKING:
-    from src.rendering.gpu.feel import Feel
+from src.rendering.gpu.atlas import RuntimeAtlas
+from src.rendering.gpu.shader_source import load_shader
 
 # Max quads before a forced mid-frame flush
 MAX_QUADS: int = 4096
@@ -29,23 +26,13 @@ NO_FLASH: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0)
 _VBYTES: int = _VFLOATS * 4  # float32
 
 # Screen-space CCW rotation per gravity direction (degrees)
-# Matches C.SPRITE_ROTATION — positive = visually CCW on screen
+# Matches constants.SPRITE_ROTATION — positive = visually CCW on screen
 _GRAVITY_ANGLE: dict[tuple[int, int], float] = {
     (0, 1): 0.0,
     (0, -1): 180.0,
     (-1, 0): -90.0,
     (1, 0): 90.0,
 }
-
-_SHADER_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.dirname(os.path.abspath(__file__))))), "shaders")
-
-
-def _load_shader(name: str) -> str:
-    """Read a GLSL source file from the shaders/ directory."""
-    with open(os.path.join(_SHADER_DIR, name)) as f:
-        return f.read()
-
 
 def _rotated_corners(
     cx: float, cy: float,
@@ -64,6 +51,22 @@ def _rotated_corners(
         ry = -lx * sin_a + ly * cos_a
         result.append((cx + rx, cy + ry))
     return result
+
+
+def _quad_indices(quad_count: int) -> array.array:
+    """Static index list: two triangles (TL-TR-BR, TL-BR-BL) per quad."""
+    indices = array.array("I")
+    for i in range(quad_count):
+        b = i * 4
+        indices.extend([b, b + 1, b + 2, b, b + 2, b + 3])
+    return indices
+
+
+def _overlay_texture(ctx: moderngl.Context, resolution: tuple[int, int]) -> moderngl.Texture:
+    """Screen-sized texture for uploading a software-rendered Surface each frame."""
+    texture = ctx.texture(resolution, 4)
+    texture.filter = (moderngl.NEAREST, moderngl.NEAREST)
+    return texture
 
 
 class SpriteBatch:
@@ -86,8 +89,8 @@ class SpriteBatch:
         self._vdata = array.array("f", [0.0] * (MAX_QUADS * 4 * _VFLOATS))
 
         # Compile shader program
-        vert_src = _load_shader("sprite.vert")
-        frag_src = _load_shader("sprite.frag")
+        vert_src = load_shader("sprite.vert")
+        frag_src = load_shader("sprite.frag")
         self._prog: moderngl.Program = ctx.program(
             vertex_shader=vert_src,
             fragment_shader=frag_src,
@@ -95,16 +98,10 @@ class SpriteBatch:
         self._prog["u_resolution"].value = resolution
         self._prog["u_texture"] = 0
 
-        # Pre-build static index buffer: two triangles per quad
-        indices = array.array("I")
-        for i in range(MAX_QUADS):
-            b = i * 4
-            indices.extend([b, b + 1, b + 2, b, b + 2, b + 3])
-
         self._vbo: moderngl.Buffer = ctx.buffer(
             reserve=MAX_QUADS * 4 * _VBYTES,
         )
-        self._ibo: moderngl.Buffer = ctx.buffer(indices.tobytes())
+        self._ibo: moderngl.Buffer = ctx.buffer(_quad_indices(MAX_QUADS).tobytes())
         self._vao: moderngl.VertexArray = ctx.vertex_array(
             self._prog,
             [(self._vbo, "2f 2f 4f 4f", "a_pos", "a_uv", "a_tint", "a_flash")],
@@ -117,9 +114,7 @@ class SpriteBatch:
 
         # Persistent overlay texture — holds a software-rendered pygame Surface
         # each frame for game states not yet ported to the GPU path.
-        w, h = resolution
-        self._overlay_tex: moderngl.Texture = ctx.texture((w, h), 4)
-        self._overlay_tex.filter = (moderngl.NEAREST, moderngl.NEAREST)
+        self._overlay_tex: moderngl.Texture = _overlay_texture(ctx, resolution)
 
     # ------------------------------------------------------------------
     # Frame lifecycle
@@ -255,133 +250,3 @@ class SpriteBatch:
         self._ibo.release()
         self._prog.release()
 
-
-# ---------------------------------------------------------------------------
-# World draw helper — called from main.py GPU path
-# ---------------------------------------------------------------------------
-
-def gpu_draw_world(
-    batch: SpriteBatch,
-    atlas: RuntimeAtlas,
-    level: object,
-    enemies: list,
-    animator: object,
-    player: object,
-    player_state: object,
-    cam_offset: tuple[float, float],
-    feel: Feel | None = None,
-) -> None:
-    """Draw the playfield via the sprite batch (GPU path equivalent of draw_world).
-
-    `feel` (TA-6) supplies the player's sprite flash and squash/stretch.
-
-    The background is not drawn here: since TA-2 it lives in the sky/far/mid
-    parallax layers (src/rendering/gpu/layer.py), and this draws into the
-    transparent play layer on top of them.
-    cam_offset is additive: screen_pos = world_pos + cam_offset.
-    """
-    ox, oy = cam_offset
-    batch.begin()
-
-    # Gravity zones (outline — approximate with a thin filled rect)
-    for zone in level.gravity_zones:
-        col = _zone_color(zone)
-        # Draw 4 edge rects to fake an outline (2px thick)
-        zx, zy, zw, zh = zone.x + ox, zone.y + oy, zone.w, zone.h
-        t = 2.0
-        batch.draw_rect(zx, zy, zw, t, col)
-        batch.draw_rect(zx, zy + zh - t, zw, t, col)
-        batch.draw_rect(zx, zy, t, zh, col)
-        batch.draw_rect(zx + zw - t, zy, t, zh, col)
-
-    # Static platforms
-    for plat in level.static_platforms:
-        batch.draw_rect(plat.x + ox, plat.y + oy, plat.width, plat.height,
-                        (0.392, 0.392, 0.392, 1.0))  # (100,100,100)/255
-
-    # Moving platforms
-    for mp in level.moving_platforms:
-        r = mp.rect
-        batch.draw_rect(r.x + ox, r.y + oy, r.width, r.height,
-                        (0.196, 0.784, 0.784, 1.0))  # (50,200,200)/255
-
-    # Goal rect
-    gr = level.goal_rect
-    batch.draw_rect(gr.x + ox, gr.y + oy, gr.width, gr.height,
-                    (0.196, 0.863, 0.196, 1.0))  # (50,220,50)/255
-
-    # Enemies
-    for enemy in enemies:
-        r = enemy.rect
-        col = _enemy_color(enemy)
-        batch.draw_rect(r.x + ox, r.y + oy, r.width, r.height, col)
-
-    # Player sprite
-    sw, sh = animator.width, animator.height
-    px_screen = player.px + ox
-    py_screen = player.py + oy
-    frame_name = _player_frame_name(animator, player_state)
-    if atlas.has_frame(frame_name):
-        flash, (cx, cy, qw, qh) = _player_feel(feel, player, px_screen, py_screen, sw, sh)
-        batch.draw_sprite(
-            frame_name,
-            cx, cy + C.SPRITE_PHYSICS_OFFSET_Y,
-            qw, qh,
-            gravity_dir=tuple(player.gravity_dir),
-            flip_x=not player.facing_right,
-            flash=flash,
-        )
-    else:
-        # Fallback colored rect
-        batch.draw_rect(px_screen - sw / 2, py_screen - sh / 2, sw, sh,
-                        (0.863, 0.196, 0.196, 1.0))
-
-    batch.flush()
-
-
-def _player_feel(
-    feel: Feel | None, player: object,
-    cx: float, cy: float, w: float, h: float,
-) -> tuple[tuple[float, float, float, float], tuple[float, float, float, float]]:
-    """Apply squash/stretch (feet stay planted along gravity) and return the flash.
-
-    Returns (flash, (centre_x, centre_y, quad_w, quad_h)). Quad h runs along
-    gravity because draw_sprite rotates the quad to the gravity direction.
-    """
-    if feel is None:
-        return NO_FLASH, (cx, cy, w, h)
-    along, across = feel.sprite_scale()
-    new_h = h * along
-    gx, gy = player.gravity_dir
-    shift = (h - new_h) / 2.0  # move the centre toward the feet so they don't lift
-    return feel.sprite_flash(), (cx + gx * shift, cy + gy * shift, w * across, new_h)
-
-
-def _player_frame_name(animator: object, player_state: object) -> str:
-    """Map animator state + current walk frame to an atlas frame name."""
-    state_name = player_state.name.lower()
-    # Walk: pick the current walk frame index from the animator
-    if state_name == "walk":
-        frame_idx = getattr(animator, "_walk_frame", 0)
-        name = f"player_walk_{frame_idx}"
-        return name if animator._sprites.get(player_state) else "player_walk_0"
-    return f"player_{state_name}_0"
-
-
-def _zone_color(zone: object) -> tuple[float, float, float, float]:
-    """Return RGBA float color for a gravity zone outline."""
-    if zone.gravity_dir is not None:
-        return (0.863, 0.627, 0.196, 1.0)  # amber
-    if getattr(zone, "strength_mult", None) is not None and zone.strength_mult < 1.0:
-        return (0.314, 0.549, 0.863, 1.0)  # blue
-    return (0.863, 0.314, 0.196, 1.0)  # red-orange
-
-
-def _enemy_color(enemy: object) -> tuple[float, float, float, float]:
-    """Return RGBA float color for an enemy type."""
-    cls = type(enemy).__name__
-    if cls == "FoldPredator":
-        return (0.706, 0.235, 0.863, 1.0)  # purple
-    if cls == "TheAnchored":
-        return (0.549, 0.824, 0.235, 1.0)  # yellow-green
-    return (0.314, 0.863, 0.863, 1.0)  # cyan (TemporalEcho default)
