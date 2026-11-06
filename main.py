@@ -57,6 +57,10 @@ from constants import (
     JUMP_STRETCH,
     LAND_SQUASH,
     VFX_POOL_SIZE,
+    ROTATION_BLOCKED_SHAKE_DURATION,
+    ROTATION_BLOCKED_SHAKE_INTENSITY,
+    ROTATION_SAFE_SEARCH_PX,
+    VALIDATION_EJECT_SEARCH_PX,
 )
 from src.data.run_state import RunState
 from src.entities.anchored import TheAnchored
@@ -69,14 +73,17 @@ from src.physics import (
     apply_jump_cut,
     apply_jump_impulse,
     apply_lateral_movement,
-    check_ground_adjacent,
     clamp_terminal_velocity,
     gravity_is_vertical,
     gravity_speed,
     resolve_collisions,
     rotate_gravity_ccw,
+    combined_gravity_mult,
+    push_out_of_movers,
+    try_rotate,
+    validate_player,
 )
-from src.rendering.animation import PlayerAnimator, PlayerState, determine_player_state
+from src.rendering.animation import PlayerAnimator, determine_player_state
 from src.rendering.camera import Camera
 from src.rendering.hud import (
     draw_debug_overlay, draw_flash_overlay, draw_fold_tint, draw_hud, draw_impact_flash,
@@ -91,10 +98,9 @@ from src.rendering.vfx import ParticlePool
 from src.systems.combat import check_hit, compute_knockback
 from src.systems.events import EventBus, GameEvent
 from src.systems.items import ItemManager, load_item_registry
-from src.systems.items.effects import EffectContext
 from src.systems.items.offers import generate_offers
 from src.data.items import OwnedItem
-from src.data.save_manager import SaveManager, MetaProgress
+from src.data.save_manager import SaveManager
 from src.systems.logging_manager import LoggingManager
 from src.systems.spacetime import make_time_dilation
 from src.systems.level_generator import pick_anomaly_room
@@ -235,24 +241,21 @@ def _do_gravity_rotation(
     particles: object,
     bus: object,
     feel: Feel,
-) -> float:
-    """Apply a gravity rotation: update player direction, resolve collisions, fire camera/VFX.
+) -> float | None:
+    """Apply a gravity rotation: move to a spot where the rotated hitbox fits, fire camera/VFX.
 
-    Returns the new flash_timer value (ROTATION_FLASH_DURATION).
+    Returns the new flash_timer value (ROTATION_FLASH_DURATION), or None when
+    the rotation is refused because the rotated hitbox fits nowhere nearby
+    (gravity rotation safety — the player is never rotated into geometry).
     """
-    from constants import COYOTE_TIME, ROTATE_SHAKE_INTENSITY, ROTATE_SHAKE_DURATION, ROTATION_FLASH_DURATION
+    result = try_rotate(player.px, player.py, player.vx, player.vy, new_dir,
+                        level.collision_rects(), ROTATION_SAFE_SEARCH_PX)
+    if result is None:
+        return None
     bus.emit(GameEvent.GRAVITY_ROTATED, gravity_dir=player.gravity_dir)
     player.set_gravity(new_dir)
-    player.px, player.py = round(player.px), round(player.py)
-    all_plats = level.all_platform_rects() + level.boundary_rects()
-    player.px, player.py, player.vx, player.vy, player.on_ground = resolve_collisions(
-        player.px, player.py, player.vx, player.vy,
-        player.player_w, player.player_h, all_plats, player.gravity_dir,
-    )
-    player.on_ground = check_ground_adjacent(
-        player.px, player.py, player.player_w, player.player_h,
-        all_plats, player.gravity_dir,
-    )
+    player.px, player.py, player.vx, player.vy = result.px, result.py, result.vx, result.vy
+    player.on_ground = result.on_ground
     if player.on_ground:
         player.coyote_timer = COYOTE_TIME
         player.jumping = False
@@ -268,6 +271,23 @@ def _do_gravity_rotation(
     else:
         animator.helmet.request_on()
     return ROTATION_FLASH_DURATION
+
+
+def _apply_validation(player: Player, rects: list, logger: LoggingManager) -> None:
+    """Post-step physics validation: fix NaN / in-geometry states and log each fix."""
+    state = validate_player(
+        player.px, player.py, player.vx, player.vy, player.player_w, player.player_h,
+        rects, (player.last_safe_px, player.last_safe_py), VALIDATION_EJECT_SEARCH_PX,
+    )
+    for issue in state.issues:
+        logger.log_physics_violation("player", issue)
+    player.px, player.py, player.vx, player.vy = state.px, state.py, state.vx, state.vy
+
+
+def _physics_frame(player: Player) -> dict:
+    """Lightweight per-step record for the crash log (no deep copy of the player)."""
+    return {"px": player.px, "py": player.py, "vx": player.vx, "vy": player.vy,
+            "on_ground": player.on_ground, "gravity_dir": player.gravity_dir}
 
 
 def _grant_debug_items(run_state: object, item_manager: object, item_registry: object) -> None:
@@ -376,6 +396,7 @@ def main() -> None:
 
     active_zone_indices: set[int] = set()
     physics_history: deque = deque(maxlen=50)
+    gravity_was_clamped: bool = False
     watchdog_consecutive: int = 0
 
     try:
@@ -472,12 +493,17 @@ def main() -> None:
                         if DEBUG_ITEMS and event.key == pygame.K_f:
                             _grant_debug_items(run_state, item_manager, item_registry)
                         if event.key == pygame.K_r and player.chrono_reserve >= GRAVITY_ROTATION_COST and rotation_cooldown_timer <= 0:
-                            player.chrono_reserve -= GRAVITY_ROTATION_COST
-                            rotation_cooldown_timer = ROTATION_COOLDOWN
-                            flash_timer = _do_gravity_rotation(
+                            _flash = _do_gravity_rotation(
                                 rotate_gravity_ccw(player.gravity_dir),
                                 player, level, camera, animator, enemies, particles, bus, feel,
                             )
+                            if _flash is None:  # no room to rotate: no cost, small "blocked" kick
+                                feel.shake(ROTATION_BLOCKED_SHAKE_INTENSITY,
+                                           ROTATION_BLOCKED_SHAKE_DURATION)
+                            else:
+                                player.chrono_reserve -= GRAVITY_ROTATION_COST
+                                rotation_cooldown_timer = ROTATION_COOLDOWN
+                                flash_timer = _flash
                         if event.key == pygame.K_e and time_dilation.is_ready and player.chrono_reserve >= time_dilation.cost:
                             player.chrono_reserve = time_dilation.activate(player.chrono_reserve)
                             bus.emit(GameEvent.ABILITY_USED, ability_name="time_dilation")
@@ -529,15 +555,21 @@ def main() -> None:
                 for _zi in new_zone_indices - active_zone_indices:
                     _zone = level.gravity_zones[_zi]
                     if _zone.gravity_dir is not None and tuple(_zone.gravity_dir) != player.gravity_dir:
-                        flash_timer = _do_gravity_rotation(
+                        _flash = _do_gravity_rotation(
                             tuple(_zone.gravity_dir),
                             player, level, camera, animator, enemies, particles, bus, feel,
                         )
+                        flash_timer = flash_timer if _flash is None else _flash
                 active_zone_indices = new_zone_indices
 
-                gravity_mult = level.gravity_multiplier * zone_strength_mult * (
-                    1.0 + pressure * (SINGULARITY_GRAVITY_MAX_MULT - 1.0)
+                gravity_mult, _clamped = combined_gravity_mult(
+                    level.gravity_multiplier, zone_strength_mult,
+                    1.0 + pressure * (SINGULARITY_GRAVITY_MAX_MULT - 1.0),
                 )
+                if _clamped and not gravity_was_clamped:  # log once per excursion, not every frame
+                    logger.log_physics_violation(
+                        "gravity", f"combined multiplier clamped to {gravity_mult:.2f}")
+                gravity_was_clamped = _clamped
                 time_dilation.cost = TIME_DILATION_COST * (
                     1.0 + pressure * (SINGULARITY_ABILITY_COST_MAX_MULT - 1.0)
                 )
@@ -608,11 +640,15 @@ def main() -> None:
                         )
                         player.px += pvx
                         player.py += pvy
-                    all_platforms = level.all_platform_rects() + level.boundary_rects()
+                    player.px, player.py = push_out_of_movers(
+                        player.px, player.py, player.player_w, player.player_h, level.movers(),
+                    )
+                    all_platforms = level.collision_rects()
                     player.px, player.py, player.vx, player.vy, player.on_ground = resolve_collisions(
                         player.px, player.py, player.vx, player.vy,
                         player.player_w, player.player_h, all_platforms, player.gravity_dir,
                     )
+                    _apply_validation(player, all_platforms, logger)
                     if not _was_grounded and player.on_ground:
                         if _pre_land_grav_vel >= HARD_LAND_VELOCITY:
                             _hard_landing_occurred = True
@@ -648,7 +684,7 @@ def main() -> None:
                     else:
                         watchdog_consecutive = 0
 
-                    physics_history.append(player.to_dict())
+                    physics_history.append(_physics_frame(player))
                     physics_accumulator -= PHYSICS_DT
 
                 # Landing VFX and animation (emitted once per frame, not per physics tick)
@@ -676,10 +712,11 @@ def main() -> None:
 
                 # Gravity snap-back when chrono exhausted while off default orientation
                 if _gravity_expired and player.gravity_dir != level.gravity_start:
-                    flash_timer = _do_gravity_rotation(
+                    _flash = _do_gravity_rotation(
                         level.gravity_start,
                         player, level, camera, animator, enemies, particles, bus, feel,
                     )
+                    flash_timer = flash_timer if _flash is None else _flash
                     grav_vert = gravity_is_vertical(player.gravity_dir)
 
                 level_reset = False

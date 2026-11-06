@@ -158,7 +158,7 @@ Full plan in `docs/tech-art-plan.md`. Runs alongside the M-series. Each TA modul
 - ~~Q6: Parallax art for TA-2 testing~~ — decided: procedural split (see Decisions log)
 
 ## Needs revisit
-- **Engine audit (2026-11-05): `docs/engine-audit-2026-11-05.md`.** 5 reproduced physics bugs (rotation into walls, platform side-push teleport, 8px turnaround slip, uncapped gravity → tunnelling ≥2.7×, no post-step validation), measured judder (no render interpolation), split fixed-step/frame-time simulation. Plan: 3 sessions (physics hardening → smoothness → World/determinism).
+- **Engine audit (2026-11-05): `docs/engine-audit-2026-11-05.md`.** 5 reproduced physics bugs (rotation into walls, platform side-push teleport, 8px turnaround slip, uncapped gravity → tunnelling ≥2.7×, no post-step validation), measured judder (no render interpolation), split fixed-step/frame-time simulation. Plan: 3 sessions (physics hardening → smoothness → World/determinism). **Session 1 (physics hardening) ✅ done 2026-11-05.**
 - ~~VFX particles visual tuning~~ — done in TA-7 (specs in constants.py `VFX_*`); give them a look in play
 
 ## Known bugs / open items

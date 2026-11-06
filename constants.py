@@ -35,8 +35,20 @@ ROTATION_ZOOM_OUT_DUR: float = 0.08  # seconds to zoom out (ease-in)
 
 # --- Physics Safety ---
 EPSILON: float = 0.001  # floating-point zero threshold; use abs(v) < EPSILON instead of v == 0
+GRAVITY_MULT_MIN: float = 0.0          # combined gravity multiplier floor (level × zone × pressure)
+GRAVITY_MULT_MAX: float = 5.0          # CLAUDE.md: gravity never exceeds 5× normal
+COLLISION_SUBSTEP_FRACTION: float = 0.5  # max move per collision pass, × player's smallest side
+ROTATION_SAFE_SEARCH_PX: float = 48.0  # how far a rotation may nudge the player to fit
+VALIDATION_EJECT_SEARCH_PX: float = 96.0  # how far post-step validation may eject the player
+ROTATION_BLOCKED_SHAKE_INTENSITY: float = 2.0  # feedback when a rotation has no room
+ROTATION_BLOCKED_SHAKE_DURATION: float = 0.08
 
 # --- Physics Scale ---
+# UNITS: physics runs at a fixed PHYSICS_DT (1/FPS). Player/enemy/platform
+# velocities are px per physics STEP and accelerations px per step² — not per
+# second. Changing FPS rescales GRAVITY_STRENGTH/TERMINAL_VELOCITY below, but
+# hand-tuned per-step values (JUMP_SPEED, ACCEL, MAX_MOVE_SPEED, platform and
+# enemy speeds) would need retuning. Particles (vfx.py) use px/s.
 PPM: int = 50                                             # pixels per meter
 EARTH_GRAVITY: float = 9.8                                # m/s²
 GRAVITY_STRENGTH: float = EARTH_GRAVITY * PPM / FPS**2    # ~0.136 px/frame²

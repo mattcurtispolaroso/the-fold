@@ -45,12 +45,23 @@ class MovingPlatform:
         # time_scale values (e.g. speed=1, time_scale=0.5 → int(0.5)=0 would freeze the platform)
         self._fx: float = float(definition.x)
         self._fy: float = float(definition.y)
+        # Where the platform was before this step, and how far its rect actually
+        # moved (after clamping and int truncation). Riding and pushing use these
+        # so the player moves exactly with the platform, including at turnarounds.
+        self.prev_rect: pygame.Rect = self.rect.copy()
+        self.delta: tuple[int, int] = (0, 0)
 
     def update(self, time_scale: float = 1.0) -> None:
         """Move the platform one step and reverse at bounds.
 
         time_scale=0.0 freezes the platform (Time Dilation ability).
         """
+        self.prev_rect.update(self.rect)
+        self._advance(time_scale)
+        self.delta = (self.rect.x - self.prev_rect.x, self.rect.y - self.prev_rect.y)
+
+    def _advance(self, time_scale: float) -> None:
+        """Move the float position along the axis, reversing at the bounds."""
         if self.axis == "x":
             self._fx += self.speed * self.direction * time_scale
             if self._fx >= self.max_val:
@@ -87,6 +98,7 @@ class LevelRenderer:
         self.level_width: int = 800
         self.level_height: int = 600
         self._boundary: list[pygame.Rect] = []
+        self._collision_rects: list[pygame.Rect] = []
 
     def load(self, path: str | Path) -> LevelData:
         """Load a level JSON file and build all geometry."""
@@ -124,6 +136,9 @@ class LevelRenderer:
             pygame.Rect(-T, -T, W + 2 * T, T),        # top wall
             pygame.Rect(-T, H, W + 2 * T, T),         # bottom wall
         ]
+        # Built once per load: moving platforms mutate their rects in place, so
+        # the list itself never changes during play (no per-step allocation).
+        self._collision_rects = self.all_platform_rects() + self._boundary
 
     def update(self, time_scale: float = 1.0) -> None:
         """Update all dynamic level elements. time_scale=0 freezes moving platforms."""
@@ -137,11 +152,13 @@ class LevelRenderer:
         gravity_dir: tuple[int, int],
         time_scale: float = 1.0,
     ) -> tuple[float, float]:
-        """Return (vx, vy) of the moving platform the player is standing on.
+        """Return how far the platform the player stands on moved this step.
 
-        Uses a 2px probe in the gravity direction — same geometry as
-        check_ground_adjacent. Returns (0.0, 0.0) if not on any moving platform
-        or if time is frozen (time_scale=0 means platform isn't moving either).
+        Probes (2px in the gravity direction, same geometry as
+        check_ground_adjacent) against each platform's PREVIOUS rect — where
+        the player was standing — and returns that platform's actual
+        displacement, so the player stays locked to it even when it reverses.
+        Returns (0.0, 0.0) if not on a moving platform or time is frozen.
         """
         if abs(time_scale) < EPSILON or not self.moving_platforms:
             return 0.0, 0.0
@@ -156,13 +173,17 @@ class LevelRenderer:
         else:
             return 0.0, 0.0
         for mp in self.moving_platforms:
-            if probe.colliderect(mp.rect):
-                vel = mp.speed * mp.direction * time_scale
-                if mp.axis == "x":
-                    return float(vel), 0.0
-                else:
-                    return 0.0, float(vel)
+            if probe.colliderect(mp.prev_rect):
+                return float(mp.delta[0]), float(mp.delta[1])
         return 0.0, 0.0
+
+    def movers(self) -> list[tuple[pygame.Rect, int, int]]:
+        """(rect, dx, dy) for each moving platform's motion this step — for pushing."""
+        return [(mp.rect, mp.delta[0], mp.delta[1]) for mp in self.moving_platforms]
+
+    def collision_rects(self) -> list[pygame.Rect]:
+        """Every solid rect (static, moving, boundary). Cached; do not mutate."""
+        return self._collision_rects
 
     def all_platform_rects(self) -> list[pygame.Rect]:
         """Return all collision rects (static + moving)."""

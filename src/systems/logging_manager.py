@@ -70,6 +70,14 @@ class LoggingManager:
         line = f"{message} | frame_time={frame_time:.3f}ms entities={entity_count}"
         self._append(self._perf_log, line)
 
+    def log_physics_violation(self, source: str, issue: str) -> None:
+        """Log a corrected physics violation (clamp, eject, NaN) to the crash log.
+
+        These are early warnings of ability/geometry bugs before they become
+        crashes (CLAUDE.md "Physics violation log").
+        """
+        self._append(self._crash_log, f"PHYSICS VIOLATION [{source}]: {issue}")
+
     def log_crash(
         self,
         exception: Exception,

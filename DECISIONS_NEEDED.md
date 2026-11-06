@@ -2,6 +2,18 @@
 
 ---
 
+## Engine Session 1 — Physics hardening (plan, 2026-11-05)
+
+**Touches more than 3 files.** Source: `docs/engine-audit-2026-11-05.md` bugs 1–5. Matt approved ("do it in that order").
+
+**Files:** `constants.py`, `src/levels/level_renderer.py` (platform displacement, prev rect, mover list, cached collision rects), `src/levels/level_data.py` (clamp zone strength / level gravity on load), `src/physics/collision.py` (sub-stepping, platform push, EPSILON), `src/physics/gravity.py` (`combined_gravity_mult`), `src/physics/validation.py` (new: `find_safe_position`, `try_rotate`, `validate_player`), `src/systems/logging_manager.py` (`log_physics_violation`), `main.py` (wire in), tests.
+
+**Creative calls — conservative defaults used, please confirm:**
+1. **Refused rotation** (no room for the rotated hitbox): no chrono cost, no cooldown, gravity unchanged, plus a tiny camera shake as "blocked" feedback. *Alternatives: a distinct sound or flash later, or allow a partial rotation.*
+2. **Crushed** (a moving platform pushes the player into a wall and there's no valid spot within the search radius): the player is placed at their last safe ground position with **no damage**. *Alternative: crushing costs 1 integrity, like a fall. That's a design choice, so I didn't make it.*
+
+---
+
 ## Refactor: split oversized render modules (plan, 2026-11-05)
 
 **Touches more than 3 files. Pure refactor: no behaviour change.** Matt chose a refactor session. Work happens on branch `refactor/render-module-split`.

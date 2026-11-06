@@ -234,3 +234,10 @@ Run through this after each coding session. Launch the game with `python main.py
 - [ ] Spamming R + landings: never more than 500 particles; no stutter (F3 `play` ms includes particles)
 - [ ] Software renderer: same effects (simpler circles), same speeds as GPU (both frame-rate independent now)
 - [ ] Tuning: are ring size, spark count and dust puff right in play? (`VFX_*` specs in constants.py)
+
+### Physics hardening (Engine Session 1)
+- [ ] Ride a horizontal moving platform end to end: the player stays put on it through the turnarounds (used to slip ~8px)
+- [ ] Stand beside a horizontal moving platform's path: it shoves you sideways (used to teleport you on top)
+- [ ] Rotate (R) in a narrow vertical gap: either nudged to fit, or refused with a tiny shake and NO chrono spent / no cooldown
+- [ ] Get pinned between a moving platform and a wall: you reappear at your last safe ground spot (no damage). Design decision pending, see DECISIONS_NEEDED
+- [ ] logs/crash_log.txt shows no "PHYSICS VIOLATION" lines after a normal run (any line there = a geometry/ability bug worth reporting)

@@ -6,6 +6,8 @@ No hardcoded direction assumptions — works for all 4 orientations.
 from __future__ import annotations
 
 from constants import (
+    GRAVITY_MULT_MAX,
+    GRAVITY_MULT_MIN,
     GRAVITY_STRENGTH,
     PEAK_GRAVITY_MULT,
     PEAK_SPEED_THRESHOLD,
@@ -53,6 +55,19 @@ def gravity_is_vertical(gravity_dir: GravityDir) -> bool:
 def gravity_speed(vx: float, vy: float, gravity_dir: GravityDir) -> float:
     """Return velocity component along the gravity axis (dot product)."""
     return vx * gravity_dir[0] + vy * gravity_dir[1]
+
+
+def combined_gravity_mult(
+    level_mult: float, zone_mult: float, pressure_mult: float,
+) -> tuple[float, bool]:
+    """Product of every gravity multiplier, clamped to [GRAVITY_MULT_MIN, GRAVITY_MULT_MAX].
+
+    Returns (multiplier, was_clamped) so the caller can log the violation.
+    Terminal velocity scales with this, so the cap also bounds fall speed.
+    """
+    raw = level_mult * zone_mult * pressure_mult
+    clamped = max(GRAVITY_MULT_MIN, min(GRAVITY_MULT_MAX, raw))
+    return clamped, abs(clamped - raw) > 1e-9
 
 
 def apply_gravity(
