@@ -113,6 +113,9 @@ Done when: a ~10 min run from start to singularity or death is completable. **Ga
 - Death cause tracked and shown on death screen ✅
 - 3 additional anomaly rooms added (now 6 total) ✅
 - Test suite refactored — `test_core.py` split into 6 focused domain files; 2 redundant duplicate test classes removed ✅
+- `JUMP_ANTICIPATION` dead animation state deleted — enum value and sprite loading removed (closes adversarial audit item 6) ✅
+- `TIME_DILATION_COOLDOWN` renamed to `TIME_DILATION_POST_EFFECT_WAIT` + `total_recharge` property added to `AbilitySlot` (closes adversarial audit item 12) ✅
+- Ability combination test coverage filled — 7 new tests in `TestAbilitySlotCombinations` (closes adversarial audit item 13) ✅
 
 ## Current milestone
 **TA — Tech Art Pipeline** (in progress)
@@ -154,9 +157,9 @@ Full plan in `docs/tech-art-plan.md`. Runs alongside the M-series. Each TA modul
 - Helmet sprite files referenced in constants.py do not exist | cosmetic (placeholder renders)
 - Amber glow overlay not implemented | deferred — needs `EXOSKELETON_GLOW_PATH` art asset (glow reference image showing exoskeleton path on black background)
 - level_06 RIGHT gravity zone has no enemies — enemy patrol is x-axis only so wall-crawl placement isn't viable without y-patrol support. Deferred; fix when enemy AI supports directional patrol.
-- **`JUMP_ANTICIPATION` is a dead animation state** — the enum value exists, sprites are loaded from the jump sheet, but `determine_player_state()` never returns it. Requires a pre-jump squat timer. Either wire it up or delete the state. (From adversarial audit item 6.)
-- **`AbilitySlot.cooldown` naming confusion** — `cooldown` is the post-effect wait, not total recharge time. `TIME_DILATION_DURATION + TIME_DILATION_COOLDOWN = actual recharge`. Balancing requires holding this in your head. Document clearly or rename `cooldown` → `post_effect_wait`. (From adversarial audit item 12.)
-- **Ability combination test coverage incomplete** — CLAUDE.md requires tests for every ability/modifier combination. Currently only the basic chrono floor and time_scale cases are covered. Gaps: Time Dilation at fractional scale, activation-while-active, item modifier stacking on ability duration/cost. (From adversarial audit item 13.)
+- ~~`JUMP_ANTICIPATION` dead animation state~~ — deleted (commit e8ca580; closes adversarial audit item 6)
+- ~~`AbilitySlot.cooldown` naming confusion~~ — resolved: constant renamed `TIME_DILATION_POST_EFFECT_WAIT`, `total_recharge` property added (commit 9aa35f6; closes adversarial audit item 12)
+- ~~Ability combination test coverage incomplete~~ — 7 new tests added in `TestAbilitySlotCombinations` (commit 63c331d; closes adversarial audit item 13)
 - ~~level_01.json and anomaly_01.json both named "The Dividing Wall"~~ fixed: anomaly_03 renamed to "The Overhang"
 - ~~No controls hint on start screen~~ fixed — first-time players see no key mapping
 - ~~Death screen shows stats but not cause of death~~ fixed (commit 0a01be2 — death cause tracked and displayed)
@@ -201,11 +204,11 @@ Cult enemies (Witness, Ordained, Architect); Archivist and Diplomat characters; 
 - 2026-11-02: 28-item design assessment via code review. Core finding: hole uncertainty non-functional, enemies identical every run, 5-node run too short for build system or pressure curve to land. M8 sprint pivoted to playtest fixes. Steam deferred indefinitely — game needs art before Steam is relevant.
 - 2026-11-02: Proposed stability rebalance: death cost 20→15, black hole 15→10, white hole restore 5→15. Makes holes feel like calculated risk rather than a penalty worse than dying twice. Pending implementation in M8a.
 - 2026-11-05: Tech art plan approved (`docs/tech-art-plan.md`). Resolution strategy: stay at 800×600 world units, upscale to display (TA Q1). Art pipeline first, art second — build TA-0 through TA-5 with current placeholders, swap real art later (TA Q2).
-- 2026-11-05: Adversarial game-dev audit completed. 12 bugs fixed across GPU, physics, resources, combat, animation, and input systems. 3 items remain open: JUMP_ANTICIPATION dead state, cooldown naming confusion, ability combination test coverage gaps. See Known bugs.
+- 2026-11-05: Adversarial game-dev audit completed. 12 bugs fixed across GPU, physics, resources, combat, animation, and input systems. All 3 remaining open items closed same session: JUMP_ANTICIPATION deleted, cooldown rename + total_recharge property, ability combination tests added.
 - 2026-11-05: 28-item design assessment (separate from adversarial audit) drove the M8 sprint: hole uncertainty non-functional, enemies identical every run, 5-node run too short. All three addressed in M8a-c.
 
 ## Last session
 Date: 2026-11-05
-Did: Adversarial audit fixes (12 bugs), GPU render pipeline TA-0/TA-1, AIR_DECEL tuning, hard landing visual feedback, death cause on death screen, 3 additional anomaly rooms (now 6 total), test suite refactor (test_core.py split into 6 domain files, 2 redundant duplicate test classes removed). Roadmap updated to reflect all of the above.
-State of tests: 632 passing
-Next up: TA-2 (parallax layer system) or M9 gameplay pass — decide based on whether art pipeline or content is the higher priority
+Did: Test suite refactor (test_core.py → 6 domain files); roadmap fully updated; all 3 remaining adversarial audit open items closed (JUMP_ANTICIPATION deleted, cooldown rename + total_recharge property, ability combination tests).
+State of tests: 637 passing
+Next up: TA-2 (parallax layer system) — on critical path to visual vertical slice
