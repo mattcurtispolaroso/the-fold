@@ -171,3 +171,14 @@ Run through this after each coding session. Launch the game with `python main.py
 - [ ] Kerr Ring — every 4th rotation triggers free Time Dilation
 - [ ] Hawking Emitter — enemy freezes briefly when player integrity drops
 - [ ] Penrose Diagram — 4 options on reward screen
+
+### Parallax layers (TA-2, GPU renderer only)
+- [ ] Walk right across level_01: the sky haze/nebula drifts slowly, the ship rim (far) faster, the pipework band (mid) faster still, and platforms move 1:1 with the player
+- [ ] Vertical camera movement (taller levels, UP/DOWN gravity) also shows parallax with no visible seams; image layers mirror-wrap at their edges
+- [ ] Gravity rotation and screen shake: background layers shake less than the playfield (expected; shake is part of the camera offset)
+- [ ] Debug overlay (backquote) on the GPU path shows the collision rect plus per-layer ms (sky/far/mid/play/fore/composite/total) top-right
+- [ ] Total layer time stays well under the 4ms scene budget (measured ~0.7ms on the dev Mac)
+- [ ] `FOLD_RENDERER=software python main.py` looks exactly as before TA-2 (flat background, no parallax)
+- [ ] Dropping `assets/backgrounds/layers/sky.png` (or far/mid) replaces that layer's placeholder on next launch
+- [ ] Known placeholder artefact: the ✦ watermark in background.png repeats in the mid band. It goes away when painted layers land
+- [ ] Rotation cinematic zoom is still not applied on the GPU path (pre-existing since TA-1; not a TA-2 regression)

@@ -123,7 +123,7 @@ Done when: a ~10 min run from start to singularity or death is completable. **Ga
 ## This sprint (max 3 tasks)
 - [x] TA-0: GPU backend foundation — ModernGL context alongside Pygame, software fallback flag, triangle smoke test ✅
 - [x] TA-1: Sprite batch + atlas loader — player and level geometry via GPU sprite batch, atlas packer tool ✅
-- [ ] TA-2: Parallax layer system — 5 FBOs with per-layer scroll factors, background split across sky/far/mid layers
+- [x] TA-2: Parallax layer system — 5 FBOs with per-layer scroll factors, background split across sky/far/mid layers ✅
 
 ## TA milestone track (tech art pipeline)
 
@@ -133,8 +133,8 @@ Full plan in `docs/tech-art-plan.md`. Runs alongside the M-series. Each TA modul
 |---|---|---|
 | TA-0 | GPU backend foundation (ModernGL context, software fallback, triangle) | ✅ Done |
 | TA-1 | Sprite batch + atlas loader | ✅ Done |
-| TA-2 | Parallax layer system (5 FBOs, per-layer scroll) | Next |
-| TA-3 | 2D light buffer (ambient + point/spot lights per level) | — |
+| TA-2 | Parallax layer system (5 FBOs, per-layer scroll) | ✅ Done |
+| TA-3 | 2D light buffer (ambient + point/spot lights per level) | Next |
 | TA-4 | Post-processing stack v1 (bloom, vignette, grain, LUT) | — |
 | TA-5 | Fold distortion + gravity flip (screen-space warp, rotation bend) | — |
 | TA-6 | Feel framework (hitstop, sprite flash, squash/stretch, accessibility toggle) | — |
@@ -147,7 +147,7 @@ Full plan in `docs/tech-art-plan.md`. Runs alongside the M-series. Each TA modul
 - Q3: Is the software renderer CI-only or a user-facing option for older/no-GPU machines?
 - Q4: Normal map authoring — hand-painted or algorithmically generated from sprites?
 - Q5: CRT/halation pass — in scope for TA-4, or defer post-vertical-slice?
-- Q6: Parallax art for TA-2 testing — procedural split of `background.png` or painted layers?
+- ~~Q6: Parallax art for TA-2 testing~~ — decided: procedural split (see Decisions log)
 
 ## Needs revisit
 - VFX particles (rotation burst, hit spark, landing dust) — mechanic is wired, visual execution needs tuning. Particle sizes, speeds, colours, and counts all open. Will be addressed in TA-7 (GPU particles).
@@ -187,7 +187,7 @@ Cult enemies (Witness, Ordained, Architect); Archivist and Diplomat characters; 
 5. **TA Q3 — Software renderer scope:** CI-only fallback, or exposed as a user option for older/no-GPU machines? (Recommendation: CI-only now, revisit on a compatibility report.)
 6. **TA Q4 — Normal map authoring:** Hand-painted per sprite, or algorithmically generated from painted surface? (Recommendation: generated via SpriteIlluminator or similar; upgrade hero sprites if quality is insufficient.)
 7. **TA Q5 — CRT/halation pass:** In scope for TA-4, or stub and defer post-vertical-slice? (Recommendation: stub the toggle in TA-4, leave shader empty; decide after seeing full post stack on real art.)
-8. **TA Q6 — TA-2 parallax art:** Does TA-2 need painted layered backgrounds, or test with procedural tinted copies of `background.png`? (Recommendation: procedural split for TA-2 testing; real layers when art pipeline produces them.)
+8. ~~**TA Q6 — TA-2 parallax art:**~~ Decided 2026-11-05: procedural split. Does TA-2 need painted layered backgrounds, or test with procedural tinted copies of `background.png`? (Recommendation: procedural split for TA-2 testing; real layers when art pipeline produces them.)
 
 ## Decisions log
 - 2026-10-31: roadmap drafted.
@@ -205,10 +205,11 @@ Cult enemies (Witness, Ordained, Architect); Archivist and Diplomat characters; 
 - 2026-11-02: Proposed stability rebalance: death cost 20→15, black hole 15→10, white hole restore 5→15. Makes holes feel like calculated risk rather than a penalty worse than dying twice. Pending implementation in M8a.
 - 2026-11-05: Tech art plan approved (`docs/tech-art-plan.md`). Resolution strategy: stay at 800×600 world units, upscale to display (TA Q1). Art pipeline first, art second — build TA-0 through TA-5 with current placeholders, swap real art later (TA Q2).
 - 2026-11-05: Adversarial game-dev audit completed. 12 bugs fixed across GPU, physics, resources, combat, animation, and input systems. All 3 remaining open items closed same session: JUMP_ANTICIPATION deleted, cooldown rename + total_recharge property, ability combination tests added.
+- 2026-11-05: TA-2 parallax: placeholder layers are procedural splits of `background.png` (TA Q6). Painted art drops in as `assets/backgrounds/layers/{sky,far,mid}.png` with no code change. Foreground layer allocated but left empty until there is art for it. Per-level scroll overrides via optional `"layers"` key in level JSON; the play layer is locked to 1.0.
 - 2026-11-05: 28-item design assessment (separate from adversarial audit) drove the M8 sprint: hole uncertainty non-functional, enemies identical every run, 5-node run too short. All three addressed in M8a-c.
 
 ## Last session
 Date: 2026-11-05
-Did: Test suite refactor (test_core.py → 6 domain files); roadmap fully updated; all 3 remaining adversarial audit open items closed (JUMP_ANTICIPATION deleted, cooldown rename + total_recharge property, ability combination tests).
-State of tests: 637 passing
-Next up: TA-2 (parallax layer system) — on critical path to visual vertical slice
+Did: TA-2 parallax layer system — 5 layer FBOs (sky 0.05× / far 0.20× / mid 0.50× / play 1.00× / fore 1.30×), procedural sky/far/mid split of background.png, premultiplied-alpha composite via new upscale shader, per-layer GPU ms in the debug overlay (backquote), optional `"layers"` level JSON overrides. GPU readback test confirms the sky moves 0.05× as far as the playfield.
+State of tests: 659 passing
+Next up: TA-3 (2D light buffer). Open question: should the debug overlay move from backquote to F3 (see DECISIONS_NEEDED.md)?

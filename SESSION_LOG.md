@@ -45,3 +45,14 @@
 - Updated main.py: "reward" game_state, 1/2/3/S key handlers, _apply_offer() helper, _owned_item_list() helper. Combat clear and white hole now route through reward before node_map.
 - Updated qa_checklist.md: "Build system" section added.
 - 433 tests pass (15 new: offer generation, determinism, domain pull, _apply_offer, cap drop).
+
+## 2026-11-05 — TA-2 Parallax Layer System
+- Plan written to DECISIONS_NEEDED.md first (touches >3 files; spec pre-approved in docs/tech-art-plan.md).
+- Added src/rendering/gpu/layer.py: parallax_offset(), resolve_scroll_factors(), LayerFBO, ParallaxStack (5 FBOs, image-layer draw, play-layer target, premultiplied composite, optional GPU timer queries).
+- Added src/rendering/gpu/layer_images.py: sky/far/mid from assets/backgrounds/layers/<name>.png, else procedural split of background.png (blurred haze / luminance-keyed bright features / lower silhouette band).
+- Added src/rendering/gpu/debug_overlay.py: per-layer ms block for the debug overlay.
+- Added shaders/upscale.vert + upscale.frag: fullscreen quad with UV scroll and mirror wrap; used for both layer draws and the composite/upscale.
+- gpu_draw_world no longer draws the background (moved into the parallax layers); `background` / `width` / `height` params removed.
+- LevelData gains optional "layers" key → layer_scrolls (unknown/play names dropped, values clamped, malformed value → fallback level).
+- main.py GPU playing path: begin_frame → image layers → play layer → composite → tint/HUD. Debug overlay now also draws on the GPU path.
+- 659 tests pass (22 new in tests/test_gpu_layers.py, incl. a GPU readback test of sky vs playfield scroll). Real-window smoke test: no GL errors, ~0.7ms for all layers.

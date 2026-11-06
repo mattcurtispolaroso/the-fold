@@ -11,7 +11,30 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+import constants as C
+
 logger = logging.getLogger(__name__)
+
+
+def parse_layer_scrolls(raw: dict[str, Any]) -> dict[str, float]:
+    """Parse the optional "layers" key: {"sky": {"scroll": 0.1}} → {"sky": 0.1}.
+
+    Unknown layers and the play layer (locked to 1.0) are dropped; out-of-range
+    scroll values are clamped. Both cases are logged.
+    """
+    if not isinstance(raw, dict):
+        raise TypeError(f"level 'layers' must be an object, got {type(raw).__name__}")
+    scrolls: dict[str, float] = {}
+    for name, spec in raw.items():
+        if name not in C.PARALLAX_LAYER_NAMES or name == C.PARALLAX_PLAY_LAYER:
+            logger.warning("Level layer override '%s' ignored (unknown or locked)", name)
+            continue
+        value = float(spec["scroll"])
+        clamped = max(C.PARALLAX_SCROLL_MIN, min(C.PARALLAX_SCROLL_MAX, value))
+        if abs(clamped - value) > C.EPSILON:
+            logger.warning("Layer '%s' scroll %.3f clamped to %.3f", name, value, clamped)
+        scrolls[name] = clamped
+    return scrolls
 
 
 class LevelLoadError(Exception):
@@ -178,10 +201,11 @@ class LevelData:
     level_width: int = 800
     level_height: int = 600
     gravity_multiplier: float = 1.0
+    layer_scrolls: dict[str, float] = field(default_factory=dict)  # parallax overrides
 
     def to_dict(self) -> dict[str, Any]:
-        """Serialise to JSON-compatible dict."""
-        return {
+        """Serialise to JSON-compatible dict ("layers" only when overrides exist)."""
+        d = {
             "name": self.name,
             "gravity_start": list(self.gravity_start),
             "spawn": list(self.spawn),
@@ -195,6 +219,9 @@ class LevelData:
             "gravity_zones": [z.to_dict() for z in self.gravity_zones],
             "enemies": [e.to_dict() for e in self.enemies],
         }
+        if self.layer_scrolls:
+            d["layers"] = {n: {"scroll": v} for n, v in self.layer_scrolls.items()}
+        return d
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> LevelData:
@@ -221,6 +248,7 @@ class LevelData:
             enemies=[
                 EnemyDef.from_dict(e) for e in d.get("enemies", [])
             ],
+            layer_scrolls=parse_layer_scrolls(d.get("layers", {})),
         )
 
     def to_json(self, indent: int = 2) -> str:

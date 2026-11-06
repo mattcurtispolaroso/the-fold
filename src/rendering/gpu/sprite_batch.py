@@ -251,28 +251,22 @@ class SpriteBatch:
 def gpu_draw_world(
     batch: SpriteBatch,
     atlas: RuntimeAtlas,
-    background: pygame.Surface | None,
     level: object,
     enemies: list,
     animator: object,
     player: object,
     player_state: object,
     cam_offset: tuple[float, float],
-    width: int,
-    height: int,
 ) -> None:
-    """Draw the game world via the sprite batch (GPU path equivalent of draw_world).
+    """Draw the playfield via the sprite batch (GPU path equivalent of draw_world).
 
+    The background is not drawn here: since TA-2 it lives in the sky/far/mid
+    parallax layers (src/rendering/gpu/layer.py), and this draws into the
+    transparent play layer on top of them.
     cam_offset is additive: screen_pos = world_pos + cam_offset.
     """
     ox, oy = cam_offset
     batch.begin()
-
-    # Background — full screen, ignore camera offset
-    if background is not None and atlas.has_frame("background"):
-        batch.draw_sprite("background", width / 2, height / 2, width, height)
-    else:
-        batch.draw_rect(0, 0, width, height, (0.0, 0.0, 0.0, 1.0))
 
     # Gravity zones (outline — approximate with a thin filled rect)
     for zone in level.gravity_zones:

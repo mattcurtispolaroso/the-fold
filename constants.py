@@ -71,6 +71,28 @@ PLAYER_SPRITE_HEIGHT: int = 90
 # --- Renderer ---
 USE_GPU_RENDERER: bool = True   # False or env FOLD_RENDERER=software → Pygame fallback
 
+# --- Parallax Layers (TA-2, GPU path only) ---
+# Back-to-front draw order. "play" holds geometry, enemies and the player and
+# must always scroll at 1.0 so it stays locked to physics.
+PARALLAX_LAYER_NAMES: tuple[str, ...] = ("sky", "far", "mid", "play", "fore")
+PARALLAX_PLAY_LAYER: str = "play"
+PARALLAX_IMAGE_LAYERS: tuple[str, ...] = ("sky", "far", "mid")  # drawn from background images
+PARALLAX_SCROLL_FACTORS: dict[str, float] = {
+    "sky": 0.05, "far": 0.20, "mid": 0.50, "play": 1.00, "fore": 1.30,
+}
+PARALLAX_SCROLL_MIN: float = 0.0   # level JSON overrides are clamped to this range
+PARALLAX_SCROLL_MAX: float = 2.0
+PARALLAX_LAYER_ART_DIR: str = "assets/backgrounds/layers"  # <name>.png overrides placeholder
+# Procedural placeholder split of background.png (Q6) — RGB multipliers + alpha shaping
+PARALLAX_SKY_TINT: tuple[float, float, float] = (0.45, 0.55, 0.85)   # dim, cool, opaque
+PARALLAX_SKY_BLUR_DIVISOR: int = 8   # downscale factor for the sky haze blur (1 = sharp)
+PARALLAX_FAR_TINT: tuple[float, float, float] = (1.25, 1.35, 1.40)   # bright features only
+PARALLAX_FAR_LUMA_LOW: float = 0.10    # luminance at which far-layer alpha starts rising
+PARALLAX_FAR_LUMA_HIGH: float = 0.35   # luminance at which far-layer alpha is full
+PARALLAX_MID_TINT: tuple[float, float, float] = (0.35, 0.30, 0.30)   # dark silhouette band
+PARALLAX_MID_BAND_START: float = 0.55  # fraction of height where mid-layer alpha starts
+PARALLAX_MID_BAND_FULL: float = 0.75   # fraction of height where mid-layer alpha is full
+
 DEBUG_DRAW_RECTS: bool = False        # draw physics rects for debugging
 SPRITE_PHYSICS_OFFSET_Y: int = 0      # vertical pixel offset to align sprite to physics rect
 

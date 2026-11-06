@@ -2,6 +2,36 @@
 
 ---
 
+## TA-2 — Parallax Layer System (plan, 2026-11-05)
+
+**Touches more than 3 files.** The spec is already approved in `docs/tech-art-plan.md` §3 TA-2, and Matt asked for this session to implement it, so this plan is recorded for review and work goes ahead.
+
+### Files
+
+| File | Change |
+|---|---|
+| `constants.py` | Layer names (back to front), default scroll factors (sky 0.05, far 0.20, mid 0.50, play 1.00, fore 1.30), scroll clamp, placeholder tint values |
+| `src/rendering/gpu/layer.py` (new) | `parallax_offset()` math, `LayerFBO` (one FBO plus a resize), `ParallaxStack` (5 FBOs, image-layer draw, play-layer bind, composite, per-layer GPU timings) |
+| `src/rendering/gpu/layer_images.py` (new) | Builds the sky/far/mid images. Uses `assets/backgrounds/layers/<name>.png` if present, otherwise procedural tinted copies of `background.png` (Q6) |
+| `src/rendering/gpu/debug_overlay.py` (new) | Per-layer ms text, drawn when the debug overlay is on |
+| `shaders/upscale.vert` / `upscale.frag` (new) | Fullscreen quad with a UV offset and mirror wrap. Draws the layer images into their FBOs and composites the FBOs to the screen |
+| `src/rendering/gpu/sprite_batch.py` | `gpu_draw_world` stops drawing the background (it now lives in the parallax layers) |
+| `src/levels/level_data.py` | Optional `"layers": {"sky": {"scroll": 0.1}, ...}` per-level scroll overrides. Unknown names and `play` are dropped with a warning; values are clamped |
+| `main.py` | Builds the stack at startup. GPU playing path: image layers → play layer → composite → tint/HUD |
+| `tests/test_gpu_layers.py` (new) | Scroll math, FBO resize, schema, and a GPU readback test showing the sky shifts 0.05× as far as the playfield |
+
+### Conservative choices made
+- **Foreground layer** is allocated and composited but left empty. There is no foreground art yet, and putting silhouettes over the playfield is a design call.
+- **FBOs stay at 800×600 internal resolution.** The upscale shader is ready for any display size, but window scaling is not changed.
+- **The debug overlay stays on backquote**, the existing key; it does not move to F3. On the GPU path it now draws, with per-layer ms. GPU timer queries run only while the overlay is on, because reading them stalls the pipeline.
+- **The rotation-cinematic zoom is still ignored on the GPU path**, as before TA-2. Out of scope.
+- **The software renderer is unchanged.**
+
+### Open question for Matt
+- Should the debug overlay move to F3, as CLAUDE.md and the tech-art plan say, or stay on backquote?
+
+---
+
 ## M4b — Node Map, Hole Encounters, Death/Win Screens ✅ APPROVED 2026-11-01
 
 **Touches 5 files. Requires review before coding.**

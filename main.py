@@ -87,6 +87,9 @@ from src.systems.level_generator import pick_anomaly_room
 from src.rendering.gpu.context import GPUContext, use_gpu_renderer
 from src.rendering.gpu.atlas import RuntimeAtlas
 from src.rendering.gpu.sprite_batch import SpriteBatch, gpu_draw_world
+from src.rendering.gpu.layer import ParallaxStack
+from src.rendering.gpu.layer_images import build_layer_images
+from src.rendering.gpu.debug_overlay import draw_layer_timings
 
 WIDTH, HEIGHT = SCREEN_WIDTH, SCREEN_HEIGHT
 
@@ -293,15 +296,18 @@ def main() -> None:
     # Build GPU atlas and sprite batch after sprites are loaded
     gpu_atlas: RuntimeAtlas | None = None
     gpu_batch: SpriteBatch | None = None
+    gpu_parallax: ParallaxStack | None = None
     if gpu_ctx is not None:
         _atlas_frames: dict[str, pygame.Surface] = {}
-        if background is not None:
-            _atlas_frames["background"] = background
         for state, frame_list in animator._sprites.items():
             for idx, surf in enumerate(frame_list):
                 _atlas_frames[f"player_{state.name.lower()}_{idx}"] = surf
         gpu_atlas = RuntimeAtlas(gpu_ctx.ctx, _atlas_frames)
         gpu_batch = SpriteBatch(gpu_ctx.ctx, gpu_atlas, (WIDTH, HEIGHT))
+        gpu_parallax = ParallaxStack(
+            gpu_ctx.ctx, (WIDTH, HEIGHT),
+            build_layer_images(BASE_DIR, background, (WIDTH, HEIGHT)),
+        )
 
     flash_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
     impact_flash_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
@@ -728,14 +734,21 @@ def main() -> None:
                 and item_registry.get_item(o["id"]).tier == "modifier"
             ) >= MODIFIER_CAP
 
-            if gpu_ctx is not None and gpu_batch is not None and gpu_atlas is not None:
+            if gpu_ctx is not None and gpu_batch is not None and gpu_parallax is not None:
                 gpu_ctx.clear()
                 if game_state == "playing":
                     _draw_enemies = [] if anomaly_pending else enemies
-                    gpu_draw_world(
-                        gpu_batch, gpu_atlas, background, level, _draw_enemies,
-                        animator, player, player_state, camera.offset, WIDTH, HEIGHT,
+                    gpu_parallax.profiling = debug_draw
+                    gpu_parallax.begin_frame()
+                    gpu_parallax.draw_image_layers(
+                        camera.offset, level.level_data.layer_scrolls,
                     )
+                    with gpu_parallax.target("play"):
+                        gpu_draw_world(
+                            gpu_batch, gpu_atlas, level, _draw_enemies,
+                            animator, player, player_state, camera.offset,
+                        )
+                    gpu_parallax.composite(gpu_ctx.ctx.screen)
                     # Fold tint overlay
                     if run_state.fold_stability < FOLD_TINT_THRESHOLD:
                         t = 1.0 - run_state.fold_stability / FOLD_TINT_THRESHOLD
@@ -750,6 +763,9 @@ def main() -> None:
                              in_anomaly=anomaly_pending)
                     draw_flash_overlay(gpu_hud_surf, flash_surf, flash_timer)
                     draw_impact_flash(gpu_hud_surf, impact_flash_surf, impact_flash_timer)
+                    if debug_draw:
+                        draw_debug_overlay(gpu_hud_surf, font, player, camera.offset, HEIGHT)
+                        draw_layer_timings(gpu_hud_surf, font, gpu_parallax.layer_ms)
                     gpu_batch.draw_fullscreen_surface(gpu_hud_surf)
                 else:
                     # Non-playing states: render via existing software functions
@@ -818,6 +834,8 @@ def main() -> None:
         raise
     finally:
         logger.log_event("Game shutting down")
+        if gpu_parallax is not None:
+            gpu_parallax.release()
         if gpu_batch is not None:
             gpu_batch.release()
         if gpu_atlas is not None:
