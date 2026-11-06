@@ -25,6 +25,7 @@ VERTEX_FOR: dict[str, str] = {
     "sprite.frag": "sprite.vert",
     "upscale.frag": "upscale.vert",
     "light.frag": "upscale.vert",
+    "particle.frag": "particle.vert",
 }
 DEFAULT_VERTEX: str = "post.vert"
 

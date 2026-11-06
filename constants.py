@@ -373,11 +373,31 @@ HUD_COLOR_CHRONO_EMPTY: tuple = (30, 22, 8)   # near-black
 HUD_COLOR_DILATION_ACTIVE: tuple = (80, 180, 255)    # cyan-blue
 HUD_COLOR_DILATION_COOLDOWN: tuple = (35, 75, 115)   # dim cyan
 
-# --- Particle VFX ---
-VFX_POOL_SIZE: int = 200           # total pre-allocated particle slots
-VFX_ROTATION_BURST_COUNT: int = 20  # particles per gravity rotation
-VFX_HIT_SPARK_COUNT: int = 12       # particles per damage event
-VFX_LANDING_DUST_COUNT: int = 8     # particles per landing
+# --- Particle VFX (TA-7: velocities px/s, accelerations px/s², drag 1/s) ---
+VFX_POOL_SIZE: int = MAX_PARTICLES  # pre-allocated slots; oldest recycled when full
+VFX_ROTATION_BURST_COUNT: int = 28  # particles per gravity rotation
+VFX_HIT_SPARK_COUNT: int = 14       # particles per damage event
+VFX_LANDING_DUST_COUNT: int = 10    # particles per landing
+# Effect specs. speed/life are (min, max) random ranges; size is (birth, death)
+# radius in px; gravity pulls along the player's gravity; glow 1 = additive/emissive.
+VFX_ROTATION_BURST: dict = {   # tight speed band → reads as an expanding amber ring
+    "count": VFX_ROTATION_BURST_COUNT, "speed": (250.0, 290.0), "life": (0.35, 0.45),
+    "size": (7.0, 2.0), "drag": 2.5, "gravity": 0.0, "glow": 1.0,
+    "colors": ((1.0, 0.70, 0.22), (1.0, 0.86, 0.55)),
+}
+VFX_HIT_SPARK: dict = {        # fast red-orange sparks that fall with gravity
+    "count": VFX_HIT_SPARK_COUNT, "speed": (180.0, 420.0), "life": (0.18, 0.32),
+    "size": (5.0, 1.5), "drag": 1.5, "gravity": 900.0, "glow": 1.0,
+    "colors": ((1.0, 0.33, 0.12), (1.0, 0.55, 0.20), (1.0, 0.80, 0.35)),
+}
+VFX_LANDING_DUST: dict = {     # grey fan pushed against gravity; puffs out and slows
+    "count": VFX_LANDING_DUST_COUNT, "speed": (60.0, 160.0), "life": (0.30, 0.50),
+    "size": (3.0, 7.0), "drag": 4.0, "gravity": 0.0, "glow": 0.0,
+    "colors": ((0.62, 0.60, 0.57), (0.52, 0.50, 0.48)),
+    "lateral_speed": 140.0,    # ± sideways speed across the fan
+}
+PARTICLE_SOFT_EDGE: float = 0.5  # fraction of radius where a dust particle starts to fade out
+PARTICLE_GLOW_CORE: float = 0.25 # fraction of radius a glow particle keeps at full brightness
 
 # --- Font ---
 FONT_PATH: str = "assets/fonts/main_font.ttf"

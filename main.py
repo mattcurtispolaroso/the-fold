@@ -56,6 +56,7 @@ from constants import (
     HIT_SHAKE_INTENSITY,
     JUMP_STRETCH,
     LAND_SQUASH,
+    VFX_POOL_SIZE,
 )
 from src.data.run_state import RunState
 from src.entities.anchored import TheAnchored
@@ -106,6 +107,7 @@ from src.rendering.gpu.debug_overlay import (
 from src.rendering.gpu.lut import load_lut
 from src.rendering.gpu.post_stack import PostStack
 from src.rendering.gpu.feel import Feel
+from src.rendering.gpu.particles import ParticleRenderer
 
 WIDTH, HEIGHT = SCREEN_WIDTH, SCREEN_HEIGHT
 
@@ -317,6 +319,7 @@ def main() -> None:
     gpu_parallax: ParallaxStack | None = None
     gpu_lights: LightBuffer | None = None
     gpu_post: PostStack | None = None
+    gpu_particles: ParticleRenderer | None = None
     if gpu_ctx is not None:
         _atlas_frames: dict[str, pygame.Surface] = {}
         for state, frame_list in animator._sprites.items():
@@ -331,6 +334,7 @@ def main() -> None:
         gpu_lights = LightBuffer(gpu_ctx.ctx, (WIDTH, HEIGHT))
         gpu_post = PostStack(gpu_ctx.ctx, (WIDTH, HEIGHT), load_lut(BASE_DIR, LUT_SIZE),
                              timed=gpu_parallax.timed)
+        gpu_particles = ParticleRenderer(gpu_ctx.ctx, (WIDTH, HEIGHT), VFX_POOL_SIZE)
 
     flash_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
     impact_flash_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
@@ -655,7 +659,7 @@ def main() -> None:
                     particles.emit_landing_dust(
                         player.px, player.py, player.player_w, player.player_h, player.gravity_dir,
                     )
-                    particles.emit_hit_spark(player.px, player.py)
+                    particles.emit_hit_spark(player.px, player.py, player.gravity_dir)
                     _gdir = player.gravity_dir
                     feel.punch(
                         _gdir[0] * HARD_LAND_PUNCH_MAGNITUDE,
@@ -708,6 +712,7 @@ def main() -> None:
                                 feel.hitstop(HIT_HITSTOP)
                                 feel.flash(HIT_FLASH_COLOR, HIT_FLASH_DURATION)
                                 feel.shake(HIT_SHAKE_INTENSITY, HIT_SHAKE_DURATION)
+                                particles.emit_hit_spark(player.px, player.py, player.gravity_dir)
                                 if player.take_hit(kx, ky):
                                     result = bus.emit(GameEvent.INTEGRITY_ZERO)
                                     level_reset = not result.cancelled
@@ -774,7 +779,8 @@ def main() -> None:
             ) >= MODIFIER_CAP
 
             if (gpu_ctx is not None and gpu_batch is not None and gpu_parallax is not None
-                    and gpu_lights is not None and gpu_post is not None):
+                    and gpu_lights is not None and gpu_post is not None
+                    and gpu_particles is not None):
                 gpu_ctx.clear()
                 if game_state == "playing":
                     _draw_enemies = [] if anomaly_pending else enemies
@@ -788,6 +794,7 @@ def main() -> None:
                             gpu_batch, gpu_atlas, level, _draw_enemies,
                             animator, player, player_state, camera.offset, feel,
                         )
+                        gpu_particles.draw(particles, camera.offset)
                     with gpu_parallax.timed(LIGHT_TIMING_KEY):
                         light_tex = gpu_lights.render(
                             level.level_data.lights, (player.px, player.py), camera.offset,
@@ -885,6 +892,8 @@ def main() -> None:
         raise
     finally:
         logger.log_event("Game shutting down")
+        if gpu_particles is not None:
+            gpu_particles.release()
         if gpu_post is not None:
             gpu_post.release()
         if gpu_lights is not None:

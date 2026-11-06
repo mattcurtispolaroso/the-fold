@@ -2,6 +2,41 @@
 
 ---
 
+## TA-7 — GPU Particles (plan, 2026-11-05)
+
+**Touches more than 3 files.** The spec is approved in `docs/tech-art-plan.md` §3 TA-7. Matt said "next".
+
+### Problems found first
+1. **The GPU renderer draws no particles at all** (since TA-1). The rotation burst, hit spark and landing dust are only visible in software mode.
+2. **`ParticlePool.update` ignores delta time.** It does `px += vx` per frame, so particles move twice as fast at 120 fps as at 60. This breaks the delta-time rule in CLAUDE.md.
+3. **Emitter speeds, lifetimes and colours are magic numbers** inside `vfx.py`.
+4. **Hit sparks fire only on hard landings**, never when an enemy hits the player.
+
+### Approach
+- **`vfx.py`:**
+  - Velocities in px/s, with per-particle acceleration (sparks fall along the player's gravity) and drag.
+  - Size goes from a birth size to a death size: bursts and sparks shrink, dust puffs grow.
+  - A per-particle `glow` flag.
+  - Emitters read effect specs (count, speed range, life, sizes, drag, gravity, glow, colours) from `constants.py`.
+  - New `write_instances(buffer, offset)` packs active particles for the GPU, with no GL code in `vfx.py`.
+  - Software `draw` is kept, using the new fields.
+- **`src/rendering/gpu/particles.py` (new):** `ParticleRenderer`. One instanced draw call for every active particle: a unit quad plus a per-instance buffer of position, size, colour, alpha and glow. It counts draw calls for the test.
+  - *Spec deviation:* this is its own module rather than an instanced path inside `sprite_batch.py`, which is already over the 300-line limit.
+- **`shaders/particle.vert/.frag` (new):** soft round particles. Glow particles have a hot core and blend additively (alpha 0 under premultiplied blending), so additive and normal particles share one draw call. Bloom picks up the bright ones.
+- **Particles draw into the play layer** after the sprites, so they parallax and zoom with the world. That also means they're lit by the light buffer, which is correct for dust; glow particles are bright enough to survive it. An unlit fx layer could come later if needed.
+- **Visual upgrade (spec):**
+  - Rotation burst: a tight-speed amber *ring*.
+  - Hit spark: fast red-orange sparks that fall with gravity.
+  - Landing dust: a grey fan that puffs out and slows.
+- **`VFX_POOL_SIZE` goes from 200 to 500** (`MAX_PARTICLES`). The pool is still fixed-size and recycles the oldest; there is no allocation during play.
+- **`main.py`:** draws particles on the GPU path, and fires hit sparks on enemy hits as well as hard landings, falling with the player's gravity.
+- **`tools/shader_watch.py`:** pairs `particle.frag` with `particle.vert`.
+
+### Files
+`constants.py`, `src/rendering/vfx.py`, `src/rendering/gpu/particles.py` (new), `shaders/particle.vert` + `particle.frag` (new), `main.py`, `tools/shader_watch.py`, `tests/test_gpu_particles.py` (new).
+
+---
+
 ## TA-6 — Feel Framework (plan, 2026-11-05)
 
 **Touches more than 3 files.** The spec is approved in `docs/tech-art-plan.md` §3 TA-6. Matt said "next" after the rotation zoom.

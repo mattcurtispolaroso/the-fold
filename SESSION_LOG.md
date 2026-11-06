@@ -101,3 +101,12 @@
 - main.py: physics accumulator fed via feel.physics_time; rotation shake/zoom and hard-landing punch routed through feel (no direct camera shake/punch calls remain); hooks on enemy hit, landings, both jump sites; feel.reset on level reset; full-screen flashes scaled; F3 + 0 toggles reduced effects (shown in overlay).
 - Test caught an over-claiming docstring (squash "preserves area"): behaviour kept (partial compensation, deliberate), docstring + test corrected.
 - 752 tests pass (23 new in tests/test_feel_framework.py incl. hitstop accumulator maths, intensity scaling of every effect, headless/no-camera safety, GPU silhouette flash readback).
+
+## 2026-11-05 — TA-7 GPU Particles
+- Plan written to DECISIONS_NEEDED.md first. Found: GPU path drew no particles; ParticlePool.update was per-frame (not dt-based); emitter values hard-coded; hit sparks only on hard landings.
+- vfx.py: px/s velocities, acceleration + exponential drag with an exact constant-acceleration step (a test caught the naive integrator drifting ~8% between 30/120 fps), birth→death size, glow flag, effect specs from constants (VFX_ROTATION_BURST / VFX_HIT_SPARK / VFX_LANDING_DUST), write_instances() with in-place writes (no per-frame allocation). Pool 200 → 500 (MAX_PARTICLES).
+- Added src/rendering/gpu/particles.py (ParticleRenderer: one instanced draw, draw_calls counter, capacity guard) and shaders/particle.vert/.frag (soft discs; glow = additive via alpha 0 under premultiplied blend). shader_watch pairs particle.frag with particle.vert.
+- main.py: particles drawn into the play layer on the GPU path; hit sparks on enemy hits too, falling along the player's gravity.
+- Visual pass: first render had near-invisible sparks; glow core widened (PARTICLE_GLOW_CORE) and glow sizes increased.
+- Found while timing: nested ParallaxStack.timed() blocks raise GL_INVALID_OPERATION; timed() now runs nested blocks untimed. Test added.
+- 770 tests pass (18 new). 500 particles: 1 draw call; CPU update + pack ≈1ms/frame (Python); no GL errors.

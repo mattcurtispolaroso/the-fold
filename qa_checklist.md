@@ -225,3 +225,12 @@ Run through this after each coding session. Launch the game with `python main.py
 - [ ] Death mid-hitstop: respawn is not frozen (feel.reset on level reset)
 - [ ] Software renderer (FOLD_RENDERER=software): hitstop, shake and punch work; no sprite flash or squash (expected, GPU-only)
 - [ ] Tuning pass: are HIT_HITSTOP / squash amounts / flash durations right in play?
+
+### GPU particles (TA-7)
+- [ ] R (rotate): an amber ring expands from the player and fades in ~0.4s (GPU renderer: these were invisible before TA-7)
+- [ ] Enemy hit and hard landing: red-orange sparks burst and fall in the player's current gravity direction (check a sideways gravity zone)
+- [ ] Any landing: grey dust fans out from the feet against gravity and puffs up as it slows
+- [ ] Particles stay in place in the world as the camera moves and zoom with the rotation cinematic
+- [ ] Spamming R + landings: never more than 500 particles; no stutter (F3 `play` ms includes particles)
+- [ ] Software renderer: same effects (simpler circles), same speeds as GPU (both frame-rate independent now)
+- [ ] Tuning: are ring size, spark count and dust puff right in play? (`VFX_*` specs in constants.py)

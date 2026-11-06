@@ -127,6 +127,7 @@ class ParallaxStack:
             for name, surf in images.items() if name in C.PARALLAX_IMAGE_LAYERS
         }
         self._queries: dict[str, moderngl.Query] = {}
+        self._timing_active: bool = False   # a GL time query is open (no nesting allowed)
         self.profiling: bool = False
         self.layer_ms: dict[str, float] = {}
         ctx.enable(moderngl.BLEND)
@@ -202,14 +203,23 @@ class ParallaxStack:
 
     @contextmanager
     def timed(self, key: str) -> Iterator[None]:
-        """Accumulate GPU ms for `key` into layer_ms when profiling is on (any GPU work)."""
-        if not self.profiling:
+        """Accumulate GPU ms for `key` into layer_ms when profiling is on (any GPU work).
+
+        GL forbids nested time-elapsed queries (GL_INVALID_OPERATION), so a
+        timed() block inside another runs untimed — its cost is counted in the
+        outer key instead.
+        """
+        if not self.profiling or self._timing_active:
             yield
             return
         query = self._queries.get(key) or self._ctx.query(time=True)
         self._queries[key] = query
-        with query:
-            yield
+        self._timing_active = True
+        try:
+            with query:
+                yield
+        finally:
+            self._timing_active = False
         self.layer_ms[key] = self.layer_ms.get(key, 0.0) + query.elapsed / _NS_PER_MS
 
     def release(self) -> None:
