@@ -53,6 +53,18 @@ def ripple_envelope(progress: float) -> tuple[float, float]:
     return radius, amplitude
 
 
+def zoomed_screen_point(
+    x: float, y: float,
+    cam_offset: tuple[float, float],
+    size: tuple[int, int],
+    zoom: float,
+) -> tuple[float, float]:
+    """World point → screen pixels (Y down), including zoom about the screen centre."""
+    cx, cy = size[0] / 2.0, size[1] / 2.0
+    sx, sy = x + cam_offset[0], y + cam_offset[1]
+    return (cx + (sx - cx) * zoom, cy + (sy - cy) * zoom)
+
+
 def bend_envelope(progress: float) -> float:
     """Bend amount fraction: rises and returns to zero (sin arch)."""
     return math.sin(math.pi * min(max(progress, 0.0), 1.0))
@@ -107,17 +119,21 @@ class Feel:
         self.bend_age = None
 
     def distortion_params(self, cam_offset: tuple[float, float],
-                          size: tuple[int, int]) -> DistortionParams:
-        """Convert active effects to shader parameters in GL framebuffer pixels."""
-        ox, oy = cam_offset
-        height = size[1]
+                          size: tuple[int, int], zoom: float = 1.0) -> DistortionParams:
+        """Convert active effects to shader parameters in GL framebuffer pixels.
+
+        `zoom` is the camera zoom applied at composite time (scaled about the
+        screen centre); ripple centres and radii follow it so they stay on target.
+        """
+        width, height = size
         params = DistortionParams()
         peak = 0.0
         for r in self.ripples:
             radius_frac, amp_frac = ripple_envelope(r.progress)
             amplitude = min(r.strength * C.RIPPLE_AMPLITUDE_PX * amp_frac, C.DISTORTION_MAX_OFFSET_PX)
-            params.ripples.append((r.x + ox, height - (r.y + oy),
-                                   radius_frac * C.RIPPLE_MAX_RADIUS_PX, amplitude))
+            sx, sy = zoomed_screen_point(r.x, r.y, cam_offset, size, zoom)
+            params.ripples.append((sx, height - sy,
+                                   radius_frac * C.RIPPLE_MAX_RADIUS_PX * zoom, amplitude))
             peak = max(peak, min(r.strength, 1.0) * amp_frac)
         if self.bend_age is not None:
             amount = bend_envelope(self.bend_age / C.BEND_DURATION)

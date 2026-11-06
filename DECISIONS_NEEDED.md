@@ -2,6 +2,20 @@
 
 ---
 
+## GPU rotation-cinematic zoom (plan, 2026-11-05)
+
+**Touches 5 files.** Matt chose this ahead of TA-6. It closes the last vertical-slice gap: the zoom-in/zoom-out on gravity rotation only worked on the software renderer.
+
+- **`shaders/upscale.frag`:** new `u_zoom` uniform. Sample UVs are scaled around the screen centre, `0.5 + (uv - 0.5) / zoom`. That covers the layer texture and the light buffer, so lighting stays registered to the geometry. Samples outside [0,1] (only possible at zoom < 1) come back transparent, matching the black border the software renderer shows.
+- **`src/rendering/gpu/layer.py`:** `composite(target, light, zoom=1.0)`. Image-layer draws keep zoom 1.
+- **`src/rendering/gpu/feel.py`:** `distortion_params(..., zoom=1.0)` scales ripple centres and radii by the same zoom, so a ripple fired mid-cinematic still centres on the player.
+- **`main.py`:** passes `camera.zoom` to both.
+- **Tests:** a GPU readback of a marker scaled about the centre, a transparent border at zoom < 1, and the ripple maths under zoom.
+
+Zoom is applied before post-processing, so vignette, grain and the HUD stay fixed to the screen, as in the software path.
+
+---
+
 ## TA-5 — Fold Distortion + Gravity-Flip Bend (plan, 2026-11-05)
 
 **Touches more than 3 files.** The spec is approved in `docs/tech-art-plan.md` §3 TA-5, and Matt said to go ahead.

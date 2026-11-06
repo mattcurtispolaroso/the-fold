@@ -770,8 +770,10 @@ def main() -> None:
                         light_tex = gpu_lights.render(
                             level.level_data.lights, (player.px, player.py), camera.offset,
                         )
-                    gpu_parallax.composite(gpu_post.begin_scene(), light_tex)
-                    gpu_post.set_distortion(feel.distortion_params(camera.offset, (WIDTH, HEIGHT)))
+                    gpu_parallax.composite(gpu_post.begin_scene(), light_tex, camera.zoom)
+                    gpu_post.set_distortion(
+                        feel.distortion_params(camera.offset, (WIDTH, HEIGHT), camera.zoom),
+                    )
                     gpu_post.render(gpu_ctx.ctx.screen)
                     # Fold tint overlay
                     if run_state.fold_stability < FOLD_TINT_THRESHOLD:

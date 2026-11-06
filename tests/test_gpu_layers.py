@@ -267,3 +267,47 @@ class TestParallaxStackGPU(unittest.TestCase):
         for key in ("sky", "play", "composite"):
             self.assertIn(key, self.stack.layer_ms)
             self.assertGreaterEqual(self.stack.layer_ms[key], 0.0)
+
+    def _composite_play_column(self, x: float, zoom: float):
+        """Draw a 1px white column at screen x in the play layer; composite at `zoom`."""
+        target = self.ctx.simple_framebuffer(_SIZE, components=4)
+        target.clear(0.0, 0.0, 0.0, 1.0)
+        self.stack.begin_frame()
+        with self.stack.target("play"):
+            self.batch.begin()
+            self.batch.draw_rect(x, 0, 1, _SIZE[1], (1, 1, 1, 1))
+            self.batch.flush()
+        self.stack.composite(target, zoom=zoom)
+        return target
+
+    def test_zoom_scales_about_screen_centre(self) -> None:
+        """Rotation-cinematic zoom: a point 25px right of centre lands 50px right at 2×."""
+        centre_x = _SIZE[0] // 2
+        target = self._composite_play_column(centre_x + 25, zoom=2.0)
+        self.assertAlmostEqual(_marker_column(target), centre_x + 50, delta=1)
+        target.release()
+
+    def test_zoom_one_is_identity(self) -> None:
+        """zoom=1.0 leaves the composite exactly where it was drawn."""
+        target = self._composite_play_column(130, zoom=1.0)
+        self.assertEqual(_marker_column(target), 130)
+        target.release()
+
+    def test_zoom_out_leaves_border_empty(self) -> None:
+        """Below 1× the area outside the shrunken frame stays at the target's clear colour."""
+        target = self.ctx.simple_framebuffer(_SIZE, components=4)
+        target.clear(0.0, 0.0, 0.0, 1.0)
+        self.stack.begin_frame()
+        self.stack.layers["play"].fbo.clear(1.0, 1.0, 1.0, 1.0)
+        self.stack.composite(target, zoom=0.5)
+        w, h = _SIZE
+        px = np.frombuffer(target.read(components=4), dtype=np.uint8).reshape(h, w, 4)
+        self.assertEqual(int(px[2, 2, 0]), 0)            # corner: outside the frame
+        self.assertEqual(int(px[h // 2, w // 2, 0]), 255)  # centre: still the layer
+        target.release()
+
+    def test_zoom_does_not_leak_into_image_layers(self) -> None:
+        """After a zoomed composite, the next frame's sky is drawn unzoomed."""
+        self._composite_play_column(10, zoom=2.0).release()
+        sky_x, _ = self._render((0.0, 0.0))
+        self.assertEqual(sky_x, _MARKER_X)

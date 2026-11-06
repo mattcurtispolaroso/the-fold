@@ -86,3 +86,10 @@
 - main.py: Feel created at startup, track_dilation + update each playing frame, passed into _do_gravity_rotation (3 call sites) which calls gravity_bend after the new direction is set.
 - Updated 2 TA-4 tests (crt key index 5→6; idle distortion skipped by the timing hook).
 - 723 tests pass (20 new in tests/test_gpu_feel.py incl. GPU readback of bend, ripple, aberration, offset cap). Distortion ≈0.2ms. One timing run showed a single 5.2ms post frame (likely query/compositor noise; avg 1.2-1.5ms).
+
+## 2026-11-05 — GPU rotation-cinematic zoom
+- Matt chose this over TA-6 (last vertical-slice gap). Plan noted in DECISIONS_NEEDED.md (5 files).
+- upscale.frag: u_zoom scales sample UVs about the screen centre for both the layer and the light buffer; outside-frame samples are transparent (zoom < 1 parity with software's black border). layer.py: composite(..., zoom) with COMPOSITE_ZOOM_MIN guard; image-layer draws force zoom 1.
+- feel.py: distortion_params(..., zoom) + zoomed_screen_point(), so ripples stay centred under zoom.
+- main.py passes camera.zoom to composite and distortion_params.
+- 729 tests pass (6 new: centre-scaling readback, identity at 1×, empty border at 0.5×, no zoom leak into image layers, ripple centre/radius under zoom).

@@ -132,6 +132,24 @@ class TestDistortionParams(unittest.TestCase):
         self.assertAlmostEqual(feel.distortion_params((0, 0), _SIZE).aberration,
                                C.ABERRATION_MAX_PX)
 
+    def test_ripple_follows_camera_zoom(self) -> None:
+        """Under zoom the ripple centre scales about the screen centre and its radius scales."""
+        feel = Feel()
+        feel.distortion(150.0, 80.0)        # 50px right of the 200×160 centre, on the centre row
+        feel.update(C.RIPPLE_DURATION / 2)  # non-zero radius
+        plain = feel.distortion_params((0, 0), _SIZE)
+        zoomed = feel.distortion_params((0, 0), _SIZE, zoom=2.0)
+        self.assertEqual(zoomed.ripples[0][0], 200.0)                # 100 + 50×2
+        self.assertEqual(zoomed.ripples[0][1], plain.ripples[0][1])  # centre row unchanged
+        self.assertAlmostEqual(zoomed.ripples[0][2], plain.ripples[0][2] * 2.0)
+
+    def test_zoom_one_matches_unzoomed(self) -> None:
+        """zoom=1.0 (the default) gives exactly the pre-zoom result."""
+        feel = Feel()
+        feel.distortion(37.0, 91.0)
+        self.assertEqual(feel.distortion_params((-5, 3), _SIZE, zoom=1.0).ripples,
+                         feel.distortion_params((-5, 3), _SIZE).ripples)
+
 
 class TestDistortionPassGPU(unittest.TestCase):
     """Rendered distortion via a standalone context (skipped without a GPU)."""

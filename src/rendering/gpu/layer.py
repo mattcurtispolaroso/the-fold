@@ -32,6 +32,7 @@ _DEFAULT_BLEND = (moderngl.SRC_ALPHA, moderngl.ONE_MINUS_SRC_ALPHA)
 COMPOSITE_TIMING_KEY: str = "composite"
 LIGHT_TIMING_KEY: str = "light"
 LIGHT_TEXTURE_UNIT: int = 1
+COMPOSITE_ZOOM_MIN: float = 0.1  # matches Camera's zoom floor; guards the shader's divide
 _NS_PER_MS: float = 1_000_000.0
 FULLSCREEN_QUAD = (-1.0, -1.0, 1.0, -1.0, -1.0, 1.0, 1.0, 1.0)  # triangle strip, NDC
 
@@ -150,6 +151,7 @@ class ParallaxStack:
         factors = resolve_scroll_factors(overrides)
         w, h = self.size
         self._prog["u_lit"].value = 0.0
+        self._prog["u_zoom"].value = 1.0  # zoom is applied once, at composite time
         self._unlit_texture.use(LIGHT_TEXTURE_UNIT)  # sampler must never see an empty unit
         for name, texture in self._images.items():
             sx, sy = parallax_offset(cam_offset, factors[name])
@@ -172,14 +174,18 @@ class ParallaxStack:
         self,
         target: moderngl.Framebuffer,
         light: moderngl.Texture | None = None,
+        zoom: float = 1.0,
     ) -> None:
         """Blend every layer back-to-front onto `target`, scaling to its viewport.
 
         When `light` is given, the PARALLAX_LIT_LAYERS are multiplied by it.
+        `zoom` (camera.zoom) scales the whole frame about the screen centre —
+        the GPU equivalent of the software renderer's rotation-cinematic zoom.
         """
         target.use()
         self._ctx.blend_func = _COMPOSITE_BLEND
         self._prog["u_uv_offset"].value = (0.0, 0.0)
+        self._prog["u_zoom"].value = max(zoom, COMPOSITE_ZOOM_MIN)
         (light or self._unlit_texture).use(LIGHT_TEXTURE_UNIT)
         with self.timed(COMPOSITE_TIMING_KEY):
             for name in C.PARALLAX_LAYER_NAMES:

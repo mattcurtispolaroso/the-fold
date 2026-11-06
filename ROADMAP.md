@@ -127,6 +127,7 @@ Done when: a ~10 min run from start to singularity or death is completable. **Ga
 - [x] TA-3: 2D light buffer — ambient + up to 10 point/spot lights per level + player light, multiplied over mid/play ✅
 - [x] TA-4: Post-processing stack v1 — bloom, LUT grade, vignette, grain, CRT stub; live toggles with F3 open ✅
 - [x] TA-5: Fold distortion + gravity-flip bend — ripple on Time Dilation, frame bend on rotation, chromatic aberration ✅
+- [x] GPU rotation-cinematic zoom: frame scales about the centre at composite time (lighting and ripples follow) ✅
 - [ ] Vertical-slice review (Matt): play level_01 on the GPU renderer and judge it against the acceptance list below
 
 ## TA milestone track (tech art pipeline)
@@ -146,7 +147,7 @@ Full plan in `docs/tech-art-plan.md`. Runs alongside the M-series. Each TA modul
 | TA-8 | Normal maps + emissive mask (optional, post-launch candidate) | — |
 
 **Vertical slice acceptance (end of TA-5):** level_01 renders with 5 parallax layers, 3 point lights, bloom, vignette, grain, Fold distortion on rotation. 60fps on dev Mac. Software fallback passes all existing tests unchanged.
-**Status 2026-11-05:** all items built. GPU frame ≈3ms on the dev Mac; 723 tests pass. Deviations: bloom is threshold-based (no emissive mask until TA-8); foreground layer empty (no art); rotation-cinematic zoom still not applied on the GPU path. Awaiting Matt's in-game review.
+**Status 2026-11-05:** all items built. GPU frame ≈3ms on the dev Mac; 723 tests pass. Deviations: bloom is threshold-based (no emissive mask until TA-8); foreground layer empty (no art). Rotation-cinematic zoom now works on the GPU path. Awaiting Matt's in-game review.
 
 **Open decisions (see `docs/tech-art-plan.md` §5):**
 - Q3: Is the software renderer CI-only or a user-facing option for older/no-GPU machines?
@@ -226,4 +227,4 @@ Decided 2026-11-05: develop on Mac in a single codebase and defer packaging. Kee
 Date: 2026-11-05
 Did: TA-2 parallax, debug overlay → F3, TA-3 lighting, TA-4 post stack, TA-5 Fold distortion + gravity bend (Feel class; distortion post pass with ripple, bend, chromatic aberration). PyInstaller spec fixed (numpy, shaders/). The GPU vertical slice is feature-complete.
 State of tests: 723 passing
-Next up: Matt's vertical-slice review in game (GPU renderer, level_01). Also: run build/build_mac.sh once to confirm a frozen GPU build launches. Then TA-6 (feel framework), or apply the rotation-cinematic zoom on the GPU path if the review asks for it.
+Next up: Matt's vertical-slice review in game (GPU renderer, level_01). Also: run build/build_mac.sh once to confirm a frozen GPU build launches. GPU rotation zoom fixed after the TA-5 review. Then TA-6 (feel framework).
