@@ -431,7 +431,7 @@ def main() -> None:
                             active_zone_indices = set()
                             time_dilation.reset()
                             bus.emit(GameEvent.ROOM_ENTERED)
-                        if event.key == pygame.K_BACKQUOTE:
+                        if event.key == pygame.K_F3:
                             debug_draw = not debug_draw
                         if DEBUG_ITEMS and event.key == pygame.K_f:
                             _grant_debug_items(run_state, item_manager, item_registry)

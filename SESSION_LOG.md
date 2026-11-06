@@ -56,3 +56,4 @@
 - LevelData gains optional "layers" key → layer_scrolls (unknown/play names dropped, values clamped, malformed value → fallback level).
 - main.py GPU playing path: begin_frame → image layers → play layer → composite → tint/HUD. Debug overlay now also draws on the GPU path.
 - 659 tests pass (22 new in tests/test_gpu_layers.py, incl. a GPU readback test of sky vs playfield scroll). Real-window smoke test: no GL errors, ~0.7ms for all layers.
+- Debug overlay toggle moved from backquote to F3 (Matt approved), matching CLAUDE.md and the tech-art plan. Applies to both renderers.

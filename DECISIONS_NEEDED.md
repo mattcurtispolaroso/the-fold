@@ -23,12 +23,12 @@
 ### Conservative choices made
 - **Foreground layer** is allocated and composited but left empty. There is no foreground art yet, and putting silhouettes over the playfield is a design call.
 - **FBOs stay at 800×600 internal resolution.** The upscale shader is ready for any display size, but window scaling is not changed.
-- **The debug overlay stays on backquote**, the existing key; it does not move to F3. On the GPU path it now draws, with per-layer ms. GPU timer queries run only while the overlay is on, because reading them stalls the pipeline.
+- **The debug overlay moved from backquote to F3** (Matt approved 2026-11-05, matching CLAUDE.md and the tech-art plan). On the GPU path it now draws, with per-layer ms. GPU timer queries run only while the overlay is on, because reading them stalls the pipeline.
 - **The rotation-cinematic zoom is still ignored on the GPU path**, as before TA-2. Out of scope.
 - **The software renderer is unchanged.**
 
-### Open question for Matt
-- Should the debug overlay move to F3, as CLAUDE.md and the tech-art plan say, or stay on backquote?
+### Resolved
+- ~~Should the debug overlay move to F3?~~ Yes, done 2026-11-05.
 
 ---
 

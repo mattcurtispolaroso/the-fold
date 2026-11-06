@@ -210,6 +210,6 @@ Cult enemies (Witness, Ordained, Architect); Archivist and Diplomat characters; 
 
 ## Last session
 Date: 2026-11-05
-Did: TA-2 parallax layer system — 5 layer FBOs (sky 0.05× / far 0.20× / mid 0.50× / play 1.00× / fore 1.30×), procedural sky/far/mid split of background.png, premultiplied-alpha composite via new upscale shader, per-layer GPU ms in the debug overlay (backquote), optional `"layers"` level JSON overrides. GPU readback test confirms the sky moves 0.05× as far as the playfield.
+Did: TA-2 parallax layer system — 5 layer FBOs (sky 0.05× / far 0.20× / mid 0.50× / play 1.00× / fore 1.30×), procedural sky/far/mid split of background.png, premultiplied-alpha composite via new upscale shader, per-layer GPU ms in the debug overlay (now on F3, moved from backquote), optional `"layers"` level JSON overrides. GPU readback test confirms the sky moves 0.05× as far as the playfield.
 State of tests: 659 passing
-Next up: TA-3 (2D light buffer). Open question: should the debug overlay move from backquote to F3 (see DECISIONS_NEEDED.md)?
+Next up: TA-3 (2D light buffer).
