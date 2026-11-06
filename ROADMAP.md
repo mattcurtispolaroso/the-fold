@@ -25,7 +25,9 @@ A retrofuturistic 1962 roguelite platformer where you bend gravity and time, and
 Stop building by layer. Build **thin vertical slices**, each ending in something playable, and put a go/no-go "is the loop fun?" gate after the first full run (M4). Content breadth (items, enemies, procgen, polish) comes only after that gate.
 
 ## Current milestone
-**M4: First Run** (next)
+**M4 gate — external playtest** (next). Every milestone since M4 was built before the "is it fun?" gate ran. Tech-art and engine foundations are now done; nothing else should start until 2–3 outside players have played a full run. (Rewind/Audio sit behind this gate.)
+
+**M4: First Run**
 
 ## Milestones
 
@@ -100,7 +102,6 @@ Done when: a ~10 min run from start to singularity or death is completable. **Ga
 - M7b: Second character (The Archivist) — deferred to backlog
 - M7c: Mac + Windows PyInstaller builds — `build/the_fold.spec`, `build/build_mac.sh`, `build/build_windows.bat` ✅
 
-## Current milestone
 **M8 — Playtest Pass** ✅ Done 2026-11-02
 - M8a: Stability rebalance — death cost 20→15, black hole 15→10, white hole restore 5→15 ✅
 - M8b: Enemy data pass — EnemyDef in level JSON; Temporal Echo back in combat rooms; varies by node ✅
@@ -117,20 +118,12 @@ Done when: a ~10 min run from start to singularity or death is completable. **Ga
 - `TIME_DILATION_COOLDOWN` renamed to `TIME_DILATION_POST_EFFECT_WAIT` + `total_recharge` property added to `AbilitySlot` (closes adversarial audit item 12) ✅
 - Ability combination test coverage filled — 7 new tests in `TestAbilitySlotCombinations` (closes adversarial audit item 13) ✅
 
-## Current milestone
-**TA — Tech Art Pipeline** (in progress)
+**TA — Tech Art Pipeline** ✅ Built 2026-11-05 (TA-0–TA-7; TA-8 optional/post-launch). Vertical-slice sign-off pending Matt's in-game review.
 
 ## This sprint (max 3 tasks)
-- [x] TA-0: GPU backend foundation — ModernGL context alongside Pygame, software fallback flag, triangle smoke test ✅
-- [x] TA-1: Sprite batch + atlas loader — player and level geometry via GPU sprite batch, atlas packer tool ✅
-- [x] TA-2: Parallax layer system — 5 FBOs with per-layer scroll factors, background split across sky/far/mid layers ✅
-- [x] TA-3: 2D light buffer — ambient + up to 10 point/spot lights per level + player light, multiplied over mid/play ✅
-- [x] TA-4: Post-processing stack v1 — bloom, LUT grade, vignette, grain, CRT stub; live toggles with F3 open ✅
-- [x] TA-5: Fold distortion + gravity-flip bend — ripple on Time Dilation, frame bend on rotation, chromatic aberration ✅
-- [x] GPU rotation-cinematic zoom: frame scales about the centre at composite time (lighting and ripples follow) ✅
-- [x] TA-6: Feel framework — hitstop, white/amber sprite flash, squash/stretch, feel.* API for shake/punch/zoom, reduced-effects accessibility mode (F3 + 0) ✅
-- [x] TA-7: GPU particles — one instanced draw for up to 500 particles; frame-rate-independent physics; amber ring burst, falling red-orange sparks, grey dust puffs ✅
-- [ ] Vertical-slice review (Matt): play level_01 on the GPU renderer and judge it against the acceptance list below
+- [ ] QA pass on the GPU build: play a full run against the qa_checklist sections added 2026-11-05 (TA-2…TA-7, Engine Sessions 1–3). Done = every item ticked or filed as a bug; vertical slice signed off or rejected.
+- [ ] Decision + data cleanup: decide crush damage; fix levels 05–08 spawn y 790→772. Done = decisions logged, navigability tests green, no respawn nudge needed (test: spawn valid without correction).
+- [ ] M4 playtest kit + run: tester brief, observation sheet, 2–3 external testers on a built .app/.exe. Done = notes in docs/, go / redesign / cut decision logged.
 
 ## TA milestone track (tech art pipeline)
 
@@ -158,7 +151,7 @@ Full plan in `docs/tech-art-plan.md`. Runs alongside the M-series. Each TA modul
 - ~~Q6: Parallax art for TA-2 testing~~ — decided: procedural split (see Decisions log)
 
 ## Needs revisit
-- **Engine audit (2026-11-05): `docs/engine-audit-2026-11-05.md`.** 5 reproduced physics bugs (rotation into walls, platform side-push teleport, 8px turnaround slip, uncapped gravity → tunnelling ≥2.7×, no post-step validation), measured judder (no render interpolation), split fixed-step/frame-time simulation. Plan: 3 sessions (physics hardening → smoothness → World/determinism). **Session 1 (physics hardening) ✅ done 2026-11-05.** **Session 2 (smoothness) ✅ done 2026-11-05.** **Session 3 (World/determinism) ✅ done 2026-11-05: deterministic, snapshot-able simulation; Closed Loop rewind is now buildable.**
+- ~~Engine audit (2026-11-05)~~ all 3 follow-up sessions ✅ done (`docs/engine-audit-2026-11-05.md`, `SUMMARY.md`). Remaining: playtest the feel changes (input now applied at next 60 Hz step).
 - ~~VFX particles visual tuning~~ — done in TA-7 (specs in constants.py `VFX_*`); give them a look in play
 
 ## Known bugs / open items
@@ -166,6 +159,10 @@ Full plan in `docs/tech-art-plan.md`. Runs alongside the M-series. Each TA modul
 - Helmet sprite files referenced in constants.py do not exist | cosmetic (placeholder renders)
 - Amber glow overlay not implemented | deferred — needs `EXOSKELETON_GLOW_PATH` art asset (glow reference image showing exoskeleton path on black background)
 - level_06 RIGHT gravity zone has no enemies — enemy patrol is x-axis only so wall-crawl placement isn't viable without y-patrol support. Deferred; fix when enemy AI supports directional patrol.
+- Levels 05–08 spawn at y=790, 18px inside the floor | engine nudges on respawn | data fix pending (task above)
+- Unused imports in 8 untouched modules | harmless | one-minute cleanup
+- ~~Penrose Diagram + Event Horizon never worked (stale RunState ref)~~ fixed 42e2d50
+- ~~Crush fallback could point into the previous level (stale last_safe)~~ fixed 42e2d50
 - ~~`JUMP_ANTICIPATION` dead animation state~~ — deleted (commit e8ca580; closes adversarial audit item 6)
 - ~~`AbilitySlot.cooldown` naming confusion~~ — resolved: constant renamed `TIME_DILATION_POST_EFFECT_WAIT`, `total_recharge` property added (commit 9aa35f6; closes adversarial audit item 12)
 - ~~Ability combination test coverage incomplete~~ — 7 new tests added in `TestAbilitySlotCombinations` (commit 63c331d; closes adversarial audit item 13)
@@ -203,6 +200,9 @@ Decided 2026-11-05: develop on Mac in a single codebase and defer packaging. Kee
 6. **TA Q4 — Normal map authoring:** Hand-painted per sprite, or algorithmically generated from painted surface? (Recommendation: generated via SpriteIlluminator or similar; upgrade hero sprites if quality is insufficient.)
 7. ~~**TA Q5 — CRT/halation pass:**~~ Decided 2026-11-05: stub toggle in TA-4. In scope for TA-4, or stub and defer post-vertical-slice? (Recommendation: stub the toggle in TA-4, leave shader empty; decide after seeing full post stack on real art.)
 8. ~~**TA Q6 — TA-2 parallax art:**~~ Decided 2026-11-05: procedural split. Does TA-2 need painted layered backgrounds, or test with procedural tinted copies of `background.png`? (Recommendation: procedural split for TA-2 testing; real layers when art pipeline produces them.)
+9. **Crush damage:** platform pins you against a wall → currently last safe spot, no damage. Cost 1 integrity like a fall? (Recommendation: yes, it's a readable hazard — but your call.)
+10. **Refused rotation feedback:** currently no cost + tiny shake. Keep? (Recommendation: keep.)
+11. **Levels 05–08 spawn JSON 790→772?** (Recommendation: yes; the engine fix stays as a safety net.)
 
 ## Decisions log
 - 2026-10-31: roadmap drafted.
@@ -229,8 +229,11 @@ Decided 2026-11-05: develop on Mac in a single codebase and defer packaging. Kee
 - 2026-11-05: Refactor session (no behaviour change). `hud.py` 437→197 lines: menus moved to `rendering/screens.py`. `sprite_batch.py` 387→252: playfield drawing moved to `gpu/world_draw.py`, shader loading to public `gpu/shader_source.py`. Over-long functions split. Verified by 474 pixel-identical before/after reference renders plus the test suite. Not done: `main()` is still far over 40 lines (orchestrator; needs its own session), and the menu screens still use inline colour/position literals.
 - 2026-11-05: 28-item design assessment (separate from adversarial audit) drove the M8 sprint: hole uncertainty non-functional, enemies identical every run, 5-node run too short. All three addressed in M8a-c.
 
+- 2026-11-05: Debug overlay moved backquote → F3 (Matt). level_01 lighting brightened after review (Matt).
+- 2026-11-05: Cross-platform: one codebase, native Mac + Windows packaging deferred to ship prep.
+- 2026-11-05: Engine foundation (audit → 3 sessions): gravity capped 5×, collision sub-stepped, rotation refused when no room, render interpolation + vsync, World.step owns all simulation on the fixed step, input buffered to the step, snapshot/restore. Rewind remains post-launch per 2026-10-31 scope.
 ## Last session
 Date: 2026-11-05
-Did: TA-2 → TA-7 tech-art track (parallax, lighting, post stack, Fold distortion, GPU rotation zoom, feel framework, GPU particles). PyInstaller spec fixed. Cross-platform strategy recorded (backlog).
-State of tests: 770 passing
-Next up: TA-8 is optional/post-launch (normal maps + emissive). Recommended: return to gameplay (M-series) and treat the tech-art track as done for now. Refactor session done: hud.py / sprite_batch.py split (see Decisions log).
+Did: TA-2→TA-7 tech art; F3 overlay; lighting tuned; PyInstaller spec fixed (numpy, shaders); cross-platform strategy; render-module refactor; engine audit + physics hardening, smoothness, World/determinism (main() 633→38 lines). Found+fixed: Penrose/Event Horizon dead, stale last-safe.
+State of tests: 814 passing. All committed and pushed (d4424bb).
+Next up: QA pass on the GPU build → crush/spawn decisions → M4 external playtest.
