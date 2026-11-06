@@ -30,8 +30,10 @@ _COMPOSITE_BLEND = (moderngl.ONE, moderngl.ONE_MINUS_SRC_ALPHA)
 _DEFAULT_BLEND = (moderngl.SRC_ALPHA, moderngl.ONE_MINUS_SRC_ALPHA)
 
 COMPOSITE_TIMING_KEY: str = "composite"
+LIGHT_TIMING_KEY: str = "light"
+LIGHT_TEXTURE_UNIT: int = 1
 _NS_PER_MS: float = 1_000_000.0
-_FULLSCREEN_QUAD = (-1.0, -1.0, 1.0, -1.0, -1.0, 1.0, 1.0, 1.0)  # triangle strip, NDC
+FULLSCREEN_QUAD = (-1.0, -1.0, 1.0, -1.0, -1.0, 1.0, 1.0, 1.0)  # triangle strip, NDC
 
 
 def parallax_offset(cam_offset: tuple[float, float], factor: float) -> tuple[float, float]:
@@ -114,7 +116,10 @@ class ParallaxStack:
             fragment_shader=_load_shader("upscale.frag"),
         )
         self._prog["u_texture"] = 0
-        self._quad_vbo = ctx.buffer(array.array("f", _FULLSCREEN_QUAD).tobytes())
+        self._prog["u_light"] = LIGHT_TEXTURE_UNIT
+        # Bound to the light unit whenever no light buffer is supplied
+        self._unlit_texture = ctx.texture((1, 1), 4, data=bytes([255, 255, 255, 255]))
+        self._quad_vbo = ctx.buffer(array.array("f", FULLSCREEN_QUAD).tobytes())
         self._quad_vao = ctx.vertex_array(self._prog, [(self._quad_vbo, "2f", "a_pos")])
         self._images = {
             name: _upload_image(ctx, surf)
@@ -144,6 +149,8 @@ class ParallaxStack:
         """Draw each image layer into its FBO, scrolled by its parallax factor."""
         factors = resolve_scroll_factors(overrides)
         w, h = self.size
+        self._prog["u_lit"].value = 0.0
+        self._unlit_texture.use(LIGHT_TEXTURE_UNIT)  # sampler must never see an empty unit
         for name, texture in self._images.items():
             sx, sy = parallax_offset(cam_offset, factors[name])
             with self.target(name):
@@ -157,17 +164,27 @@ class ParallaxStack:
         layer = self.layers[name]
         layer.fbo.use()
         self._ctx.blend_func = _LAYER_BLEND
-        with self._timed(name):
+        with self.timed(name):
             yield layer
         self._ctx.blend_func = _DEFAULT_BLEND
 
-    def composite(self, target: moderngl.Framebuffer) -> None:
-        """Blend every layer back-to-front onto `target`, scaling to its viewport."""
+    def composite(
+        self,
+        target: moderngl.Framebuffer,
+        light: moderngl.Texture | None = None,
+    ) -> None:
+        """Blend every layer back-to-front onto `target`, scaling to its viewport.
+
+        When `light` is given, the PARALLAX_LIT_LAYERS are multiplied by it.
+        """
         target.use()
         self._ctx.blend_func = _COMPOSITE_BLEND
         self._prog["u_uv_offset"].value = (0.0, 0.0)
-        with self._timed(COMPOSITE_TIMING_KEY):
+        (light or self._unlit_texture).use(LIGHT_TEXTURE_UNIT)
+        with self.timed(COMPOSITE_TIMING_KEY):
             for name in C.PARALLAX_LAYER_NAMES:
+                is_lit = light is not None and name in C.PARALLAX_LIT_LAYERS
+                self._prog["u_lit"].value = 1.0 if is_lit else 0.0
                 self.layers[name].texture.use(0)
                 self._quad_vao.render(moderngl.TRIANGLE_STRIP)
         self._ctx.blend_func = _DEFAULT_BLEND
@@ -178,8 +195,8 @@ class ParallaxStack:
             layer.resize(size)
 
     @contextmanager
-    def _timed(self, key: str) -> Iterator[None]:
-        """Accumulate GPU ms for `key` into layer_ms when profiling is on."""
+    def timed(self, key: str) -> Iterator[None]:
+        """Accumulate GPU ms for `key` into layer_ms when profiling is on (any GPU work)."""
         if not self.profiling:
             yield
             return
@@ -195,6 +212,7 @@ class ParallaxStack:
             layer.release()
         for texture in self._images.values():
             texture.release()
+        self._unlit_texture.release()
         # moderngl 5.x Query objects have no release(); they die with the context
         self._queries.clear()
         self._quad_vao.release()

@@ -124,6 +124,7 @@ Done when: a ~10 min run from start to singularity or death is completable. **Ga
 - [x] TA-0: GPU backend foundation — ModernGL context alongside Pygame, software fallback flag, triangle smoke test ✅
 - [x] TA-1: Sprite batch + atlas loader — player and level geometry via GPU sprite batch, atlas packer tool ✅
 - [x] TA-2: Parallax layer system — 5 FBOs with per-layer scroll factors, background split across sky/far/mid layers ✅
+- [x] TA-3: 2D light buffer — ambient + up to 10 point/spot lights per level + player light, multiplied over mid/play ✅
 
 ## TA milestone track (tech art pipeline)
 
@@ -134,8 +135,8 @@ Full plan in `docs/tech-art-plan.md`. Runs alongside the M-series. Each TA modul
 | TA-0 | GPU backend foundation (ModernGL context, software fallback, triangle) | ✅ Done |
 | TA-1 | Sprite batch + atlas loader | ✅ Done |
 | TA-2 | Parallax layer system (5 FBOs, per-layer scroll) | ✅ Done |
-| TA-3 | 2D light buffer (ambient + point/spot lights per level) | Next |
-| TA-4 | Post-processing stack v1 (bloom, vignette, grain, LUT) | — |
+| TA-3 | 2D light buffer (ambient + point/spot lights per level) | ✅ Done |
+| TA-4 | Post-processing stack v1 (bloom, vignette, grain, LUT) | Next |
 | TA-5 | Fold distortion + gravity flip (screen-space warp, rotation bend) | — |
 | TA-6 | Feel framework (hitstop, sprite flash, squash/stretch, accessibility toggle) | — |
 | TA-7 | GPU particles (instanced quad draw, visual upgrade) | — |
@@ -206,10 +207,11 @@ Cult enemies (Witness, Ordained, Architect); Archivist and Diplomat characters; 
 - 2026-11-05: Tech art plan approved (`docs/tech-art-plan.md`). Resolution strategy: stay at 800×600 world units, upscale to display (TA Q1). Art pipeline first, art second — build TA-0 through TA-5 with current placeholders, swap real art later (TA Q2).
 - 2026-11-05: Adversarial game-dev audit completed. 12 bugs fixed across GPU, physics, resources, combat, animation, and input systems. All 3 remaining open items closed same session: JUMP_ANTICIPATION deleted, cooldown rename + total_recharge property, ability combination tests added.
 - 2026-11-05: TA-2 parallax: placeholder layers are procedural splits of `background.png` (TA Q6). Painted art drops in as `assets/backgrounds/layers/{sky,far,mid}.png` with no code change. Foreground layer allocated but left empty until there is art for it. Per-level scroll overrides via optional `"layers"` key in level JSON; the play layer is locked to 1.0.
+- 2026-11-05: TA-3 lighting: only levels with a `"lights"` key are lit (level_01 for now; others render as after TA-2). Lit layers are mid + play; sky/far stay self-lit. Player carries a warm amber point light in lit levels. Light buffer is half-float, capped at 2.0 for mild overbright.
 - 2026-11-05: 28-item design assessment (separate from adversarial audit) drove the M8 sprint: hole uncertainty non-functional, enemies identical every run, 5-node run too short. All three addressed in M8a-c.
 
 ## Last session
 Date: 2026-11-05
-Did: TA-2 parallax layer system — 5 layer FBOs (sky 0.05× / far 0.20× / mid 0.50× / play 1.00× / fore 1.30×), procedural sky/far/mid split of background.png, premultiplied-alpha composite via new upscale shader, per-layer GPU ms in the debug overlay (now on F3, moved from backquote), optional `"layers"` level JSON overrides. GPU readback test confirms the sky moves 0.05× as far as the playfield.
-State of tests: 659 passing
-Next up: TA-3 (2D light buffer).
+Did: TA-2 parallax layer system (5 FBOs, procedural sky/far/mid placeholders, per-layer GPU ms on F3); debug overlay moved to F3; TA-3 2D light buffer (ambient + ≤10 point/spot lights per level + player light, one fullscreen half-float pass, multiplied over mid/play at composite; level_01 lit with ambient + 3 point lights). 10 lights + player measured ~0.53ms avg on the dev Mac (budget 2ms).
+State of tests: 683 passing
+Next up: TA-4 (post-processing stack v1: bloom, vignette, grain, LUT). Lighting brightness on level_01 is a tuning call — see qa_checklist.md.

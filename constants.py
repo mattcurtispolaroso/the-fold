@@ -93,6 +93,22 @@ PARALLAX_MID_TINT: tuple[float, float, float] = (0.35, 0.30, 0.30)   # dark silh
 PARALLAX_MID_BAND_START: float = 0.55  # fraction of height where mid-layer alpha starts
 PARALLAX_MID_BAND_FULL: float = 0.75   # fraction of height where mid-layer alpha is full
 
+# --- 2D Lighting (TA-3, GPU path only) ---
+# Only levels with a "lights" key are lit; others render unlit (identity).
+LIGHT_MAX_PER_LEVEL: int = 10           # point + spot lights; extras are dropped with a warning
+LIGHT_SHADER_SLOTS: int = LIGHT_MAX_PER_LEVEL + 1   # + the player light
+LIGHT_RADIUS_MIN: float = 1.0           # px; clamps level JSON values
+LIGHT_RADIUS_MAX: float = 2000.0
+LIGHT_INTENSITY_MAX: float = 4.0
+LIGHT_SPREAD_MAX: float = 360.0         # spot cone full width, degrees
+LIGHT_SPOT_INNER_FRAC: float = 0.7      # fraction of the cone at full strength (soft edge beyond)
+LIGHT_BUFFER_MAX_BRIGHTNESS: float = 2.0  # per-channel cap on summed light (allows mild overbright)
+LIGHT_DEFAULT_AMBIENT: tuple[float, float, float] = (0.35, 0.38, 0.45)  # lit level with no ambient entry
+PARALLAX_LIT_LAYERS: tuple[str, ...] = ("mid", "play")  # multiplied by the light buffer
+PLAYER_LIGHT_RADIUS: float = 220.0
+PLAYER_LIGHT_COLOR: tuple[float, float, float] = (1.0, 0.72, 0.38)   # warm amber (exosuit glow)
+PLAYER_LIGHT_INTENSITY: float = 0.7
+
 DEBUG_DRAW_RECTS: bool = False        # draw physics rects for debugging
 SPRITE_PHYSICS_OFFSET_Y: int = 0      # vertical pixel offset to align sprite to physics rect
 

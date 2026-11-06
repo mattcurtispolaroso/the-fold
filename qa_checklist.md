@@ -183,3 +183,12 @@ Run through this after each coding session. Launch the game with `python main.py
 - [ ] Dropping `assets/backgrounds/layers/sky.png` (or far/mid) replaces that layer's placeholder on next launch
 - [ ] Known placeholder artefact: the ✦ watermark in background.png repeats in the mid band. It goes away when painted layers land
 - [ ] Rotation cinematic zoom is still not applied on the GPU path (pre-existing since TA-1; not a TA-2 regression)
+
+### 2D lighting (TA-3, GPU renderer only)
+- [ ] level_01: room corners far from lights are visibly darker than areas near the 3 point lights
+- [ ] level_01: a warm amber pool follows the player everywhere, including after gravity rotation
+- [ ] Sky and far background layers are NOT darkened by lighting; mid pipework band and playfield are
+- [ ] Levels other than level_01 look exactly as after TA-2 (unlit, no player light)
+- [ ] F3 overlay shows a `light` line; with level_01 it stays well under 2ms (measured ~0.5ms with 10 lights)
+- [ ] Brightness tuning: is level_01 too dark? Tune ambient/light values in levels/level_01.json and PLAYER_LIGHT_* in constants.py
+- [ ] A level JSON with a malformed "lights" value loads the fallback level instead of crashing

@@ -87,5 +87,52 @@
       "min_x": 30.0,
       "max_x": 510.0
     }
+  ],
+  "lights": [
+    {
+      "type": "ambient",
+      "color": [
+        0.3,
+        0.34,
+        0.42
+      ],
+      "intensity": 1.0
+    },
+    {
+      "type": "point",
+      "x": 120,
+      "y": 560,
+      "radius": 280,
+      "color": [
+        0.45,
+        0.65,
+        1.0
+      ],
+      "intensity": 0.9
+    },
+    {
+      "type": "point",
+      "x": 390,
+      "y": 420,
+      "radius": 260,
+      "color": [
+        0.4,
+        0.9,
+        0.85
+      ],
+      "intensity": 0.8
+    },
+    {
+      "type": "point",
+      "x": 770,
+      "y": 420,
+      "radius": 320,
+      "color": [
+        1.0,
+        0.92,
+        0.75
+      ],
+      "intensity": 1.0
+    }
   ]
 }

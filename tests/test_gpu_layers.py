@@ -172,11 +172,11 @@ class TestPlaceholderLayerImages(unittest.TestCase):
 class TestDebugOverlayTimings(unittest.TestCase):
     """Per-layer timing text for the debug overlay."""
 
-    def test_one_line_per_layer_plus_composite_and_total(self) -> None:
+    def test_one_line_per_layer_plus_light_composite_and_total(self) -> None:
         """Every layer is listed, even with no samples yet."""
         from src.rendering.gpu.debug_overlay import format_layer_timings
         lines = format_layer_timings({"sky": 0.25, "play": 1.0})
-        self.assertEqual(len(lines), len(C.PARALLAX_LAYER_NAMES) + 2)
+        self.assertEqual(len(lines), len(C.PARALLAX_LAYER_NAMES) + 3)
         self.assertIn("1.25", lines[-1])
 
 

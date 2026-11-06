@@ -2,6 +2,34 @@
 
 ---
 
+## TA-3 — 2D Light Buffer (plan, 2026-11-05)
+
+**Touches more than 3 files.** The spec is approved in `docs/tech-art-plan.md` §3 TA-3, and Matt said to go ahead. Plan recorded for review.
+
+### Approach
+One fullscreen pass writes the light buffer: ambient plus the sum of up to 10 level lights and 1 player light. Each light has a smooth quadratic falloff, and spot lights also have a soft-edged cone. The buffer is half-float, so lights can brighten above 1.0 (clamped at 2.0). It is applied during the parallax composite by multiplying the **mid** and **play** layers. Sky and far stay unlit, since distant space is self-lit.
+
+### Files
+| File | Change |
+|---|---|
+| `constants.py` | Light caps and clamps, default ambient, player light radius/colour/intensity, lit layer names |
+| `src/levels/light_data.py` (new) | `LightDef` dataclass plus `parse_lights()`. Validates type, clamps radius/intensity/colour, keeps at most 10 point/spot lights |
+| `src/levels/level_data.py` | Optional `"lights"` key becomes `LevelData.lights` (written by `to_dict` only when there are lights) |
+| `src/rendering/gpu/light_buffer.py` (new) | `pack_lights()` (world → screen, padded uniform arrays), `make_player_light()`, `LightBuffer` (half-float FBO, render, resize) |
+| `shaders/light.frag` (new) | Light accumulation. Reuses `upscale.vert` for the fullscreen quad instead of adding a duplicate `light.vert` |
+| `shaders/upscale.frag` + `src/rendering/gpu/layer.py` | Composite takes an optional light texture and multiplies the lit layers by it |
+| `src/rendering/gpu/debug_overlay.py` | Adds a `light` line to the F3 timings |
+| `main.py` | Render the light buffer each playing frame, then pass it to composite |
+| `levels/level_01.json` | Adds `"lights"`: dim cool ambient plus 3 point lights, matching the vertical-slice target |
+| `tests/test_gpu_lights.py` (new) | Schema and clamping, packing, GPU readback of ambient-only / single / additive lights, lit composite |
+
+### Conservative choices
+- **Only levels that have a `"lights"` key are lit**, and only level_01 gets one. Every other level renders exactly as after TA-2, with no player light either. Lighting the rest of the levels is an art pass.
+- **The player light is a warm amber point light**, nodding to the exoskeleton glow. Its strength is a constant to tune by eye.
+- **The 2 ms budget for 10 lights** is measured in a smoke script and reported, not asserted in unit tests, because a timing test would be flaky on a busy machine.
+
+---
+
 ## TA-2 — Parallax Layer System (plan, 2026-11-05)
 
 **Touches more than 3 files.** The spec is already approved in `docs/tech-art-plan.md` §3 TA-2, and Matt asked for this session to implement it, so this plan is recorded for review and work goes ahead.

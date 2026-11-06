@@ -57,3 +57,13 @@
 - main.py GPU playing path: begin_frame → image layers → play layer → composite → tint/HUD. Debug overlay now also draws on the GPU path.
 - 659 tests pass (22 new in tests/test_gpu_layers.py, incl. a GPU readback test of sky vs playfield scroll). Real-window smoke test: no GL errors, ~0.7ms for all layers.
 - Debug overlay toggle moved from backquote to F3 (Matt approved), matching CLAUDE.md and the tech-art plan. Applies to both renderers.
+
+## 2026-11-05 — TA-3 2D Light Buffer
+- Plan written to DECISIONS_NEEDED.md first (touches >3 files; spec pre-approved).
+- Added src/levels/light_data.py: LightKind enum, LightDef, parse_lights() (clamps values, ≤1 ambient, ≤10 emitters, unknown types dropped with a warning).
+- LevelData gains optional "lights" → lights (serialised only when non-empty).
+- Added shaders/light.frag (ambient + quadratic-falloff point/spot lights in one pass; reuses upscale.vert) and src/rendering/gpu/light_buffer.py (pack_lights, make_player_light, LightBuffer with half-float FBO).
+- upscale.frag + ParallaxStack.composite(target, light): mid/play multiplied by the light buffer; 1×1 white fallback bound to the light unit otherwise (fixes a macOS "unloadable texture" driver warning). ParallaxStack.timed() made public so main can time the light pass.
+- main.py renders the light buffer each playing frame; F3 overlay shows a `light` line.
+- level_01.json lit: ambient + 3 point lights.
+- 683 tests pass (24 new in tests/test_gpu_lights.py incl. GPU readback of ambient, additive, capped, spot-cone, player-follow, lit composite). Window smoke: 10 lights + player ~0.53ms avg, no GL errors.

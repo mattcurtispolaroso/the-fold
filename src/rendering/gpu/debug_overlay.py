@@ -8,7 +8,7 @@ from __future__ import annotations
 import pygame
 
 import constants as C
-from src.rendering.gpu.layer import COMPOSITE_TIMING_KEY
+from src.rendering.gpu.layer import COMPOSITE_TIMING_KEY, LIGHT_TIMING_KEY
 
 TIMING_TEXT_COLOR: tuple[int, int, int] = (180, 255, 180)
 TIMING_LINE_HEIGHT: int = 18
@@ -16,8 +16,8 @@ TIMING_MARGIN: int = 10
 
 
 def format_layer_timings(layer_ms: dict[str, float]) -> list[str]:
-    """Return one 'name  0.00 ms' line per layer in draw order, then composite and total."""
-    keys = list(C.PARALLAX_LAYER_NAMES) + [COMPOSITE_TIMING_KEY]
+    """Return one 'name  0.00 ms' line per layer in draw order, then light, composite, total."""
+    keys = list(C.PARALLAX_LAYER_NAMES) + [LIGHT_TIMING_KEY, COMPOSITE_TIMING_KEY]
     lines = [f"{key:<9} {layer_ms.get(key, 0.0):5.2f} ms" for key in keys]
     lines.append(f"{'total':<9} {sum(layer_ms.values()):5.2f} ms")
     return lines

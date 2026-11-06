@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 import constants as C
+from src.levels.light_data import LightDef, parse_lights
 
 logger = logging.getLogger(__name__)
 
@@ -202,6 +203,7 @@ class LevelData:
     level_height: int = 600
     gravity_multiplier: float = 1.0
     layer_scrolls: dict[str, float] = field(default_factory=dict)  # parallax overrides
+    lights: list[LightDef] = field(default_factory=list)  # empty = level renders unlit
 
     def to_dict(self) -> dict[str, Any]:
         """Serialise to JSON-compatible dict ("layers" only when overrides exist)."""
@@ -221,6 +223,8 @@ class LevelData:
         }
         if self.layer_scrolls:
             d["layers"] = {n: {"scroll": v} for n, v in self.layer_scrolls.items()}
+        if self.lights:
+            d["lights"] = [light.to_dict() for light in self.lights]
         return d
 
     @classmethod
@@ -249,6 +253,7 @@ class LevelData:
                 EnemyDef.from_dict(e) for e in d.get("enemies", [])
             ],
             layer_scrolls=parse_layer_scrolls(d.get("layers", {})),
+            lights=parse_lights(d.get("lights", [])),
         )
 
     def to_json(self, indent: int = 2) -> str:
