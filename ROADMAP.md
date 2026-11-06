@@ -125,6 +125,7 @@ Done when: a ~10 min run from start to singularity or death is completable. **Ga
 - [x] TA-1: Sprite batch + atlas loader — player and level geometry via GPU sprite batch, atlas packer tool ✅
 - [x] TA-2: Parallax layer system — 5 FBOs with per-layer scroll factors, background split across sky/far/mid layers ✅
 - [x] TA-3: 2D light buffer — ambient + up to 10 point/spot lights per level + player light, multiplied over mid/play ✅
+- [x] TA-4: Post-processing stack v1 — bloom, LUT grade, vignette, grain, CRT stub; live toggles on keys 1-5 with F3 open ✅
 
 ## TA milestone track (tech art pipeline)
 
@@ -136,8 +137,8 @@ Full plan in `docs/tech-art-plan.md`. Runs alongside the M-series. Each TA modul
 | TA-1 | Sprite batch + atlas loader | ✅ Done |
 | TA-2 | Parallax layer system (5 FBOs, per-layer scroll) | ✅ Done |
 | TA-3 | 2D light buffer (ambient + point/spot lights per level) | ✅ Done |
-| TA-4 | Post-processing stack v1 (bloom, vignette, grain, LUT) | Next |
-| TA-5 | Fold distortion + gravity flip (screen-space warp, rotation bend) | — |
+| TA-4 | Post-processing stack v1 (bloom, vignette, grain, LUT) | ✅ Done |
+| TA-5 | Fold distortion + gravity flip (screen-space warp, rotation bend) | Next |
 | TA-6 | Feel framework (hitstop, sprite flash, squash/stretch, accessibility toggle) | — |
 | TA-7 | GPU particles (instanced quad draw, visual upgrade) | — |
 | TA-8 | Normal maps + emissive mask (optional, post-launch candidate) | — |
@@ -147,7 +148,7 @@ Full plan in `docs/tech-art-plan.md`. Runs alongside the M-series. Each TA modul
 **Open decisions (see `docs/tech-art-plan.md` §5):**
 - Q3: Is the software renderer CI-only or a user-facing option for older/no-GPU machines?
 - Q4: Normal map authoring — hand-painted or algorithmically generated from sprites?
-- Q5: CRT/halation pass — in scope for TA-4, or defer post-vertical-slice?
+- ~~Q5: CRT/halation pass~~ — decided: toggle wired in TA-4, shader is a pass-through stub
 - ~~Q6: Parallax art for TA-2 testing~~ — decided: procedural split (see Decisions log)
 
 ## Needs revisit
@@ -187,7 +188,7 @@ Cult enemies (Witness, Ordained, Architect); Archivist and Diplomat characters; 
 4. ~~Art strategy through M4.~~ Decided: placeholders for everything except the player sprite and existing background.
 5. **TA Q3 — Software renderer scope:** CI-only fallback, or exposed as a user option for older/no-GPU machines? (Recommendation: CI-only now, revisit on a compatibility report.)
 6. **TA Q4 — Normal map authoring:** Hand-painted per sprite, or algorithmically generated from painted surface? (Recommendation: generated via SpriteIlluminator or similar; upgrade hero sprites if quality is insufficient.)
-7. **TA Q5 — CRT/halation pass:** In scope for TA-4, or stub and defer post-vertical-slice? (Recommendation: stub the toggle in TA-4, leave shader empty; decide after seeing full post stack on real art.)
+7. ~~**TA Q5 — CRT/halation pass:**~~ Decided 2026-11-05: stub toggle in TA-4. In scope for TA-4, or stub and defer post-vertical-slice? (Recommendation: stub the toggle in TA-4, leave shader empty; decide after seeing full post stack on real art.)
 8. ~~**TA Q6 — TA-2 parallax art:**~~ Decided 2026-11-05: procedural split. Does TA-2 need painted layered backgrounds, or test with procedural tinted copies of `background.png`? (Recommendation: procedural split for TA-2 testing; real layers when art pipeline produces them.)
 
 ## Decisions log
@@ -208,10 +209,11 @@ Cult enemies (Witness, Ordained, Architect); Archivist and Diplomat characters; 
 - 2026-11-05: Adversarial game-dev audit completed. 12 bugs fixed across GPU, physics, resources, combat, animation, and input systems. All 3 remaining open items closed same session: JUMP_ANTICIPATION deleted, cooldown rename + total_recharge property, ability combination tests added.
 - 2026-11-05: TA-2 parallax: placeholder layers are procedural splits of `background.png` (TA Q6). Painted art drops in as `assets/backgrounds/layers/{sky,far,mid}.png` with no code change. Foreground layer allocated but left empty until there is art for it. Per-level scroll overrides via optional `"layers"` key in level JSON; the play layer is locked to 1.0.
 - 2026-11-05: TA-3 lighting: only levels with a `"lights"` key are lit (level_01 for now; others render as after TA-2). Lit layers are mid + play; sky/far stay self-lit. Player carries a warm amber point light in lit levels. Light buffer is half-float, capped at 2.0 for mild overbright.
+- 2026-11-05: TA-4 post stack. Bloom keys off a brightness threshold, not an emissive mask (masks are TA-8). Grade contrast pivots at 0.18, not 0.5, because the art is mostly below 0.1 luminance and a 0.5 pivot crushed it. Grain is scaled down in shadows for the same reason. HUD and fold tint skip post. Build fix: numpy un-excluded and `shaders/` bundled in the PyInstaller spec (a full build has not been run to confirm).
 - 2026-11-05: 28-item design assessment (separate from adversarial audit) drove the M8 sprint: hole uncertainty non-functional, enemies identical every run, 5-node run too short. All three addressed in M8a-c.
 
 ## Last session
 Date: 2026-11-05
-Did: TA-2 parallax layer system (5 FBOs, procedural sky/far/mid placeholders, per-layer GPU ms on F3); debug overlay moved to F3; TA-3 2D light buffer (ambient + ≤10 point/spot lights per level + player light, one fullscreen half-float pass, multiplied over mid/play at composite; level_01 lit with ambient + 3 point lights). 10 lights + player measured ~0.53ms avg on the dev Mac (budget 2ms).
-State of tests: 683 passing
-Next up: TA-4 (post-processing stack v1: bloom, vignette, grain, LUT). Lighting brightness on level_01 is a tuning call — see qa_checklist.md.
+Did: TA-2 parallax (5 FBOs), debug overlay → F3, TA-3 2D lighting (level_01 lit, brightened after review), TA-4 post stack (bloom, LUT grade, vignette, grain, CRT stub; keys 1-5 toggle passes with F3 open; tools/shader_watch.py). Fixed the PyInstaller spec, which excluded numpy and did not bundle shaders/. Full GPU frame ≈2.7ms on the dev Mac (post ≈1.1ms of a 4ms budget).
+State of tests: 703 passing
+Next up: TA-5 (Fold distortion + gravity-flip bend), the last module before the vertical-slice review. Also worth doing: run build/build_mac.sh once to confirm the GPU path works in a frozen build.

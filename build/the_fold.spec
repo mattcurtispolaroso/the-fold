@@ -24,6 +24,7 @@ a = Analysis(
         (str(ROOT / 'assets'),  'assets'),
         (str(ROOT / 'levels'),  'levels'),
         (str(ROOT / 'src'),     'src'),
+        (str(ROOT / 'shaders'), 'shaders'),  # GPU renderer GLSL sources
     ],
     hiddenimports=[
         'pygame',
@@ -41,7 +42,6 @@ a = Analysis(
     excludes=[
         'tkinter',
         'matplotlib',
-        'numpy',
         'PIL',
         'IPython',
         'jupyter',

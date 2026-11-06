@@ -109,6 +109,32 @@ PLAYER_LIGHT_RADIUS: float = 220.0
 PLAYER_LIGHT_COLOR: tuple[float, float, float] = (1.0, 0.72, 0.38)   # warm amber (exosuit glow)
 PLAYER_LIGHT_INTENSITY: float = 0.85
 
+# --- Post-Processing (TA-4, GPU path only; HUD and fold tint are drawn after, unaffected) ---
+POST_PASS_ORDER: tuple[str, ...] = ("bloom", "lut", "vignette", "grain", "crt")
+POST_PASS_DEFAULTS: dict[str, bool] = {
+    "bloom": True, "lut": True, "vignette": True, "grain": True,
+    "crt": False,   # TA Q5: toggle wired, shader is a pass-through stub
+}
+BLOOM_THRESHOLD: float = 0.55      # luminance where bloom starts (art is dark; goal/cyan ≈ 0.65)
+BLOOM_KNEE: float = 0.15           # soft-knee width below/above the threshold
+BLOOM_INTENSITY: float = 0.9       # strength of the blurred glow added back
+BLOOM_DOWNSAMPLE: int = 2          # bloom buffers run at 1/N resolution
+BLOOM_BLUR_PASSES: int = 2         # horizontal+vertical blur iterations
+VIGNETTE_STRENGTH: float = 0.45    # 0 = none, 1 = corners fully black
+VIGNETTE_INNER: float = 0.35       # normalised radius where darkening starts
+VIGNETTE_OUTER: float = 0.95       # normalised radius where darkening is full
+GRAIN_AMOUNT: float = 0.03         # ± noise amplitude in highlights (0-1 colour units)
+GRAIN_SHADOW_SCALE: float = 0.25   # grain multiplier at black (keeps near-black art readable)
+GRAIN_FULL_LUMA: float = 0.4       # luminance at which grain reaches full amplitude
+LUT_SIZE: int = 16                 # 16×16×16 colour-grading cube
+LUT_STRENGTH: float = 1.0          # 0 = ungraded, 1 = full grade
+LUT_ART_PATH: str = "assets/luts/grade.png"   # 256×16 strip overrides the procedural grade
+GRADE_CONTRAST: float = 1.05       # procedural grade: contrast around GRADE_CONTRAST_PIVOT
+GRADE_CONTRAST_PIVOT: float = 0.18 # photographic mid-grey; a 0.5 pivot crushes this dark art
+GRADE_SATURATION: float = 0.92     # procedural grade: 1 = unchanged
+GRADE_SHADOW_TINT: tuple[float, float, float] = (0.0, 0.008, 0.02)     # teal lift (never subtracts)
+GRADE_HIGHLIGHT_TINT: tuple[float, float, float] = (0.04, 0.02, -0.025)  # warm highlights
+
 DEBUG_DRAW_RECTS: bool = False        # draw physics rects for debugging
 SPRITE_PHYSICS_OFFSET_Y: int = 0      # vertical pixel offset to align sprite to physics rect
 

@@ -2,6 +2,39 @@
 
 ---
 
+## TA-4 — Post-Processing Stack v1 (plan, 2026-11-05)
+
+**Touches more than 3 files.** The spec is approved in `docs/tech-art-plan.md` §3 TA-4, and Matt said to go ahead. Q5 is decided: the CRT toggle exists but its shader is an empty pass-through, off by default.
+
+### Approach
+The parallax composite now renders into a half-float **scene buffer** instead of straight to the screen, so overbright light from TA-3 survives for bloom. `PostStack` runs the enabled passes in a fixed order, ping-ponging between two buffers, then copies the result to the screen. The HUD and fold tint are still drawn afterwards, so the effects don't touch them (as the spec says).
+
+Pass order: **bloom → lut → vignette → grain → crt**.
+- **bloom:** extract everything above a brightness threshold (soft knee) at half resolution, blur it 2× with a separable 9-tap Gaussian, then add it back.
+- **lut:** 16×16×16 3D colour-grading table. Default is built in code from constants (mild contrast, slight desaturation, teal shadows and warm highlights, in keeping with the retrofuturistic tone). A strip at `assets/luts/grade.png` (256×16) replaces it with no code change.
+- **vignette:** radial darkening, aspect-corrected.
+- **grain:** hash noise reseeded every frame from an internal frame counter.
+- **crt:** stub. Pass-through, off by default.
+
+### Spec deviations (conservative)
+- **Bloom uses a brightness threshold, not an emissive channel.** The emissive mask is TA-8 (optional). The pass's inputs won't change when masks arrive.
+- **The vignette "golden image" test compares against a Python reference of the same formula** at sample points (±5 luma) rather than a stored PNG, so it doesn't break on harmless driver differences.
+- **`tools/shader_watch.py`** is a standalone watcher: it recompiles every shader in `shaders/` whenever one changes and prints compile errors. There is no in-game hot reload yet.
+
+### Files
+| File | Change |
+|---|---|
+| `constants.py` | Pass order and defaults, bloom/vignette/grain/grade parameters |
+| `src/rendering/gpu/post_stack.py` (new) | `PostStack`: scene buffer, ping-pong buffers, passes, toggles, resize, per-pass timing |
+| `src/rendering/gpu/lut.py` (new) | Builds the procedural grade LUT, loads a strip LUT, uploads the 3D texture |
+| `shaders/post.vert`, `bloom_extract.frag`, `blur.frag`, `bloom_combine.frag`, `lut.frag`, `vignette.frag`, `grain.frag`, `crt.frag` (new) | One small shader per pass |
+| `src/rendering/gpu/debug_overlay.py` | Pass list with ON/OFF state and ms; hint for keys 1–5 |
+| `main.py` | Composite into the scene buffer, run the post stack, keys 1–5 toggle passes while F3 is open |
+| `tools/shader_watch.py` (new) | Shader compile watcher |
+| `tests/test_gpu_post.py` (new) | Toggles, pass order, vignette reference, grain changing per frame, bloom spreading, LUT identity/strip, resize |
+
+---
+
 ## TA-3 — 2D Light Buffer (plan, 2026-11-05)
 
 **Touches more than 3 files.** The spec is approved in `docs/tech-art-plan.md` §3 TA-3, and Matt said to go ahead. Plan recorded for review.

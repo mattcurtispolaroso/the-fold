@@ -46,6 +46,7 @@ from constants import (
     SINGULARITY_GRAVITY_MAX_MULT,
     TIME_DILATION_COST,
     WHITE_HOLE_STABILITY_RESTORE,
+    LUT_SIZE,
 )
 from src.data.run_state import RunState
 from src.entities.anchored import TheAnchored
@@ -90,7 +91,9 @@ from src.rendering.gpu.sprite_batch import SpriteBatch, gpu_draw_world
 from src.rendering.gpu.layer import LIGHT_TIMING_KEY, ParallaxStack
 from src.rendering.gpu.light_buffer import LightBuffer
 from src.rendering.gpu.layer_images import build_layer_images
-from src.rendering.gpu.debug_overlay import draw_layer_timings
+from src.rendering.gpu.debug_overlay import draw_layer_timings, post_pass_for_key
+from src.rendering.gpu.lut import load_lut
+from src.rendering.gpu.post_stack import PostStack
 
 WIDTH, HEIGHT = SCREEN_WIDTH, SCREEN_HEIGHT
 
@@ -299,6 +302,7 @@ def main() -> None:
     gpu_batch: SpriteBatch | None = None
     gpu_parallax: ParallaxStack | None = None
     gpu_lights: LightBuffer | None = None
+    gpu_post: PostStack | None = None
     if gpu_ctx is not None:
         _atlas_frames: dict[str, pygame.Surface] = {}
         for state, frame_list in animator._sprites.items():
@@ -311,6 +315,8 @@ def main() -> None:
             build_layer_images(BASE_DIR, background, (WIDTH, HEIGHT)),
         )
         gpu_lights = LightBuffer(gpu_ctx.ctx, (WIDTH, HEIGHT))
+        gpu_post = PostStack(gpu_ctx.ctx, (WIDTH, HEIGHT), load_lut(BASE_DIR, LUT_SIZE),
+                             timed=gpu_parallax.timed)
 
     flash_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
     impact_flash_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
@@ -436,6 +442,8 @@ def main() -> None:
                             bus.emit(GameEvent.ROOM_ENTERED)
                         if event.key == pygame.K_F3:
                             debug_draw = not debug_draw
+                        if debug_draw and gpu_post is not None and post_pass_for_key(event.key):
+                            gpu_post.toggle(post_pass_for_key(event.key))
                         if DEBUG_ITEMS and event.key == pygame.K_f:
                             _grant_debug_items(run_state, item_manager, item_registry)
                         if event.key == pygame.K_r and player.chrono_reserve >= GRAVITY_ROTATION_COST and rotation_cooldown_timer <= 0:
@@ -738,7 +746,7 @@ def main() -> None:
             ) >= MODIFIER_CAP
 
             if (gpu_ctx is not None and gpu_batch is not None and gpu_parallax is not None
-                    and gpu_lights is not None):
+                    and gpu_lights is not None and gpu_post is not None):
                 gpu_ctx.clear()
                 if game_state == "playing":
                     _draw_enemies = [] if anomaly_pending else enemies
@@ -756,7 +764,8 @@ def main() -> None:
                         light_tex = gpu_lights.render(
                             level.level_data.lights, (player.px, player.py), camera.offset,
                         )
-                    gpu_parallax.composite(gpu_ctx.ctx.screen, light_tex)
+                    gpu_parallax.composite(gpu_post.begin_scene(), light_tex)
+                    gpu_post.render(gpu_ctx.ctx.screen)
                     # Fold tint overlay
                     if run_state.fold_stability < FOLD_TINT_THRESHOLD:
                         t = 1.0 - run_state.fold_stability / FOLD_TINT_THRESHOLD
@@ -773,7 +782,8 @@ def main() -> None:
                     draw_impact_flash(gpu_hud_surf, impact_flash_surf, impact_flash_timer)
                     if debug_draw:
                         draw_debug_overlay(gpu_hud_surf, font, player, camera.offset, HEIGHT)
-                        draw_layer_timings(gpu_hud_surf, font, gpu_parallax.layer_ms)
+                        draw_layer_timings(gpu_hud_surf, font, gpu_parallax.layer_ms,
+                                           gpu_post.enabled)
                     gpu_batch.draw_fullscreen_surface(gpu_hud_surf)
                 else:
                     # Non-playing states: render via existing software functions
@@ -842,6 +852,8 @@ def main() -> None:
         raise
     finally:
         logger.log_event("Game shutting down")
+        if gpu_post is not None:
+            gpu_post.release()
         if gpu_lights is not None:
             gpu_lights.release()
         if gpu_parallax is not None:

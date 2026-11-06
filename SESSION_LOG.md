@@ -68,3 +68,13 @@
 - level_01.json lit: ambient + 3 point lights.
 - 683 tests pass (24 new in tests/test_gpu_lights.py incl. GPU readback of ambient, additive, capped, spot-cone, player-follow, lit composite). Window smoke: 10 lights + player ~0.53ms avg, no GL errors.
 - Lighting too dark on first look (Matt): level_01 ambient raised (0.30,0.34,0.42) → (0.72,0.75,0.82); PLAYER_LIGHT_INTENSITY 0.7 → 0.85 so the player pool still reads over the brighter ambient.
+
+## 2026-11-05 — TA-4 Post-Processing Stack v1
+- Plan written to DECISIONS_NEEDED.md first. Q5 decided: CRT toggle wired, shader is a pass-through stub.
+- Added src/rendering/gpu/post_stack.py (scene buffer → bloom/lut/vignette/grain/crt via ping-pong half-float targets → copy to screen; toggles, per-pass timing via ParallaxStack.timed) and src/rendering/gpu/lut.py (procedural grade LUT, 256×16 strip loader, 3D texture upload).
+- Added shaders: post.vert, bloom_extract, blur, bloom_combine, lut, vignette, grain, crt (stub), copy.
+- Debug overlay lists passes with [1]-[5] keys, ON/off and ms; main toggles them with F3 open.
+- Added tools/shader_watch.py (compile/link watcher, --once for a one-shot check) and a test that runs it over every shader.
+- First render crushed the dark art: contrast pivot moved 0.5 → 0.18, shadow tint made a lift, grain scaled down in shadows, bloom threshold 0.75 → 0.55.
+- Build fix: requirements.txt gains numpy; build/the_fold.spec no longer excludes numpy and bundles shaders/. A full PyInstaller build has not been run.
+- 703 tests pass (20 new). Window timing: post ≈1.0-1.15ms avg, whole GPU frame ≈2.7ms.

@@ -192,3 +192,15 @@ Run through this after each coding session. Launch the game with `python main.py
 - [ ] F3 overlay shows a `light` line; with level_01 it stays well under 2ms (measured ~0.5ms with 10 lights)
 - [ ] Brightness tuning: level_01 ambient raised 0.30-0.42 → 0.72-0.82 and player light 0.7 → 0.85 after first look was too dark. Re-check in play; tune in levels/level_01.json and PLAYER_LIGHT_* in constants.py
 - [ ] A level JSON with a malformed "lights" value loads the fallback level instead of crashing
+
+### Post-processing (TA-4, GPU renderer only)
+- [ ] With F3 open, keys 1-5 toggle bloom / lut / vignette / grain / crt; overlay shows ON/off in grey and per-pass ms
+- [ ] Keys 1-5 do nothing to post passes when F3 is closed (and still work on the reward screen as before)
+- [ ] Bloom: goal block and cyan moving platform have a soft glow; dark areas do not
+- [ ] Grain is visible as fine shifting noise in mid-tones and is not obvious in near-black areas
+- [ ] Vignette darkens corners; HUD pips/chrono bar and the fold tint are NOT vignetted or grained
+- [ ] LUT: pipework band in level_01 stays readable with the grade on (regression: a 0.5 contrast pivot crushed it)
+- [ ] CRT toggle (key 5) changes nothing. It is a stub (TA Q5)
+- [ ] Dropping a 256×16 strip at assets/luts/grade.png replaces the procedural grade on next launch; a wrong-size strip logs a warning and falls back
+- [ ] Post stack total stays under 4ms in the F3 overlay (measured ≈1.1ms)
+- [ ] Frozen build (build/build_mac.sh) launches in GPU mode: numpy is no longer excluded and shaders/ is now bundled. Not yet verified
