@@ -85,6 +85,28 @@ class ItemManager:
         self._ctx.ctc_run_bonus = 0
         self._ctx._phase_blocked = False
 
+    def snapshot_state(self) -> dict[str, Any]:
+        """Copy of all mutable item state (for World snapshots / rewind)."""
+        ctx = self._ctx
+        return {
+            "owned": list(getattr(self, "_owned", [])),
+            "cooldowns": dict(self._internal_cooldowns),
+            "resonances": set(self._active_resonances),
+            "rng": self._rng.getstate(),
+            "ctx": (ctx._phase_blocked, ctx.kerr_ring_rotations,
+                    ctx.ctc_room_charges, ctx.ctc_run_bonus),
+        }
+
+    def restore_state(self, state: dict[str, Any]) -> None:
+        """Restore state from snapshot_state(), in place (bus subscriptions stay valid)."""
+        self._owned = list(state["owned"])
+        self._internal_cooldowns = dict(state["cooldowns"])
+        self._active_resonances = set(state["resonances"])
+        self._rng.setstate(state["rng"])  # ctx.rng is this same Random object
+        ctx = self._ctx
+        (ctx._phase_blocked, ctx.kerr_ring_rotations,
+         ctx.ctc_room_charges, ctx.ctc_run_bonus) = state["ctx"]
+
     # --- Internal ---
 
     def _on_room_entered(self, result: EventResult, **_: Any) -> None:

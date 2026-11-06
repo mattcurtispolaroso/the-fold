@@ -30,9 +30,13 @@ class RunState:
     extra_reward_options: int = 0                       # extra options from Penrose Diagram etc.
 
     @classmethod
-    def new_run(cls) -> RunState:
-        """Create a fresh run — generates level assignments and hole outcomes from seed."""
-        seed = random.randint(0, 2**32 - 1)
+    def new_run(cls, seed: int | None = None) -> RunState:
+        """Create a fresh run — generates level assignments and hole outcomes from seed.
+
+        Pass `seed` for a reproducible run (tests, replays); omit for a random one.
+        """
+        if seed is None:
+            seed = random.randint(0, 2**32 - 1)
         rng = random.Random(seed)
         combat_levels = [
             rng.randint(0, 1),   # node 0: levels 0-1 (easier)

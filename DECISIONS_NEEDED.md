@@ -2,6 +2,40 @@
 
 ---
 
+## Engine Session 3 — World and determinism (plan, 2026-11-05)
+
+**Refactor session on branch `refactor/world-determinism`. Touches more than 3 files.** Source: engine audit items 8–9.
+
+### New modules
+- `src/systems/game_state.py`: `GameState` enum (START, NODE_MAP, PLAYING, REWARD, HOLE_ENCOUNTER, DEAD, WIN) replaces the string states.
+- `src/systems/input_frame.py`: `InputFrame` (held move axes plus edge presses: jump, jump release, rotate, dilate) and `InputBuffer`. Edge presses accumulate until a physics step consumes them, so a press is never lost on a frame with no step (hitstop, or 120 Hz frames).
+- `src/systems/world.py`: `World` owns all simulation state: player, level, enemies, run state, Time Dilation, items, rotation cooldown, active zones, the anomaly flag. Provides `load_level()`, `new_run()` (updates `RunState` **in place**), `step(input) -> StepEvents`, and `snapshot()` / `restore()`.
+- `src/systems/world_phases.py`: the step, split into phases of 40 lines or fewer: timers, zones, input, integrate, hazards, goal.
+
+### Behaviour changes (intended; these are the point)
+- **All gameplay timers run on the fixed step:** Time Dilation, item cooldowns, rotation cooldown. Hitstop now freezes them too.
+- **Input (jump, jump cut, rotate, dilate) is applied at the next physics step,** not at key-event time. That's at most one 16 ms step later.
+- **Gravity zones, hits, falls, hard landings, snap-back and the goal are checked every step,** not once per frame.
+- **Presentation (feel, particles, camera, flashes, animation) reacts to the `StepEvents` that `World.step` returns,** so simulation never calls rendering.
+
+### Bug fixed as a side effect (found while reading)
+- **The Penrose Diagram and Event Horizon never worked in real play.** `main` replaced `run_state` with a new object on every run start, while `ItemManager` and its effect context kept the old one, so those effects wrote to a stale object. Reproduced: after Penrose fired, the live `extra_reward_options` was 0 and the stale object's was 1. `World.new_run()` updates the run state in place.
+
+### Snapshot design
+Explicit, per component, restored **in place** so every cross-reference stays valid (event-bus subscriptions, item context, cached collision rects):
+- `__dict__` copies for the player, run state, Time Dilation and enemies (including each enemy's RNG).
+- Field copies for moving platforms; their rects are updated in place.
+- `ItemManager.snapshot_state()` / `restore_state()` (cooldowns, counters, RNG state).
+- World scalars.
+
+A snapshot is only valid within the same level load; restoring across loads raises.
+
+### Found during the session (needs a look, Matt)
+- **Levels 05–08 spawn at y=790, 18 px inside the floor** (level_01 uses 772 for the same floor). The engine now nudges respawns to the nearest valid spot, so nothing is broken, but the JSON should probably say `"spawn": [100.0, 772.0]`. I left the level files untouched because they're your data.
+- **Old unused imports in 8 files outside this refactor** (`level_renderer`, `spacetime`, `events`, `logging_manager`, `effects`, `offers`, `data/items`). Harmless; a one-minute cleanup whenever.
+
+---
+
 ## Engine Session 2 — Smoothness (plan, 2026-11-05)
 
 **Touches more than 3 files.** Source: engine audit items 6–7.

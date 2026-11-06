@@ -158,7 +158,7 @@ Full plan in `docs/tech-art-plan.md`. Runs alongside the M-series. Each TA modul
 - ~~Q6: Parallax art for TA-2 testing~~ — decided: procedural split (see Decisions log)
 
 ## Needs revisit
-- **Engine audit (2026-11-05): `docs/engine-audit-2026-11-05.md`.** 5 reproduced physics bugs (rotation into walls, platform side-push teleport, 8px turnaround slip, uncapped gravity → tunnelling ≥2.7×, no post-step validation), measured judder (no render interpolation), split fixed-step/frame-time simulation. Plan: 3 sessions (physics hardening → smoothness → World/determinism). **Session 1 (physics hardening) ✅ done 2026-11-05.** **Session 2 (smoothness) ✅ done 2026-11-05.**
+- **Engine audit (2026-11-05): `docs/engine-audit-2026-11-05.md`.** 5 reproduced physics bugs (rotation into walls, platform side-push teleport, 8px turnaround slip, uncapped gravity → tunnelling ≥2.7×, no post-step validation), measured judder (no render interpolation), split fixed-step/frame-time simulation. Plan: 3 sessions (physics hardening → smoothness → World/determinism). **Session 1 (physics hardening) ✅ done 2026-11-05.** **Session 2 (smoothness) ✅ done 2026-11-05.** **Session 3 (World/determinism) ✅ done 2026-11-05: deterministic, snapshot-able simulation; Closed Loop rewind is now buildable.**
 - ~~VFX particles visual tuning~~ — done in TA-7 (specs in constants.py `VFX_*`); give them a look in play
 
 ## Known bugs / open items
@@ -178,7 +178,7 @@ Full plan in `docs/tech-art-plan.md`. Runs alongside the M-series. Each TA modul
 ## Risks
 1. **Cadence.** 19 modules at 3 hr/week is multi-year. The M4 gate exists to avoid sinking that time into an unproven loop.
 2. **Art pipeline.** AI-generated painterly sprites must stay consistent across animation frames. Use placeholders for everything non-player until M4.
-3. **Determinism.** Time dilation and the Closed Loop rewind need a fixed-step, snapshot-able simulation. Locked in at M1/M2.
+3. **Determinism.** Time dilation and the Closed Loop rewind need a fixed-step, snapshot-able simulation. ~~Locked in at M1/M2~~ (it wasn't, per the engine audit). **Actually done 2026-11-05 (Engine Session 3):** `World.step` + `snapshot()/restore()`, verified by determinism and replay tests.
 4. **Procgen.** "Valid in 2+ gravity orientations" is the hardest algorithmic piece. Hand-authored templates first.
 
 ## Backlog (parked, not commitments)

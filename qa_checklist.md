@@ -249,3 +249,11 @@ Run through this after each coding session. Launch the game with `python main.py
 - [ ] Camera: starts following smoothly when you walk out of the small dead zone (no jolt); after R it re-centres on you
 - [ ] Screen shake (rotation, hits) reads as a shake, not as random jitter
 - [ ] No screen tearing (vsync on). On a 120/144 Hz external display the game should run at that rate; on the MacBook's own screen it's 60 Hz (macOS limit for OpenGL)
+
+### World & determinism (Engine Session 3)
+- [ ] Penrose Diagram owned → the reward screen shows 4 options (never worked before: stale run state)
+- [ ] Event Horizon owned → a black hole restores some stability afterwards (same bug)
+- [ ] Jump, rotate (R) and dilate (E) feel as responsive as before (now applied at the next 60 Hz step)
+- [ ] Hit by an enemy with Time Dilation active: dilation does not tick down during the brief hitstop freeze
+- [ ] Levels 05–08: the player spawns standing on the floor (spawns were 18px inside it; engine now corrects)
+- [ ] Play a full run start → singularity/death → start again: menus, rewards and holes behave as before
