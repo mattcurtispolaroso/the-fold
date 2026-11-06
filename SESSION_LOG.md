@@ -93,3 +93,11 @@
 - feel.py: distortion_params(..., zoom) + zoomed_screen_point(), so ripples stay centred under zoom.
 - main.py passes camera.zoom to composite and distortion_params.
 - 729 tests pass (6 new: centre-scaling readback, identity at 1×, empty border at 0.5×, no zoom leak into image layers, ripple centre/radius under zoom).
+
+## 2026-11-05 — TA-6 Feel Framework
+- Plan written to DECISIONS_NEEDED.md first.
+- Added src/rendering/gpu/feel_effects.py (Hitstop, SpriteFlash, Squash, squash_scale) composed by Feel. Feel gains intensity / reduced-effects mode, hitstop, flash, squash, shake/punch/rotation_cinematic forwarding to Camera, physics_time(), sprite_flash(), sprite_scale(), screen_flash_scale(); distortion amplitudes are intensity-scaled.
+- Sprite shaders + SpriteBatch: a_flash vertex attribute (12 floats/vertex). gpu_draw_world takes feel: flash + squash with feet planted.
+- main.py: physics accumulator fed via feel.physics_time; rotation shake/zoom and hard-landing punch routed through feel (no direct camera shake/punch calls remain); hooks on enemy hit, landings, both jump sites; feel.reset on level reset; full-screen flashes scaled; F3 + 0 toggles reduced effects (shown in overlay).
+- Test caught an over-claiming docstring (squash "preserves area"): behaviour kept (partial compensation, deliberate), docstring + test corrected.
+- 752 tests pass (23 new in tests/test_feel_framework.py incl. hitstop accumulator maths, intensity scaling of every effect, headless/no-camera safety, GPU silhouette flash readback).

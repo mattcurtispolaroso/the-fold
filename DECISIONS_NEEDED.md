@@ -2,6 +2,40 @@
 
 ---
 
+## TA-6 — Feel Framework (plan, 2026-11-05)
+
+**Touches more than 3 files.** The spec is approved in `docs/tech-art-plan.md` §3 TA-6. Matt said "next" after the rotation zoom.
+
+### Approach
+`Feel` becomes the single entry point for game feel, with each effect as a small component (composition) in a new `src/rendering/gpu/feel_effects.py`:
+- **`Hitstop`:** `feel.hitstop(dur)`. `feel.physics_time(frame_dt)` returns 0 while frozen, so the fixed-step accumulator gets nothing and physics stops exactly. If the hitstop ends mid-frame, the remainder carries on. Overlapping hitstops take the longest, not the sum, and duration is clamped.
+- **`SpriteFlash`:** `feel.flash(color, dur)`. A white flash on hit, an amber flash when Time Dilation starts (the exosuit colour).
+- **`Squash`:** `feel.squash(amount)`. Positive squashes along gravity and negative stretches, scaled to roughly preserve area, decaying back to 1. Triggered by landing, a harder landing, and jumps.
+- **Camera:** `feel.shake(intensity, duration)`, `feel.punch(dx, dy, duration)` and `feel.rotation_cinematic()` forward to `Camera`, scaled by intensity. They replace the two direct calls in `main.py`.
+- **`feel.intensity`:** 1.0 normally, 0.3 in **reduced-effects mode**. It scales shake, punch, hitstop, sprite flash, squash, ripple, bend, aberration and the full-screen rotation/impact flashes. Reduced mode also skips the rotation zoom. The default comes from `ACCESSIBILITY_REDUCED_EFFECTS` in `constants.py`; with F3 open, key 0 toggles it and the overlay shows its state.
+
+### Hooks in main.py
+- **Enemy hit (not cancelled):** hitstop 0.06 s, white flash, small shake.
+- **Hard landing:** hitstop 0.04 s, strong squash, punch through feel.
+- **Normal landing:** squash.
+- **Jumps:** stretch. That's both jump sites: the key press and the buffered jump.
+- **Time Dilation starts:** amber flash (alongside the existing ripple).
+- **Rotation:** shake and zoom through feel.
+
+### Rendering
+Sprite flash and squash are drawn on the **GPU path only**. `sprite.vert/frag` gain an `a_flash` (rgb, amount) vertex attribute; `gpu_draw_world` scales the player quad and keeps the feet planted. The software renderer gets hitstop, shake, punch and the intensity scaling, but not flash or squash. Software is CI-only (Q3 recommendation); revisit if Q3 decides otherwise.
+
+### Spec deviations (conservative)
+- **`feel.shake` keeps the camera's existing intensity/duration shake** rather than a new trauma model. Swapping the shake model would be a refactor of `Camera` and its tests, and CLAUDE.md says not to mix that with feature work.
+- **`feel.squash(amount)` always acts along the gravity axis**, which is the only axis the game needs. There is no separate axis parameter.
+
+### Files
+`constants.py`, `src/rendering/gpu/feel.py`, `src/rendering/gpu/feel_effects.py` (new), `src/rendering/gpu/sprite_batch.py`, `shaders/sprite.vert`, `shaders/sprite.frag`, `src/rendering/gpu/debug_overlay.py`, `main.py`, `tests/test_feel_framework.py` (new).
+
+Note: `sprite_batch.py` is already over the 300-line limit (since TA-1). This adds only a few lines; splitting `gpu_draw_world` out is a separate refactor session.
+
+---
+
 ## GPU rotation-cinematic zoom (plan, 2026-11-05)
 
 **Touches 5 files.** Matt chose this ahead of TA-6. It closes the last vertical-slice gap: the zoom-in/zoom-out on gravity rotation only worked on the software renderer.

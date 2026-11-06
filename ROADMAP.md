@@ -128,6 +128,7 @@ Done when: a ~10 min run from start to singularity or death is completable. **Ga
 - [x] TA-4: Post-processing stack v1 — bloom, LUT grade, vignette, grain, CRT stub; live toggles with F3 open ✅
 - [x] TA-5: Fold distortion + gravity-flip bend — ripple on Time Dilation, frame bend on rotation, chromatic aberration ✅
 - [x] GPU rotation-cinematic zoom: frame scales about the centre at composite time (lighting and ripples follow) ✅
+- [x] TA-6: Feel framework — hitstop, white/amber sprite flash, squash/stretch, feel.* API for shake/punch/zoom, reduced-effects accessibility mode (F3 + 0) ✅
 - [ ] Vertical-slice review (Matt): play level_01 on the GPU renderer and judge it against the acceptance list below
 
 ## TA milestone track (tech art pipeline)
@@ -142,8 +143,8 @@ Full plan in `docs/tech-art-plan.md`. Runs alongside the M-series. Each TA modul
 | TA-3 | 2D light buffer (ambient + point/spot lights per level) | ✅ Done |
 | TA-4 | Post-processing stack v1 (bloom, vignette, grain, LUT) | ✅ Done |
 | TA-5 | Fold distortion + gravity flip (screen-space warp, rotation bend) | ✅ Done |
-| TA-6 | Feel framework (hitstop, sprite flash, squash/stretch, accessibility toggle) | — |
-| TA-7 | GPU particles (instanced quad draw, visual upgrade) | — |
+| TA-6 | Feel framework (hitstop, sprite flash, squash/stretch, accessibility toggle) | ✅ Done |
+| TA-7 | GPU particles (instanced quad draw, visual upgrade) | Next |
 | TA-8 | Normal maps + emissive mask (optional, post-launch candidate) | — |
 
 **Vertical slice acceptance (end of TA-5):** level_01 renders with 5 parallax layers, 3 point lights, bloom, vignette, grain, Fold distortion on rotation. 60fps on dev Mac. Software fallback passes all existing tests unchanged.
@@ -221,10 +222,11 @@ Decided 2026-11-05: develop on Mac in a single codebase and defer packaging. Kee
 - 2026-11-05: TA-3 lighting: only levels with a `"lights"` key are lit (level_01 for now; others render as after TA-2). Lit layers are mid + play; sky/far stay self-lit. Player carries a warm amber point light in lit levels. Light buffer is half-float, capped at 2.0 for mild overbright.
 - 2026-11-05: TA-4 post stack. Bloom keys off a brightness threshold, not an emissive mask (masks are TA-8). Grade contrast pivots at 0.18, not 0.5, because the art is mostly below 0.1 luminance and a 0.5 pivot crushed it. Grain is scaled down in shadows for the same reason. HUD and fold tint skip post. Build fix: numpy un-excluded and `shaders/` bundled in the PyInstaller spec (a full build has not been run to confirm).
 - 2026-11-05: TA-5 Fold distortion. The ripple fires on the rising edge of Time Dilation (so Kerr Ring's free activation ripples too), not on the E key. The bend fires on every `_do_gravity_rotation` (R key, gravity zones, chrono snap-back). Distortion runs after bloom and before grade/vignette/grain, so the glow warps but the screen-fixed effects don't.
+- 2026-11-05: TA-6 feel framework. Hitstop zeroes the time fed to the physics accumulator (an exact freeze; overlapping hitstops take the longest). Reduced-effects mode = intensity 0.3 on every effect, including the full-screen flashes, and skips the rotation zoom. `feel.shake` keeps Camera's intensity/duration shake (no trauma model: that would be a Camera refactor). Squash compensates area only partly (1/sqrt), because full preservation looked too cartoony. Sprite flash and squash are GPU-only; the software renderer gets hitstop, shake, punch and intensity.
 - 2026-11-05: 28-item design assessment (separate from adversarial audit) drove the M8 sprint: hole uncertainty non-functional, enemies identical every run, 5-node run too short. All three addressed in M8a-c.
 
 ## Last session
 Date: 2026-11-05
-Did: TA-2 parallax, debug overlay → F3, TA-3 lighting, TA-4 post stack, TA-5 Fold distortion + gravity bend (Feel class; distortion post pass with ripple, bend, chromatic aberration). PyInstaller spec fixed (numpy, shaders/). The GPU vertical slice is feature-complete.
-State of tests: 723 passing
-Next up: Matt's vertical-slice review in game (GPU renderer, level_01). Also: run build/build_mac.sh once to confirm a frozen GPU build launches. GPU rotation zoom fixed after the TA-5 review. Then TA-6 (feel framework).
+Did: TA-2 → TA-6 tech-art track (parallax, lighting, post stack, Fold distortion, GPU rotation zoom, feel framework). PyInstaller spec fixed. Cross-platform strategy recorded (backlog).
+State of tests: 752 passing
+Next up: TA-7 (GPU particles; also where the particle visual tuning from "Needs revisit" lands). Refactor candidate for a dedicated session: split gpu_draw_world out of sprite_batch.py (387 lines, over the 300 limit since TA-1).

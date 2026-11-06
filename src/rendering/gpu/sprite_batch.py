@@ -10,6 +10,7 @@ from __future__ import annotations
 import array
 import math
 import os
+from typing import TYPE_CHECKING
 
 import pygame
 import moderngl
@@ -17,10 +18,14 @@ import moderngl
 import constants as C
 from src.rendering.gpu.atlas import RuntimeAtlas, WHITE_FRAME
 
+if TYPE_CHECKING:
+    from src.rendering.gpu.feel import Feel
+
 # Max quads before a forced mid-frame flush
 MAX_QUADS: int = 4096
-# Floats per vertex: pos(2) + uv(2) + tint(4)
-_VFLOATS: int = 8
+# Floats per vertex: pos(2) + uv(2) + tint(4) + flash(4: rgb + amount)
+_VFLOATS: int = 12
+NO_FLASH: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0)
 _VBYTES: int = _VFLOATS * 4  # float32
 
 # Screen-space CCW rotation per gravity direction (degrees)
@@ -102,7 +107,7 @@ class SpriteBatch:
         self._ibo: moderngl.Buffer = ctx.buffer(indices.tobytes())
         self._vao: moderngl.VertexArray = ctx.vertex_array(
             self._prog,
-            [(self._vbo, "2f 2f 4f", "a_pos", "a_uv", "a_tint")],
+            [(self._vbo, "2f 2f 4f 4f", "a_pos", "a_uv", "a_tint", "a_flash")],
             self._ibo,
         )
 
@@ -151,6 +156,7 @@ class SpriteBatch:
         h: float,
         gravity_dir: tuple[int, int] = (0, 1),
         flip_x: bool = False,
+        flash: tuple[float, float, float, float] = NO_FLASH,
     ) -> None:
         """Draw a named atlas frame centered at (cx, cy) with gravity rotation."""
         if self._quad_count >= MAX_QUADS:
@@ -166,7 +172,7 @@ class SpriteBatch:
 
         # UVs per corner [TL, TR, BR, BL]
         uvs = [(ul, vt), (ur, vt), (ur, vb), (ul, vb)]
-        self._push_quad(corners, uvs, (1.0, 1.0, 1.0, 1.0))
+        self._push_quad(corners, uvs, (1.0, 1.0, 1.0, 1.0), flash)
 
     def draw_rect(
         self,
@@ -195,10 +201,12 @@ class SpriteBatch:
         corners: list[tuple[float, float]],
         uvs: list[tuple[float, float]],
         tint: tuple[float, float, float, float],
+        flash: tuple[float, float, float, float] = NO_FLASH,
     ) -> None:
         """Write 4 vertices (TL, TR, BR, BL) into the CPU buffer."""
         base = self._quad_count * 4 * _VFLOATS
         r, g, b, a = tint
+        fr, fg, fb, fa = flash
         for i, ((px, py), (u, v)) in enumerate(zip(corners, uvs)):
             off = base + i * _VFLOATS
             self._vdata[off] = px
@@ -209,6 +217,10 @@ class SpriteBatch:
             self._vdata[off + 5] = g
             self._vdata[off + 6] = b
             self._vdata[off + 7] = a
+            self._vdata[off + 8] = fr
+            self._vdata[off + 9] = fg
+            self._vdata[off + 10] = fb
+            self._vdata[off + 11] = fa
         self._quad_count += 1
 
     def draw_fullscreen_surface(self, surf: pygame.Surface) -> None:
@@ -257,8 +269,11 @@ def gpu_draw_world(
     player: object,
     player_state: object,
     cam_offset: tuple[float, float],
+    feel: Feel | None = None,
 ) -> None:
     """Draw the playfield via the sprite batch (GPU path equivalent of draw_world).
+
+    `feel` (TA-6) supplies the player's sprite flash and squash/stretch.
 
     The background is not drawn here: since TA-2 it lives in the sky/far/mid
     parallax layers (src/rendering/gpu/layer.py), and this draws into the
@@ -307,12 +322,14 @@ def gpu_draw_world(
     py_screen = player.py + oy
     frame_name = _player_frame_name(animator, player_state)
     if atlas.has_frame(frame_name):
+        flash, (cx, cy, qw, qh) = _player_feel(feel, player, px_screen, py_screen, sw, sh)
         batch.draw_sprite(
             frame_name,
-            px_screen, py_screen + C.SPRITE_PHYSICS_OFFSET_Y,
-            sw, sh,
+            cx, cy + C.SPRITE_PHYSICS_OFFSET_Y,
+            qw, qh,
             gravity_dir=tuple(player.gravity_dir),
             flip_x=not player.facing_right,
+            flash=flash,
         )
     else:
         # Fallback colored rect
@@ -320,6 +337,24 @@ def gpu_draw_world(
                         (0.863, 0.196, 0.196, 1.0))
 
     batch.flush()
+
+
+def _player_feel(
+    feel: Feel | None, player: object,
+    cx: float, cy: float, w: float, h: float,
+) -> tuple[tuple[float, float, float, float], tuple[float, float, float, float]]:
+    """Apply squash/stretch (feet stay planted along gravity) and return the flash.
+
+    Returns (flash, (centre_x, centre_y, quad_w, quad_h)). Quad h runs along
+    gravity because draw_sprite rotates the quad to the gravity direction.
+    """
+    if feel is None:
+        return NO_FLASH, (cx, cy, w, h)
+    along, across = feel.sprite_scale()
+    new_h = h * along
+    gx, gy = player.gravity_dir
+    shift = (h - new_h) / 2.0  # move the centre toward the feet so they don't lift
+    return feel.sprite_flash(), (cx + gx * shift, cy + gy * shift, w * across, new_h)
 
 
 def _player_frame_name(animator: object, player_state: object) -> str:

@@ -147,6 +147,26 @@ BEND_DURATION: float = 0.35            # seconds for the gravity-flip bend (out 
 BEND_AMPLITUDE_PX: float = 18.0        # peak bow of the frame toward the new gravity
 ABERRATION_MAX_PX: float = 4.0         # red/blue split at the screen corners at peak effect
 
+# --- Feel framework (TA-6) ---
+ACCESSIBILITY_REDUCED_EFFECTS: bool = False  # start in reduced-effects mode (F3 + 0 toggles)
+FEEL_INTENSITY_DEFAULT: float = 1.0
+FEEL_INTENSITY_REDUCED: float = 0.3    # multiplier on every feel effect in reduced mode
+HITSTOP_MAX: float = 0.2               # clamp on any single hitstop (seconds)
+HIT_HITSTOP: float = 0.06              # physics freeze when an enemy hits the player
+HARD_LAND_HITSTOP: float = 0.04        # physics freeze on a damaging hard landing
+HIT_SHAKE_INTENSITY: float = 4.0       # px; small kick when hit
+HIT_SHAKE_DURATION: float = 0.12
+SPRITE_FLASH_MAX: float = 0.85         # peak mix toward the flash colour (1 = solid silhouette)
+HIT_FLASH_COLOR: tuple[float, float, float] = (1.0, 1.0, 1.0)      # white
+HIT_FLASH_DURATION: float = 0.12
+DILATION_FLASH_COLOR: tuple[float, float, float] = (1.0, 0.68, 0.28)  # exosuit amber
+DILATION_FLASH_DURATION: float = 0.2
+SQUASH_MAX: float = 0.4                # clamp on |squash amount|
+SQUASH_DURATION: float = 0.15          # seconds to spring back to 1
+LAND_SQUASH: float = 0.15              # positive = squash along gravity
+HARD_LAND_SQUASH: float = 0.3
+JUMP_STRETCH: float = -0.12            # negative = stretch along gravity
+
 DEBUG_DRAW_RECTS: bool = False        # draw physics rects for debugging
 SPRITE_PHYSICS_OFFSET_Y: int = 0      # vertical pixel offset to align sprite to physics rect
 

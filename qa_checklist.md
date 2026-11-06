@@ -215,3 +215,13 @@ Run through this after each coding session. Launch the game with `python main.py
 - [ ] HUD is never warped (drawn after post)
 - [ ] Distortion toggle (key 2 with F3 open) disables ripple and bend
 - [ ] Ripple strength reads well in motion (looked subtle in stills). Tune RIPPLE_AMPLITUDE_PX / RIPPLE_WIDTH_PX
+
+### Feel framework (TA-6)
+- [ ] Enemy hit: a brief freeze (~0.06s), the player flashes white, small screen shake; knockback still applies after the freeze
+- [ ] Hard landing: short freeze, strong squash with feet planted, camera punch along gravity
+- [ ] Normal landing: subtle squash; jumping: subtle stretch along gravity (check all 4 gravity directions, GPU renderer)
+- [ ] Time Dilation (E or Kerr Ring): amber sprite flash alongside the ripple
+- [ ] F3 + 0 toggles "reduced fx": shake, punch, flashes (sprite and full-screen), squash, ripple, bend and aberration all visibly weaker; rotation zoom skipped; hitstop shorter
+- [ ] Death mid-hitstop: respawn is not frozen (feel.reset on level reset)
+- [ ] Software renderer (FOLD_RENDERER=software): hitstop, shake and punch work; no sprite flash or squash (expected, GPU-only)
+- [ ] Tuning pass: are HIT_HITSTOP / squash amounts / flash durations right in play?

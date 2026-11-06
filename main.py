@@ -47,6 +47,15 @@ from constants import (
     TIME_DILATION_COST,
     WHITE_HOLE_STABILITY_RESTORE,
     LUT_SIZE,
+    HARD_LAND_HITSTOP,
+    HARD_LAND_SQUASH,
+    HIT_FLASH_COLOR,
+    HIT_FLASH_DURATION,
+    HIT_HITSTOP,
+    HIT_SHAKE_DURATION,
+    HIT_SHAKE_INTENSITY,
+    JUMP_STRETCH,
+    LAND_SQUASH,
 )
 from src.data.run_state import RunState
 from src.entities.anchored import TheAnchored
@@ -91,7 +100,9 @@ from src.rendering.gpu.sprite_batch import SpriteBatch, gpu_draw_world
 from src.rendering.gpu.layer import LIGHT_TIMING_KEY, ParallaxStack
 from src.rendering.gpu.light_buffer import LightBuffer
 from src.rendering.gpu.layer_images import build_layer_images
-from src.rendering.gpu.debug_overlay import draw_layer_timings, post_pass_for_key
+from src.rendering.gpu.debug_overlay import (
+    REDUCED_EFFECTS_KEY, draw_layer_timings, post_pass_for_key,
+)
 from src.rendering.gpu.lut import load_lut
 from src.rendering.gpu.post_stack import PostStack
 from src.rendering.gpu.feel import Feel
@@ -240,8 +251,8 @@ def _do_gravity_rotation(
         player.coyote_timer = COYOTE_TIME
         player.jumping = False
     camera.on_gravity_rotate()
-    camera.start_rotation_cinematic()
-    camera.shake(ROTATE_SHAKE_INTENSITY, ROTATE_SHAKE_DURATION)
+    feel.rotation_cinematic()
+    feel.shake(ROTATE_SHAKE_INTENSITY, ROTATE_SHAKE_DURATION)
     feel.gravity_bend(player.gravity_dir)
     particles.emit_rotation_burst(player.px, player.py)
     for e in enemies:
@@ -330,7 +341,7 @@ def main() -> None:
     # Transparent overlay for HUD compositing over GPU world render
     gpu_hud_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
     particles = ParticlePool()
-    feel = Feel()  # screen-space Fold ripples / gravity bend (drawn by GPU post stack)
+    feel = Feel(camera)  # all game-feel effects: shake, hitstop, flash, squash, distortion
 
     player = Player.from_spawn(level.spawn, tuple(level.gravity_start))
     enemies = _spawn_enemies_from_level(level)
@@ -363,7 +374,7 @@ def main() -> None:
         running = True
         while running:
             frame_dt = min(clock.tick(FPS) / 1000.0, 0.05)
-            physics_accumulator += frame_dt
+            physics_accumulator += feel.physics_time(frame_dt)  # 0 during hitstop
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -448,6 +459,8 @@ def main() -> None:
                             debug_draw = not debug_draw
                         if debug_draw and gpu_post is not None and post_pass_for_key(event.key):
                             gpu_post.toggle(post_pass_for_key(event.key))
+                        if debug_draw and event.key == REDUCED_EFFECTS_KEY:
+                            feel.toggle_reduced_effects()
                         if DEBUG_ITEMS and event.key == pygame.K_f:
                             _grant_debug_items(run_state, item_manager, item_registry)
                         if event.key == pygame.K_r and player.chrono_reserve >= GRAVITY_ROTATION_COST and rotation_cooldown_timer <= 0:
@@ -465,6 +478,7 @@ def main() -> None:
                                 player.vx, player.vy = apply_jump_impulse(
                                     player.vx, player.vy, player.gravity_dir,
                                 )
+                                feel.squash(JUMP_STRETCH)
                                 player.coyote_timer = 0.0
                                 player.jump_buffer_timer = 0.0
                                 player.jumping = True
@@ -604,6 +618,7 @@ def main() -> None:
                             player.vx, player.vy = apply_jump_impulse(
                                 player.vx, player.vy, player.gravity_dir,
                             )
+                            feel.squash(JUMP_STRETCH)
                             player.jumping = True
                             player.jump_buffer_timer = 0.0
                             player.coyote_timer = 0.0
@@ -635,17 +650,20 @@ def main() -> None:
                     particles.emit_landing_dust(
                         player.px, player.py, player.player_w, player.player_h, player.gravity_dir,
                     )
+                    feel.squash(LAND_SQUASH)
                 if _hard_landing_occurred:
                     particles.emit_landing_dust(
                         player.px, player.py, player.player_w, player.player_h, player.gravity_dir,
                     )
                     particles.emit_hit_spark(player.px, player.py)
                     _gdir = player.gravity_dir
-                    camera.punch(
+                    feel.punch(
                         _gdir[0] * HARD_LAND_PUNCH_MAGNITUDE,
                         _gdir[1] * HARD_LAND_PUNCH_MAGNITUDE,
                         HARD_LAND_PUNCH_DURATION,
                     )
+                    feel.squash(HARD_LAND_SQUASH)
+                    feel.hitstop(HARD_LAND_HITSTOP)
                     impact_flash_timer = HARD_LAND_FLASH_DURATION
 
                 # Gravity snap-back when chrono exhausted while off default orientation
@@ -687,6 +705,9 @@ def main() -> None:
                                 kx, ky = compute_knockback(
                                     player.px, player.py, e.px, e.py, player.gravity_dir,
                                 )
+                                feel.hitstop(HIT_HITSTOP)
+                                feel.flash(HIT_FLASH_COLOR, HIT_FLASH_DURATION)
+                                feel.shake(HIT_SHAKE_INTENSITY, HIT_SHAKE_DURATION)
                                 if player.take_hit(kx, ky):
                                     result = bus.emit(GameEvent.INTEGRITY_ZERO)
                                     level_reset = not result.cancelled
@@ -707,6 +728,7 @@ def main() -> None:
                     physics_accumulator = flash_timer = rotation_cooldown_timer = 0.0
                     active_zone_indices = set()
                     time_dilation.reset()
+                    feel.reset()
 
                 camera.update(player.px, player.py, frame_dt)
                 feel.track_dilation(time_dilation.is_active, player.px, player.py)
@@ -764,7 +786,7 @@ def main() -> None:
                     with gpu_parallax.target("play"):
                         gpu_draw_world(
                             gpu_batch, gpu_atlas, level, _draw_enemies,
-                            animator, player, player_state, camera.offset,
+                            animator, player, player_state, camera.offset, feel,
                         )
                     with gpu_parallax.timed(LIGHT_TIMING_KEY):
                         light_tex = gpu_lights.render(
@@ -787,12 +809,13 @@ def main() -> None:
                     draw_hud(gpu_hud_surf, font, player, time_dilation.active_timer,
                              time_dilation.cooldown_timer, WIDTH, HEIGHT,
                              in_anomaly=anomaly_pending)
-                    draw_flash_overlay(gpu_hud_surf, flash_surf, flash_timer)
-                    draw_impact_flash(gpu_hud_surf, impact_flash_surf, impact_flash_timer)
+                    _fx = feel.screen_flash_scale()
+                    draw_flash_overlay(gpu_hud_surf, flash_surf, flash_timer * _fx)
+                    draw_impact_flash(gpu_hud_surf, impact_flash_surf, impact_flash_timer * _fx)
                     if debug_draw:
                         draw_debug_overlay(gpu_hud_surf, font, player, camera.offset, HEIGHT)
                         draw_layer_timings(gpu_hud_surf, font, gpu_parallax.layer_ms,
-                                           gpu_post.enabled)
+                                           gpu_post.enabled, feel.reduced_effects)
                     gpu_batch.draw_fullscreen_surface(gpu_hud_surf)
                 else:
                     # Non-playing states: render via existing software functions
@@ -848,8 +871,9 @@ def main() -> None:
                 if debug_draw:
                     draw_debug_overlay(screen, font, player, cam_offset, HEIGHT)
                 draw_fold_tint(screen, fold_tint_surf, run_state.fold_stability)
-                draw_flash_overlay(screen, flash_surf, flash_timer)
-                draw_impact_flash(screen, impact_flash_surf, impact_flash_timer)
+                _fx = feel.screen_flash_scale()
+                draw_flash_overlay(screen, flash_surf, flash_timer * _fx)
+                draw_impact_flash(screen, impact_flash_surf, impact_flash_timer * _fx)
                 draw_hud(screen, font, player, time_dilation.active_timer,
                          time_dilation.cooldown_timer, WIDTH, HEIGHT,
                          in_anomaly=anomaly_pending)
