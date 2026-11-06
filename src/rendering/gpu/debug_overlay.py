@@ -1,8 +1,8 @@
 """GPU debug overlay text — per-layer and per-post-pass timings (TA-2, TA-4).
 
 Drawn onto the transparent HUD surface, so it composites over the world like
-the rest of the HUD. With the overlay open, keys 1-5 toggle the post passes in
-POST_PASS_ORDER; each line shows the key, the pass state and its GPU ms.
+the rest of the HUD. With the overlay open, number keys toggle the post passes in
+POST_PASS_ORDER (keys 1-6); each line shows the key, the pass state and its GPU ms.
 """
 from __future__ import annotations
 
@@ -15,11 +15,13 @@ TIMING_TEXT_COLOR: tuple[int, int, int] = (180, 255, 180)
 PASS_OFF_TEXT_COLOR: tuple[int, int, int] = (130, 130, 130)
 TIMING_LINE_HEIGHT: int = 18
 TIMING_MARGIN: int = 10
-POST_TOGGLE_KEYS: tuple[int, ...] = (pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4, pygame.K_5)
+POST_TOGGLE_KEYS: tuple[int, ...] = (
+    pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4, pygame.K_5, pygame.K_6,
+)
 
 
 def post_pass_for_key(key: int) -> str | None:
-    """Return the post pass toggled by `key` (1-5 → POST_PASS_ORDER), or None."""
+    """Return the post pass toggled by `key` (1-6 → POST_PASS_ORDER), or None."""
     if key not in POST_TOGGLE_KEYS:
         return None
     index = POST_TOGGLE_KEYS.index(key)

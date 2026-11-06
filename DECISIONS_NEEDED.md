@@ -2,6 +2,29 @@
 
 ---
 
+## TA-5 — Fold Distortion + Gravity-Flip Bend (plan, 2026-11-05)
+
+**Touches more than 3 files.** The spec is approved in `docs/tech-art-plan.md` §3 TA-5, and Matt said to go ahead.
+
+### Approach
+- **`src/rendering/gpu/feel.py` (new):** a `Feel` class with no GL code, so it runs headless and in the software renderer. Its API is `distortion(x, y, strength, dur)` (queues a ripple at a world position; a zero or negative duration does nothing; strength is clamped; at most 4 ripples, the oldest recycled) and `gravity_bend(direction)`. It also has `track_dilation(is_active, x, y)` (fires a ripple from the player whenever Time Dilation switches on, which covers both E and Kerr Ring's free activation, since that one sets timers directly), `update(dt)` and `distortion_params(cam_offset, size)`. TA-6 grows this into the full feel framework.
+- **`shaders/distortion.frag` (new):** a new post pass, placed after bloom and before the grade/vignette/grain, so the glow warps but the screen-fixed effects don't. It does three things:
+  - Ripple: an expanding ring that pushes pixels outward.
+  - Gravity bend: the frame bows toward the new gravity, most at the centre line and not at all at the edges.
+  - Chromatic aberration: a red/blue split that follows whichever effect is strongest.
+  - The total offset is clamped in the shader. The pass is skipped when nothing is active.
+- **`main.py`:** creates `Feel`, calls `feel.track_dilation(...)` and `feel.update(frame_dt)` each frame, passes `feel` into `_do_gravity_rotation` (3 call sites), and gives the params to the post stack.
+- **Toggles:** distortion becomes post pass 2, so keys 1–6 (crt moves to 6).
+
+### Files
+`constants.py`, `src/rendering/gpu/feel.py` (new), `shaders/distortion.frag` (new), `src/rendering/gpu/post_stack.py`, `src/rendering/gpu/debug_overlay.py`, `main.py`, `tests/test_gpu_feel.py` (new), `tests/test_gpu_post.py` (crt key index).
+
+### Conservative choices
+- The rotation-cinematic zoom is still not applied on the GPU path (pre-existing since TA-1). The bend is added on top of the existing flash and shake; nothing is replaced yet.
+- The bend fires wherever `_do_gravity_rotation` runs: the R key, entering a gravity zone, and the snap-back when chrono runs out. These already get the flash and shake. Respawn resets don't bend.
+
+---
+
 ## TA-4 — Post-Processing Stack v1 (plan, 2026-11-05)
 
 **Touches more than 3 files.** The spec is approved in `docs/tech-art-plan.md` §3 TA-4, and Matt said to go ahead. Q5 is decided: the CRT toggle exists but its shader is an empty pass-through, off by default.

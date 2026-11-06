@@ -78,3 +78,11 @@
 - First render crushed the dark art: contrast pivot moved 0.5 → 0.18, shadow tint made a lift, grain scaled down in shadows, bloom threshold 0.75 → 0.55.
 - Build fix: requirements.txt gains numpy; build/the_fold.spec no longer excludes numpy and bundles shaders/. A full PyInstaller build has not been run.
 - 703 tests pass (20 new). Window timing: post ≈1.0-1.15ms avg, whole GPU frame ≈2.7ms.
+
+## 2026-11-05 — TA-5 Fold Distortion + Gravity Bend
+- Plan written to DECISIONS_NEEDED.md first.
+- Added src/rendering/gpu/feel.py: Feel (distortion(), gravity_bend(), track_dilation() rising-edge ripple, update(), reset(), distortion_params()), Ripple, DistortionParams, envelopes. No GL; runs in both renderers.
+- Added shaders/distortion.frag (ripples, bend, chromatic aberration, offset cap) as post pass 2; PostStack.set_distortion(); the pass is skipped when idle. Keys 1-6 now.
+- main.py: Feel created at startup, track_dilation + update each playing frame, passed into _do_gravity_rotation (3 call sites) which calls gravity_bend after the new direction is set.
+- Updated 2 TA-4 tests (crt key index 5→6; idle distortion skipped by the timing hook).
+- 723 tests pass (20 new in tests/test_gpu_feel.py incl. GPU readback of bend, ripple, aberration, offset cap). Distortion ≈0.2ms. One timing run showed a single 5.2ms post frame (likely query/compositor noise; avg 1.2-1.5ms).

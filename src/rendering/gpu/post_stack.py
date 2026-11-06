@@ -1,4 +1,4 @@
-"""Post-processing stack (TA-4) — bloom, LUT grade, vignette, grain, CRT stub.
+"""Post-processing stack (TA-4/TA-5) — bloom, Fold distortion, LUT grade, vignette, grain, CRT stub.
 
 Per frame: begin_scene() returns a cleared half-float scene buffer for the
 parallax composite; render(target) runs each enabled pass in POST_PASS_ORDER,
@@ -16,6 +16,7 @@ import moderngl
 import numpy as np
 
 import constants as C
+from src.rendering.gpu.feel import DistortionParams
 from src.rendering.gpu.layer import FULLSCREEN_QUAD
 from src.rendering.gpu.lut import upload_lut
 from src.rendering.gpu.sprite_batch import _load_shader
@@ -26,11 +27,27 @@ _PASS_SHADERS: dict[str, str] = {
     "bloom_extract": "bloom_extract.frag", "blur": "blur.frag",
     "bloom_combine": "bloom_combine.frag", "lut": "lut.frag",
     "vignette": "vignette.frag", "grain": "grain.frag", "crt": "crt.frag",
-    "copy": "copy.frag",
+    "copy": "copy.frag", "distortion": "distortion.frag",
+}
+# Compile-time array sizes rewritten from constants: file → (placeholder, replacement)
+_SHADER_DEFINES: dict[str, tuple[str, str]] = {
+    "distortion.frag": ("#define MAX_RIPPLES 4",
+                        f"#define MAX_RIPPLES {C.DISTORTION_MAX_RIPPLES}"),
 }
 _BLOOM_UNIT: int = 1
 _LUT_UNIT: int = 2
 _GRAIN_SEED_PERIOD: int = 997  # frame counter wraps here to keep float seeds precise
+
+
+def _load_pass_shader(filename: str) -> str:
+    """Load a pass shader, applying any compile-time define rewrite."""
+    source = _load_shader(filename)
+    if filename in _SHADER_DEFINES:
+        placeholder, replacement = _SHADER_DEFINES[filename]
+        if placeholder not in source:
+            raise RuntimeError(f"{filename} is missing '{placeholder}'")
+        source = source.replace(placeholder, replacement)
+    return source
 
 
 def vignette_factor(u: float, v: float, width: int, height: int) -> float:
@@ -73,12 +90,13 @@ class PostStack:
         self.enabled: dict[str, bool] = {n: C.POST_PASS_DEFAULTS[n] for n in C.POST_PASS_ORDER}
         self._frame: int = 0
         vert = _load_shader("post.vert")
-        self._progs = {name: ctx.program(vertex_shader=vert, fragment_shader=_load_shader(f))
+        self._progs = {name: ctx.program(vertex_shader=vert, fragment_shader=_load_pass_shader(f))
                        for name, f in _PASS_SHADERS.items()}
         self._quad_vbo = ctx.buffer(array.array("f", FULLSCREEN_QUAD).tobytes())
         self._vaos = {name: ctx.vertex_array(prog, [(self._quad_vbo, "2f", "a_pos")])
                       for name, prog in self._progs.items()}
         self._lut_texture = upload_lut(ctx, lut)
+        self._distortion = DistortionParams()
         self._set_static_uniforms(lut.shape[0])
         self._targets: dict[str, _Target] = {}
         self._allocate(size)
@@ -97,6 +115,8 @@ class PostStack:
         p["vignette"]["u_inner"].value = C.VIGNETTE_INNER
         p["vignette"]["u_outer"].value = C.VIGNETTE_OUTER
         p["grain"]["u_amount"].value = C.GRAIN_AMOUNT
+        p["distortion"]["u_ripple_width"].value = C.RIPPLE_WIDTH_PX
+        p["distortion"]["u_max_offset"].value = C.DISTORTION_MAX_OFFSET_PX
         p["grain"]["u_shadow_scale"].value = C.GRAIN_SHADOW_SCALE
         p["grain"]["u_full_luma"].value = C.GRAIN_FULL_LUMA
 
@@ -110,6 +130,7 @@ class PostStack:
         resolution = (float(size[0]), float(size[1]))
         self._progs["vignette"]["u_resolution"].value = resolution
         self._progs["grain"]["u_resolution"].value = resolution
+        self._progs["distortion"]["u_resolution"].value = resolution
 
     @property
     def size(self) -> tuple[int, int]:
@@ -127,6 +148,10 @@ class PostStack:
         self.enabled[name] = not self.enabled[name]
         return self.enabled[name]
 
+    def set_distortion(self, params: DistortionParams) -> None:
+        """Set this frame's Fold ripples / bend / aberration (from Feel.distortion_params)."""
+        self._distortion = params
+
     def render(self, target: moderngl.Framebuffer) -> None:
         """Run every enabled pass on the scene buffer, then copy to `target`."""
         self._frame = (self._frame + 1) % _GRAIN_SEED_PERIOD
@@ -135,7 +160,7 @@ class PostStack:
         outputs = [self._targets["ping"], self._targets["pong"]]
         self._ctx.disable(moderngl.BLEND)  # every pass overwrites its target
         for name in C.POST_PASS_ORDER:
-            if not self.enabled[name]:
+            if not self.enabled[name] or (name == "distortion" and not self._distortion.active):
                 continue
             dst = outputs[0]
             with self._timed(name):
@@ -151,7 +176,19 @@ class PostStack:
             return
         if name == "lut":
             self._lut_texture.use(_LUT_UNIT)
+        if name == "distortion":
+            self._upload_distortion()
         self._draw(name, src.texture, dst.fbo)
+
+    def _upload_distortion(self) -> None:
+        """Write the current DistortionParams into the distortion shader."""
+        prog, params = self._progs["distortion"], self._distortion
+        ripples = params.ripples[:C.DISTORTION_MAX_RIPPLES]
+        padded = list(ripples) + [(0.0, 0.0, 0.0, 0.0)] * (C.DISTORTION_MAX_RIPPLES - len(ripples))
+        prog["u_ripples"].write(array.array("f", [v for r in padded for v in r]).tobytes())
+        prog["u_ripple_count"].value = len(ripples)
+        prog["u_bend"].value = params.bend
+        prog["u_aberration"].value = params.aberration
 
     def _bloom(self, src: _Target, dst: _Target) -> None:
         """Bright-pass at low res, blur it, then add it back onto the scene."""

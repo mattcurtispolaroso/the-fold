@@ -110,9 +110,9 @@ PLAYER_LIGHT_COLOR: tuple[float, float, float] = (1.0, 0.72, 0.38)   # warm ambe
 PLAYER_LIGHT_INTENSITY: float = 0.85
 
 # --- Post-Processing (TA-4, GPU path only; HUD and fold tint are drawn after, unaffected) ---
-POST_PASS_ORDER: tuple[str, ...] = ("bloom", "lut", "vignette", "grain", "crt")
+POST_PASS_ORDER: tuple[str, ...] = ("bloom", "distortion", "lut", "vignette", "grain", "crt")
 POST_PASS_DEFAULTS: dict[str, bool] = {
-    "bloom": True, "lut": True, "vignette": True, "grain": True,
+    "bloom": True, "distortion": True, "lut": True, "vignette": True, "grain": True,
     "crt": False,   # TA Q5: toggle wired, shader is a pass-through stub
 }
 BLOOM_THRESHOLD: float = 0.55      # luminance where bloom starts (art is dark; goal/cyan ≈ 0.65)
@@ -134,6 +134,18 @@ GRADE_CONTRAST_PIVOT: float = 0.18 # photographic mid-grey; a 0.5 pivot crushes 
 GRADE_SATURATION: float = 0.92     # procedural grade: 1 = unchanged
 GRADE_SHADOW_TINT: tuple[float, float, float] = (0.0, 0.008, 0.02)     # teal lift (never subtracts)
 GRADE_HIGHLIGHT_TINT: tuple[float, float, float] = (0.04, 0.02, -0.025)  # warm highlights
+
+# --- Fold Distortion + Gravity Bend (TA-5; pixels are internal-resolution pixels) ---
+DISTORTION_MAX_RIPPLES: int = 4        # concurrent ripples; the oldest is recycled
+DISTORTION_STRENGTH_MAX: float = 3.0   # clamp on feel.distortion(strength=...)
+DISTORTION_MAX_OFFSET_PX: float = 32.0 # hard cap on total per-pixel displacement
+RIPPLE_DURATION: float = 0.6           # seconds for a ripple to expand and fade
+RIPPLE_MAX_RADIUS_PX: float = 420.0    # ring radius at the end of the ripple
+RIPPLE_WIDTH_PX: float = 40.0          # thickness of the ring (Gaussian width)
+RIPPLE_AMPLITUDE_PX: float = 14.0      # peak ring displacement at strength 1.0
+BEND_DURATION: float = 0.35            # seconds for the gravity-flip bend (out and back)
+BEND_AMPLITUDE_PX: float = 18.0        # peak bow of the frame toward the new gravity
+ABERRATION_MAX_PX: float = 4.0         # red/blue split at the screen corners at peak effect
 
 DEBUG_DRAW_RECTS: bool = False        # draw physics rects for debugging
 SPRITE_PHYSICS_OFFSET_Y: int = 0      # vertical pixel offset to align sprite to physics rect

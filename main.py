@@ -94,6 +94,7 @@ from src.rendering.gpu.layer_images import build_layer_images
 from src.rendering.gpu.debug_overlay import draw_layer_timings, post_pass_for_key
 from src.rendering.gpu.lut import load_lut
 from src.rendering.gpu.post_stack import PostStack
+from src.rendering.gpu.feel import Feel
 
 WIDTH, HEIGHT = SCREEN_WIDTH, SCREEN_HEIGHT
 
@@ -216,6 +217,7 @@ def _do_gravity_rotation(
     enemies: list,
     particles: object,
     bus: object,
+    feel: Feel,
 ) -> float:
     """Apply a gravity rotation: update player direction, resolve collisions, fire camera/VFX.
 
@@ -240,6 +242,7 @@ def _do_gravity_rotation(
     camera.on_gravity_rotate()
     camera.start_rotation_cinematic()
     camera.shake(ROTATE_SHAKE_INTENSITY, ROTATE_SHAKE_DURATION)
+    feel.gravity_bend(player.gravity_dir)
     particles.emit_rotation_burst(player.px, player.py)
     for e in enemies:
         e.on_gravity_rotate()
@@ -327,6 +330,7 @@ def main() -> None:
     # Transparent overlay for HUD compositing over GPU world render
     gpu_hud_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
     particles = ParticlePool()
+    feel = Feel()  # screen-space Fold ripples / gravity bend (drawn by GPU post stack)
 
     player = Player.from_spawn(level.spawn, tuple(level.gravity_start))
     enemies = _spawn_enemies_from_level(level)
@@ -451,7 +455,7 @@ def main() -> None:
                             rotation_cooldown_timer = ROTATION_COOLDOWN
                             flash_timer = _do_gravity_rotation(
                                 rotate_gravity_ccw(player.gravity_dir),
-                                player, level, camera, animator, enemies, particles, bus,
+                                player, level, camera, animator, enemies, particles, bus, feel,
                             )
                         if event.key == pygame.K_e and time_dilation.is_ready and player.chrono_reserve >= time_dilation.cost:
                             player.chrono_reserve = time_dilation.activate(player.chrono_reserve)
@@ -505,7 +509,7 @@ def main() -> None:
                     if _zone.gravity_dir is not None and tuple(_zone.gravity_dir) != player.gravity_dir:
                         flash_timer = _do_gravity_rotation(
                             tuple(_zone.gravity_dir),
-                            player, level, camera, animator, enemies, particles, bus,
+                            player, level, camera, animator, enemies, particles, bus, feel,
                         )
                 active_zone_indices = new_zone_indices
 
@@ -648,7 +652,7 @@ def main() -> None:
                 if _gravity_expired and player.gravity_dir != level.gravity_start:
                     flash_timer = _do_gravity_rotation(
                         level.gravity_start,
-                        player, level, camera, animator, enemies, particles, bus,
+                        player, level, camera, animator, enemies, particles, bus, feel,
                     )
                     grav_vert = gravity_is_vertical(player.gravity_dir)
 
@@ -705,6 +709,8 @@ def main() -> None:
                     time_dilation.reset()
 
                 camera.update(player.px, player.py, frame_dt)
+                feel.track_dilation(time_dilation.is_active, player.px, player.py)
+                feel.update(frame_dt)
                 player_state = determine_player_state(
                     player.on_ground, player.vx, player.vy, player.gravity_dir, player.move_input,
                     animator._land_timer,
@@ -765,6 +771,7 @@ def main() -> None:
                             level.level_data.lights, (player.px, player.py), camera.offset,
                         )
                     gpu_parallax.composite(gpu_post.begin_scene(), light_tex)
+                    gpu_post.set_distortion(feel.distortion_params(camera.offset, (WIDTH, HEIGHT)))
                     gpu_post.render(gpu_ctx.ctx.screen)
                     # Fold tint overlay
                     if run_state.fold_stability < FOLD_TINT_THRESHOLD:

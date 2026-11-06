@@ -125,7 +125,9 @@ Done when: a ~10 min run from start to singularity or death is completable. **Ga
 - [x] TA-1: Sprite batch + atlas loader — player and level geometry via GPU sprite batch, atlas packer tool ✅
 - [x] TA-2: Parallax layer system — 5 FBOs with per-layer scroll factors, background split across sky/far/mid layers ✅
 - [x] TA-3: 2D light buffer — ambient + up to 10 point/spot lights per level + player light, multiplied over mid/play ✅
-- [x] TA-4: Post-processing stack v1 — bloom, LUT grade, vignette, grain, CRT stub; live toggles on keys 1-5 with F3 open ✅
+- [x] TA-4: Post-processing stack v1 — bloom, LUT grade, vignette, grain, CRT stub; live toggles with F3 open ✅
+- [x] TA-5: Fold distortion + gravity-flip bend — ripple on Time Dilation, frame bend on rotation, chromatic aberration ✅
+- [ ] Vertical-slice review (Matt): play level_01 on the GPU renderer and judge it against the acceptance list below
 
 ## TA milestone track (tech art pipeline)
 
@@ -138,12 +140,13 @@ Full plan in `docs/tech-art-plan.md`. Runs alongside the M-series. Each TA modul
 | TA-2 | Parallax layer system (5 FBOs, per-layer scroll) | ✅ Done |
 | TA-3 | 2D light buffer (ambient + point/spot lights per level) | ✅ Done |
 | TA-4 | Post-processing stack v1 (bloom, vignette, grain, LUT) | ✅ Done |
-| TA-5 | Fold distortion + gravity flip (screen-space warp, rotation bend) | Next |
+| TA-5 | Fold distortion + gravity flip (screen-space warp, rotation bend) | ✅ Done |
 | TA-6 | Feel framework (hitstop, sprite flash, squash/stretch, accessibility toggle) | — |
 | TA-7 | GPU particles (instanced quad draw, visual upgrade) | — |
 | TA-8 | Normal maps + emissive mask (optional, post-launch candidate) | — |
 
 **Vertical slice acceptance (end of TA-5):** level_01 renders with 5 parallax layers, 3 point lights, bloom, vignette, grain, Fold distortion on rotation. 60fps on dev Mac. Software fallback passes all existing tests unchanged.
+**Status 2026-11-05:** all items built. GPU frame ≈3ms on the dev Mac; 723 tests pass. Deviations: bloom is threshold-based (no emissive mask until TA-8); foreground layer empty (no art); rotation-cinematic zoom still not applied on the GPU path. Awaiting Matt's in-game review.
 
 **Open decisions (see `docs/tech-art-plan.md` §5):**
 - Q3: Is the software renderer CI-only or a user-facing option for older/no-GPU machines?
@@ -210,10 +213,11 @@ Cult enemies (Witness, Ordained, Architect); Archivist and Diplomat characters; 
 - 2026-11-05: TA-2 parallax: placeholder layers are procedural splits of `background.png` (TA Q6). Painted art drops in as `assets/backgrounds/layers/{sky,far,mid}.png` with no code change. Foreground layer allocated but left empty until there is art for it. Per-level scroll overrides via optional `"layers"` key in level JSON; the play layer is locked to 1.0.
 - 2026-11-05: TA-3 lighting: only levels with a `"lights"` key are lit (level_01 for now; others render as after TA-2). Lit layers are mid + play; sky/far stay self-lit. Player carries a warm amber point light in lit levels. Light buffer is half-float, capped at 2.0 for mild overbright.
 - 2026-11-05: TA-4 post stack. Bloom keys off a brightness threshold, not an emissive mask (masks are TA-8). Grade contrast pivots at 0.18, not 0.5, because the art is mostly below 0.1 luminance and a 0.5 pivot crushed it. Grain is scaled down in shadows for the same reason. HUD and fold tint skip post. Build fix: numpy un-excluded and `shaders/` bundled in the PyInstaller spec (a full build has not been run to confirm).
+- 2026-11-05: TA-5 Fold distortion. The ripple fires on the rising edge of Time Dilation (so Kerr Ring's free activation ripples too), not on the E key. The bend fires on every `_do_gravity_rotation` (R key, gravity zones, chrono snap-back). Distortion runs after bloom and before grade/vignette/grain, so the glow warps but the screen-fixed effects don't.
 - 2026-11-05: 28-item design assessment (separate from adversarial audit) drove the M8 sprint: hole uncertainty non-functional, enemies identical every run, 5-node run too short. All three addressed in M8a-c.
 
 ## Last session
 Date: 2026-11-05
-Did: TA-2 parallax (5 FBOs), debug overlay → F3, TA-3 2D lighting (level_01 lit, brightened after review), TA-4 post stack (bloom, LUT grade, vignette, grain, CRT stub; keys 1-5 toggle passes with F3 open; tools/shader_watch.py). Fixed the PyInstaller spec, which excluded numpy and did not bundle shaders/. Full GPU frame ≈2.7ms on the dev Mac (post ≈1.1ms of a 4ms budget).
-State of tests: 703 passing
-Next up: TA-5 (Fold distortion + gravity-flip bend), the last module before the vertical-slice review. Also worth doing: run build/build_mac.sh once to confirm the GPU path works in a frozen build.
+Did: TA-2 parallax, debug overlay → F3, TA-3 lighting, TA-4 post stack, TA-5 Fold distortion + gravity bend (Feel class; distortion post pass with ripple, bend, chromatic aberration). PyInstaller spec fixed (numpy, shaders/). The GPU vertical slice is feature-complete.
+State of tests: 723 passing
+Next up: Matt's vertical-slice review in game (GPU renderer, level_01). Also: run build/build_mac.sh once to confirm a frozen GPU build launches. Then TA-6 (feel framework), or apply the rotation-cinematic zoom on the GPU path if the review asks for it.

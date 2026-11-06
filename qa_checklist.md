@@ -194,13 +194,24 @@ Run through this after each coding session. Launch the game with `python main.py
 - [ ] A level JSON with a malformed "lights" value loads the fallback level instead of crashing
 
 ### Post-processing (TA-4, GPU renderer only)
-- [ ] With F3 open, keys 1-5 toggle bloom / lut / vignette / grain / crt; overlay shows ON/off in grey and per-pass ms
-- [ ] Keys 1-5 do nothing to post passes when F3 is closed (and still work on the reward screen as before)
+- [ ] With F3 open, keys 1-6 toggle bloom / distortion / lut / vignette / grain / crt; overlay shows ON/off in grey and per-pass ms
+- [ ] Keys 1-6 do nothing to post passes when F3 is closed (and still work on the reward screen as before)
 - [ ] Bloom: goal block and cyan moving platform have a soft glow; dark areas do not
 - [ ] Grain is visible as fine shifting noise in mid-tones and is not obvious in near-black areas
 - [ ] Vignette darkens corners; HUD pips/chrono bar and the fold tint are NOT vignetted or grained
 - [ ] LUT: pipework band in level_01 stays readable with the grade on (regression: a 0.5 contrast pivot crushed it)
-- [ ] CRT toggle (key 5) changes nothing. It is a stub (TA Q5)
+- [ ] CRT toggle (key 6) changes nothing. It is a stub (TA Q5)
 - [ ] Dropping a 256×16 strip at assets/luts/grade.png replaces the procedural grade on next launch; a wrong-size strip logs a warning and falls back
 - [ ] Post stack total stays under 4ms in the F3 overlay (measured ≈1.1ms)
 - [ ] Frozen build (build/build_mac.sh) launches in GPU mode: numpy is no longer excluded and shaders/ is now bundled. Not yet verified
+
+### Fold distortion + gravity bend (TA-5, GPU renderer only)
+- [ ] E (Time Dilation): a ring ripples outward from the player and fades in ~0.6s, with a brief red/blue fringe
+- [ ] Kerr Ring free Time Dilation (every 4th rotation) also ripples
+- [ ] R (rotate): the frame bows toward the NEW gravity direction and springs back in ~0.35s; edges stay pinned
+- [ ] Entering a gravity zone and chrono snap-back also bend
+- [ ] Ripple stays anchored to the world spot where it fired as the camera moves
+- [ ] Spamming E/R never warps the frame more than ~32px (hard cap) and never tears
+- [ ] HUD is never warped (drawn after post)
+- [ ] Distortion toggle (key 2 with F3 open) disables ripple and bend
+- [ ] Ripple strength reads well in motion (looked subtle in stills). Tune RIPPLE_AMPLITUDE_PX / RIPPLE_WIDTH_PX

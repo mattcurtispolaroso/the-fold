@@ -85,10 +85,11 @@ class TestPostConfig(unittest.TestCase):
         self.assertFalse(C.POST_PASS_DEFAULTS["crt"])
 
     def test_keys_map_to_passes_in_order(self) -> None:
-        """Keys 1-5 toggle the passes in POST_PASS_ORDER; other keys map to nothing."""
+        """Keys 1-6 toggle the passes in POST_PASS_ORDER; other keys map to nothing."""
         from src.rendering.gpu.debug_overlay import post_pass_for_key
         self.assertEqual(post_pass_for_key(pygame.K_1), C.POST_PASS_ORDER[0])
-        self.assertEqual(post_pass_for_key(pygame.K_5), C.POST_PASS_ORDER[4])
+        self.assertEqual(post_pass_for_key(pygame.K_6), C.POST_PASS_ORDER[5])
+        self.assertEqual(len(C.POST_PASS_ORDER), 6)
         self.assertIsNone(post_pass_for_key(pygame.K_r))
 
     def test_overlay_lists_pass_states(self) -> None:
@@ -97,7 +98,7 @@ class TestPostConfig(unittest.TestCase):
         enabled = dict(C.POST_PASS_DEFAULTS)
         lines = format_layer_timings({}, enabled)
         self.assertTrue(any(l.startswith("[1] bloom") and "ON" in l for l in lines))
-        self.assertTrue(any(l.startswith("[5] crt") and "off" in l for l in lines))
+        self.assertTrue(any(l.startswith("[6] crt") and "off" in l for l in lines))
 
     def test_vignette_reference_shape(self) -> None:
         """Centre is untouched, corners darkened by exactly VIGNETTE_STRENGTH."""
@@ -200,8 +201,9 @@ class TestPostStackGPU(unittest.TestCase):
         np.testing.assert_allclose(img[5, 5], [0.25, 0.5, 0.75], atol=_LUMA_TOL)
 
     def test_timed_callback_receives_enabled_passes(self) -> None:
-        """The timing hook is called once per enabled pass, in order."""
+        """The timing hook is called once per enabled pass, in order; idle distortion is skipped."""
         from contextlib import nullcontext
+        from src.rendering.gpu.feel import DistortionParams
         from src.rendering.gpu.post_stack import PostStack
         seen: list[str] = []
         post = PostStack(self.ctx, _SIZE, identity_lut(C.LUT_SIZE),
@@ -209,6 +211,10 @@ class TestPostStackGPU(unittest.TestCase):
         for name in C.POST_PASS_ORDER:
             post.enabled[name] = name != "lut"
         post.begin_scene()
+        post.render(self.out)  # no distortion params set → distortion pass skipped
+        self.assertEqual(seen, [n for n in C.POST_PASS_ORDER if n not in ("lut", "distortion")])
+        seen.clear()
+        post.set_distortion(DistortionParams(aberration=1.0))
         post.render(self.out)
         post.release()
         self.assertEqual(seen, [n for n in C.POST_PASS_ORDER if n != "lut"])
