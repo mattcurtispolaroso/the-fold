@@ -2,6 +2,20 @@
 
 ---
 
+## Engine Session 2 — Smoothness (plan, 2026-11-05)
+
+**Touches more than 3 files.** Source: engine audit items 6–7.
+
+- **`src/rendering/interpolation.py` (new):** `RenderInterpolator` records each entity's position at the start of every physics step (player, enemies keyed per object; platforms reuse `prev_rect` from session 1). It returns lerped positions at `alpha = accumulator / PHYSICS_DT`. It snaps (prev = current) on level reset, and automatically on any jump larger than `TELEPORT_SNAP_PX`, so respawns never streak across the screen.
+- **`world_draw.py` / `hud.draw_world`:** draw at interpolated positions. The GPU path does player, enemies and moving platforms; the software path does the player, so it doesn't jitter against the now-smooth camera.
+- **Camera:** follows the interpolated player. `1 − exp(−k·dt)` follow, a continuous ("window") dead zone, and time-based smooth shake noise.
+- **`main.py`:** vsync on (GPU path; falls back cleanly if unsupported), render cap `MAX_RENDER_FPS` instead of 60. Physics stays a fixed 60 Hz.
+- **Tests:** a frame-time judder simulation (raw vs interpolated), camera frame-rate independence, dead-zone continuity, snap on teleport.
+
+No creative decisions involved.
+
+---
+
 ## Engine Session 1 — Physics hardening (plan, 2026-11-05)
 
 **Touches more than 3 files.** Source: `docs/engine-audit-2026-11-05.md` bugs 1–5. Matt approved ("do it in that order").

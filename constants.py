@@ -16,6 +16,8 @@ CAMERA_DEAD_ZONE_Y: float = 20.0      # pixels — no follow within this range
 CAMERA_RECENTRE_DURATION: float = 0.3  # seconds to re-centre after gravity rotation
 CAMERA_RECENTRE_SPEED: float = 15.0    # boosted lerp speed during re-centre
 CAMERA_ZOOM_SPEED: float = 3.0        # zoom lerp speed
+CAMERA_SHAKE_FREQS_HZ: tuple[float, float] = (8.0, 13.0)  # shake noise sines; keep well under 30 Hz
+                                                         # or 60 fps displays alias them into jitter
 
 # --- Screen Shake ---
 SCREEN_SHAKE_ENABLED: bool = True
@@ -42,6 +44,12 @@ ROTATION_SAFE_SEARCH_PX: float = 48.0  # how far a rotation may nudge the player
 VALIDATION_EJECT_SEARCH_PX: float = 96.0  # how far post-step validation may eject the player
 ROTATION_BLOCKED_SHAKE_INTENSITY: float = 2.0  # feedback when a rotation has no room
 ROTATION_BLOCKED_SHAKE_DURATION: float = 0.08
+
+# --- Frame pacing & render interpolation (Engine Session 2) ---
+VSYNC_ENABLED: bool = True        # GPU path: sync to the display (falls back if unsupported)
+MAX_RENDER_FPS: int = 240         # render-loop cap; physics stays at FPS (60 Hz) regardless
+TELEPORT_SNAP_PX: float = 300.0   # a per-step move larger than this is a teleport: don't lerp
+                                  # (must exceed the fastest legit step: 5× terminal ≈ 221 px)
 
 # --- Physics Scale ---
 # UNITS: physics runs at a fixed PHYSICS_DT (1/FPS). Player/enemy/platform

@@ -29,8 +29,13 @@ def draw_world(
     player_state: PlayerState,
     cam_offset: tuple[float, float],
     debug_draw: bool,
+    player_pos: tuple[float, float] | None = None,
 ) -> None:
-    """Draw background, level geometry, all enemies, and player sprite."""
+    """Draw background, level geometry, all enemies, and player sprite.
+
+    `player_pos` overrides the player's drawn centre (render interpolation), so
+    the player moves smoothly with the interpolated camera.
+    """
     screen.fill(_BLACK)
     if background:
         screen.blit(background, (0, 0))
@@ -39,8 +44,9 @@ def draw_world(
         enemy.draw(screen, cam_offset)
     ox, oy = cam_offset
     sw, sh = animator.width, animator.height
+    x, y = player_pos if player_pos is not None else (player.px, player.py)
     animator.draw(
-        screen, player.px - sw / 2 + ox, player.py - sh / 2 + oy,
+        screen, x - sw / 2 + ox, y - sh / 2 + oy,
         player_state, player.facing_right, player.gravity_dir, debug_draw,
     )
 

@@ -27,7 +27,6 @@ from constants import (
     HARD_LAND_VELOCITY,
     HOLE_ENCOUNTER_PHASE1_DURATION,
     HOLE_ENCOUNTER_PHASE2_DURATION,
-    FPS,
     MODIFIER_CAP,
     PHYSICS_DT,
     PHYSICS_WATCHDOG_ENABLED,
@@ -61,6 +60,8 @@ from constants import (
     ROTATION_BLOCKED_SHAKE_INTENSITY,
     ROTATION_SAFE_SEARCH_PX,
     VALIDATION_EJECT_SEARCH_PX,
+    MAX_RENDER_FPS,
+    VSYNC_ENABLED,
 )
 from src.data.run_state import RunState
 from src.entities.anchored import TheAnchored
@@ -118,6 +119,7 @@ from src.rendering.gpu.lut import load_lut
 from src.rendering.gpu.post_stack import PostStack
 from src.rendering.gpu.feel import Feel
 from src.rendering.gpu.particles import ParticleRenderer
+from src.rendering.interpolation import RenderInterpolator, step_alpha
 
 WIDTH, HEIGHT = SCREEN_WIDTH, SCREEN_HEIGHT
 
@@ -161,8 +163,14 @@ def _spawn_enemies_from_level(level: object) -> list:
 
 def _reset_level_state(
     level: object, player: object, camera: object, animator: object, enemies: list,
+    render_interp: RenderInterpolator | None = None,
 ) -> None:
-    """Reset camera, player, and enemies (respawned from level data) to the current level's spawn."""
+    """Reset camera, player, and enemies (respawned from level data) to the current level's spawn.
+
+    Also snaps render interpolation so the respawn doesn't streak across the screen.
+    """
+    if render_interp is not None:
+        render_interp.snap()
     camera.set_bounds(level.level_width, level.level_height)
     camera.x, camera.y = level.spawn
     player.reset(level.spawn, tuple(level.gravity_start))
@@ -273,6 +281,17 @@ def _do_gravity_rotation(
     return ROTATION_FLASH_DURATION
 
 
+def _open_gl_window(width: int, height: int) -> pygame.Surface:
+    """Open the OpenGL window, with vsync when enabled and supported (fallback: without)."""
+    flags = pygame.OPENGL | pygame.DOUBLEBUF
+    if VSYNC_ENABLED:
+        try:
+            return pygame.display.set_mode((width, height), flags, vsync=1)
+        except pygame.error as e:
+            print(f"[Display] vsync unavailable ({e}); continuing without it")
+    return pygame.display.set_mode((width, height), flags)
+
+
 def _apply_validation(player: Player, rects: list, logger: LoggingManager) -> None:
     """Post-step physics validation: fix NaN / in-geometry states and log each fix."""
     state = validate_player(
@@ -311,7 +330,7 @@ def main() -> None:
             pygame.GL_CONTEXT_PROFILE_MASK, pygame.GL_CONTEXT_PROFILE_CORE,
         )
         pygame.display.gl_set_attribute(pygame.GL_CONTEXT_FORWARD_COMPATIBLE_FLAG, True)
-        screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.OPENGL | pygame.DOUBLEBUF)
+        screen = _open_gl_window(WIDTH, HEIGHT)
     else:
         screen = pygame.display.set_mode((WIDTH, HEIGHT))
     gpu_ctx: GPUContext | None = None
@@ -370,6 +389,8 @@ def main() -> None:
     gpu_hud_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
     particles = ParticlePool()
     feel = Feel(camera)  # all game-feel effects: shake, hitstop, flash, squash, distortion
+    render_interp = RenderInterpolator()  # draws moving things between 60 Hz physics steps
+    render_alpha: float = 1.0
 
     player = Player.from_spawn(level.spawn, tuple(level.gravity_start))
     enemies = _spawn_enemies_from_level(level)
@@ -397,12 +418,13 @@ def main() -> None:
     active_zone_indices: set[int] = set()
     physics_history: deque = deque(maxlen=50)
     gravity_was_clamped: bool = False
+    draw_px, draw_py = player.px, player.py  # interpolated player centre for rendering
     watchdog_consecutive: int = 0
 
     try:
         running = True
         while running:
-            frame_dt = min(clock.tick(FPS) / 1000.0, 0.05)
+            frame_dt = min(clock.tick(MAX_RENDER_FPS) / 1000.0, 0.05)  # render rate; physics stays 60 Hz
             physics_accumulator += feel.physics_time(frame_dt)  # 0 during hitstop
 
             for event in pygame.event.get():
@@ -423,7 +445,7 @@ def main() -> None:
                             if node_type == "combat":
                                 current_level_idx = run_state.combat_level_for_current_node()
                                 level.load(LEVELS[current_level_idx])
-                                _reset_level_state(level, player, camera, animator, enemies)
+                                _reset_level_state(level, player, camera, animator, enemies, render_interp)
                                 physics_accumulator = flash_timer = 0.0
                                 active_zone_indices = set()
                                 time_dilation.reset()
@@ -434,7 +456,7 @@ def main() -> None:
                                     run_state.run_seed, run_state.current_node_idx,
                                 )
                                 level.load(anomaly_path)
-                                _reset_level_state(level, player, camera, animator, enemies)
+                                _reset_level_state(level, player, camera, animator, enemies, render_interp)
                                 physics_accumulator = flash_timer = 0.0
                                 active_zone_indices = set()
                                 time_dilation.reset()
@@ -479,7 +501,7 @@ def main() -> None:
                         if event.key == pygame.K_TAB:
                             current_level_idx = (current_level_idx + 1) % len(LEVELS)
                             level.load(LEVELS[current_level_idx])
-                            _reset_level_state(level, player, camera, animator, enemies)
+                            _reset_level_state(level, player, camera, animator, enemies, render_interp)
                             physics_accumulator = flash_timer = 0.0
                             active_zone_indices = set()
                             time_dilation.reset()
@@ -586,6 +608,7 @@ def main() -> None:
                 _landing_occurred = False
                 while physics_accumulator >= PHYSICS_DT:
                     physics_start = time.perf_counter()
+                    render_interp.begin_step(player, [] if anomaly_pending else enemies)
 
                     keys = pygame.key.get_pressed()
                     if grav_vert:
@@ -770,13 +793,15 @@ def main() -> None:
                         game_state = "dead"
                         run_state.is_active = False
                     else:
-                        _reset_level_state(level, player, camera, animator, enemies)
+                        _reset_level_state(level, player, camera, animator, enemies, render_interp)
                     physics_accumulator = flash_timer = rotation_cooldown_timer = 0.0
                     active_zone_indices = set()
                     time_dilation.reset()
                     feel.reset()
 
-                camera.update(player.px, player.py, frame_dt)
+                render_alpha = step_alpha(physics_accumulator, PHYSICS_DT)
+                draw_px, draw_py = render_interp.player_pos(player, render_alpha)
+                camera.update(draw_px, draw_py, frame_dt)
                 feel.track_dilation(time_dilation.is_active, player.px, player.py)
                 feel.update(frame_dt)
                 player_state = determine_player_state(
@@ -834,11 +859,12 @@ def main() -> None:
                         gpu_draw_world(
                             gpu_batch, gpu_atlas, level, _draw_enemies,
                             animator, player, player_state, camera.offset, feel,
+                            render_interp, render_alpha,
                         )
                         gpu_particles.draw(particles, camera.offset)
                     with gpu_parallax.timed(LIGHT_TIMING_KEY):
                         light_tex = gpu_lights.render(
-                            level.level_data.lights, (player.px, player.py), camera.offset,
+                            level.level_data.lights, (draw_px, draw_py), camera.offset,
                         )
                     gpu_parallax.composite(gpu_post.begin_scene(), light_tex, camera.zoom)
                     gpu_post.set_distortion(
@@ -906,7 +932,8 @@ def main() -> None:
                 _draw_enemies = [] if anomaly_pending else enemies
                 if abs(camera.zoom - 1.0) > 0.005:
                     draw_world(world_surf, background, level, _draw_enemies,
-                               animator, player, player_state, cam_offset, debug_draw)
+                               animator, player, player_state, cam_offset, debug_draw,
+                               (draw_px, draw_py))
                     particles.draw(world_surf, cam_offset)
                     _sw = int(WIDTH * camera.zoom)
                     _sh = int(HEIGHT * camera.zoom)
@@ -914,7 +941,8 @@ def main() -> None:
                     screen.blit(_scaled, ((WIDTH - _sw) // 2, (HEIGHT - _sh) // 2))
                 else:
                     draw_world(screen, background, level, _draw_enemies,
-                               animator, player, player_state, cam_offset, debug_draw)
+                               animator, player, player_state, cam_offset, debug_draw,
+                               (draw_px, draw_py))
                     particles.draw(screen, cam_offset)
                 if debug_draw:
                     draw_debug_overlay(screen, font, player, cam_offset, HEIGHT)

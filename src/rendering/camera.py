@@ -6,6 +6,7 @@ camera — physics stays in world space.
 """
 from __future__ import annotations
 
+import math
 import random
 from dataclasses import dataclass, field
 
@@ -16,6 +17,7 @@ from constants import (
     CAMERA_FOLLOW_SPEED,
     CAMERA_RECENTRE_DURATION,
     CAMERA_RECENTRE_SPEED,
+    CAMERA_SHAKE_FREQS_HZ,
     CAMERA_ZOOM_SPEED,
     ROTATION_ZOOM_HOLD_DUR,
     ROTATION_ZOOM_IN_DUR,
@@ -28,11 +30,33 @@ from constants import (
 
 @dataclass
 class _ShakeInstance:
-    """A single active screen shake."""
+    """A single active screen shake with its own random noise phases."""
 
     intensity: float
     remaining: float
     duration: float
+    phases: tuple[float, ...] = field(
+        default_factory=lambda: tuple(random.uniform(0.0, 2.0 * math.pi) for _ in range(4)))
+
+
+def _smooth_noise(t: float, phases: tuple[float, ...], offset: int) -> float:
+    """Smooth pseudo-random signal in [-1, 1] sampled at time t (two blended sines).
+
+    Being a function of time (not a fresh random value per frame) makes shake
+    look the same at 30, 60 or 120 fps and read as shake rather than jitter.
+    """
+    f1, f2 = CAMERA_SHAKE_FREQS_HZ
+    return (0.6 * math.sin(2.0 * math.pi * f1 * t + phases[offset])
+            + 0.4 * math.sin(2.0 * math.pi * f2 * t + phases[offset + 1]))
+
+
+def _beyond_dead_zone(delta: float, dead_zone: float) -> float:
+    """How far `delta` extends past ±dead_zone (0 inside). Continuous at the edge."""
+    if delta > dead_zone:
+        return delta - dead_zone
+    if delta < -dead_zone:
+        return delta + dead_zone
+    return 0.0
 
 
 class Camera:
@@ -74,6 +98,9 @@ class Camera:
 
         # Gravity rotation re-centre
         self._recentre_timer: float = 0.0
+
+        # Running time for smooth shake noise
+        self._time: float = 0.0
 
     # --- Bounds ---
 
@@ -118,14 +145,19 @@ class Camera:
     def _follow(
         self, target_x: float, target_y: float, dt: float, speed: float,
     ) -> None:
-        """Lerp toward target, respecting dead zone."""
-        dx = target_x - self.x
-        dy = target_y - self.y
-        # Dead zone — only follow if outside threshold
-        if abs(dx) > CAMERA_DEAD_ZONE_X:
-            self.x += dx * min(speed * dt, 1.0)
-        if abs(dy) > CAMERA_DEAD_ZONE_Y:
-            self.y += dy * min(speed * dt, 1.0)
+        """Ease toward the target, frame-rate independently, through a window dead zone.
+
+        The camera chases only the part of the offset beyond the dead zone, so
+        following starts from zero speed at the edge (no jolt). During a
+        post-rotation re-centre the dead zone is ignored so the player is truly
+        centred. 1 − e^(−speed·dt) gives the same path at any frame rate.
+        """
+        recentring = self._recentre_timer > 0
+        dz_x = 0.0 if recentring else CAMERA_DEAD_ZONE_X
+        dz_y = 0.0 if recentring else CAMERA_DEAD_ZONE_Y
+        k = 1.0 - math.exp(-speed * dt)
+        self.x += _beyond_dead_zone(target_x - self.x, dz_x) * k
+        self.y += _beyond_dead_zone(target_y - self.y, dz_y) * k
 
     # --- Gravity Rotation ---
 
@@ -174,16 +206,16 @@ class Camera:
         ))
 
     def _update_shake(self, dt: float) -> None:
-        """Tick all active shakes, compute combined offset."""
+        """Tick all active shakes, compute combined offset from smooth noise."""
+        self._time += dt
         ox, oy = 0.0, 0.0
         alive: list[_ShakeInstance] = []
         for s in self._shakes:
             s.remaining -= dt
             if s.remaining > 0:
-                t = s.remaining / s.duration  # 1→0 decay
-                mag = s.intensity * t
-                ox += random.uniform(-mag, mag)
-                oy += random.uniform(-mag, mag)
+                mag = s.intensity * (s.remaining / s.duration)  # linear 1→0 decay
+                ox += mag * _smooth_noise(self._time, s.phases, 0)
+                oy += mag * _smooth_noise(self._time, s.phases, 2)
                 alive.append(s)
         self._shakes = alive
         self._shake_offset_x = ox
@@ -224,7 +256,7 @@ class Camera:
                 self._cinematic_active = False
             return
         diff = self._target_zoom - self._zoom
-        self._zoom += diff * min(CAMERA_ZOOM_SPEED * dt, 1.0)
+        self._zoom += diff * (1.0 - math.exp(-CAMERA_ZOOM_SPEED * dt))  # frame-rate independent
 
     # --- Coordinate Transform ---
 

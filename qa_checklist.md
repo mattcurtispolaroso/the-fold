@@ -241,3 +241,11 @@ Run through this after each coding session. Launch the game with `python main.py
 - [ ] Rotate (R) in a narrow vertical gap: either nudged to fit, or refused with a tiny shake and NO chrono spent / no cooldown
 - [ ] Get pinned between a moving platform and a wall: you reappear at your last safe ground spot (no damage). Design decision pending, see DECISIONS_NEEDED
 - [ ] logs/crash_log.txt shows no "PHYSICS VIOLATION" lines after a normal run (any line there = a geometry/ability bug worth reporting)
+
+### Smoothness (Engine Session 2)
+- [ ] Walk and fall at a steady speed: no periodic hitch/stutter of the player or the background (used to judder ~2-3×/s)
+- [ ] Ride a moving platform: platform and player move together smoothly, no shimmer between them
+- [ ] Respawn after a death / TAB to a new level: the player appears at spawn instantly, no streak across the screen
+- [ ] Camera: starts following smoothly when you walk out of the small dead zone (no jolt); after R it re-centres on you
+- [ ] Screen shake (rotation, hits) reads as a shake, not as random jitter
+- [ ] No screen tearing (vsync on). On a 120/144 Hz external display the game should run at that rate; on the MacBook's own screen it's 60 Hz (macOS limit for OpenGL)
